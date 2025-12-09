@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "npx @react-grab/cursor@latest && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
