@@ -236,7 +236,7 @@ function SignatureBox({ label, name, signature, color }: { label: string; name?:
                 {label}
             </div>
             <div className="rounded-b-md border px-2 py-2 text-[9px] flex flex-col justify-between min-h-[60px]" style={{ borderColor: color, color: color, backgroundColor: '#ffffff' }}>
-                <div className="font-medium text-center truncate">{name || "—"}</div>
+                <div className="font-medium text-center truncate" title={name}>{name || "—"}</div>
                 <div className="mt-1 h-[24px] border-t border-dashed flex items-end justify-center" style={{ borderColor: '#d1d5db' }}>
                     {signature ? (
                         <img src={signature} alt="Firma" className="h-full object-contain" />

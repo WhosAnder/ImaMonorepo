@@ -14,11 +14,29 @@ import {
 import { WarehouseItem } from './warehouseReports.types';
 import { getRequestUser } from '../../middleware/roleGuard';
 
+function formatDate(dateStr: string | undefined): string {
+  if (!dateStr) return '';
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('es-MX', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
 function mapReportToResponse(report: any) {
   const { _id, ...rest } = report;
   return {
     id: _id?.toString(),
     ...rest,
+    // Map fields for list view compatibility
+    fechaEntrega: formatDate(report.fechaHoraEntrega),
+    responsableAlmacen: report.nombreAlmacenista || '',
+    responsableRecepcion: report.nombreQuienRecibe || '',
   };
 }
 
