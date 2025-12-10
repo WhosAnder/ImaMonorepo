@@ -12,6 +12,7 @@ import { WarehouseReportPreview } from '../components/WarehouseReportPreview';
 import { warehouseReportSchema, WarehouseReportFormValues } from '../schemas/warehouseReportSchema';
 import { createWarehouseReport } from '@/api/reportsClient';
 import { Save, Plus, Trash2, Check, ChevronsUpDown } from 'lucide-react';
+import { useAuth } from '@/auth/AuthContext';
 
 const SUBSYSTEMS = [
     'EQUIPO DE GUIA/ TRABAJO DE GUIA',
@@ -27,7 +28,7 @@ const SUBSYSTEMS = [
 
 // Shadcn-like components (internal for now as we don't have the full library)
 const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-    <div className={`rounded-xl border border-gray-200 bg-white text-gray-950 shadow-sm ${className}`}>
+    <div className={`w-full rounded-xl border border-gray-200 bg-white text-gray-950 shadow-sm ${className}`}>
         {children}
     </div>
 );
@@ -83,6 +84,7 @@ Textarea.displayName = "Textarea"
 
 export const NewWarehouseReportPage: React.FC = () => {
     const router = useRouter();
+    const { user } = useAuth();
 
     // Fetch inventory - all active items are available for both sections
     const { data: inventoryItems, isLoading: isLoadingInventory } = useWarehouseItems({ status: 'active' });
@@ -105,6 +107,7 @@ export const NewWarehouseReportPage: React.FC = () => {
             turno: '',
             nombreQuienRecibe: '',
             nombreAlmacenista: '',
+            nombreQuienEntrega: '',
             herramientas: [],
             refacciones: [],
             observacionesGenerales: '',
@@ -133,11 +136,22 @@ export const NewWarehouseReportPage: React.FC = () => {
         }
     }, [fechaHoraEntrega, setValue]);
 
+    useEffect(() => {
+        if (user?.name) {
+            setValue('nombreAlmacenista', user.name, { shouldDirty: false, shouldValidate: true });
+            setValue('nombreQuienEntrega', user.name, { shouldDirty: false });
+        }
+    }, [user?.name, setValue]);
+
     const onSubmit = async (data: WarehouseReportFormValues) => {
         try {
+            const almacenistaName = user?.name ?? data.nombreAlmacenista ?? '';
+            const quienEntregaName = user?.name ?? data.nombreQuienEntrega ?? almacenistaName;
             // Build payload with required fields for the API
             const payload = {
                 ...data,
+                nombreAlmacenista: almacenistaName,
+                nombreQuienEntrega: quienEntregaName,
                 tipoMantenimiento: 'Preventivo', // Default value, could be added to form if needed
             };
 
@@ -165,11 +179,11 @@ export const NewWarehouseReportPage: React.FC = () => {
                     <p className="text-gray-500 mt-2 text-lg">Llena el formato de almacén para registrar la entrega de materiales.</p>
                 </div>
 
-                <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+                <div className="flex flex-col gap-8">
 
-                    {/* Left Column: Form */}
-                    <div>
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                    {/* Form Section */}
+                    <div className="w-full">
+                        <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-6">
 
                             {/* Section 1: Datos Generales */}
                             <Card className="p-6">
@@ -206,7 +220,14 @@ export const NewWarehouseReportPage: React.FC = () => {
                                     </div>
                                     <div>
                                         <Label className="mb-2 block">Nombre almacenista</Label>
-                                        <Input type="text" {...register('nombreAlmacenista')} placeholder="Nombre completo" />
+                                        <Input
+                                            type="text"
+                                            {...register('nombreAlmacenista')}
+                                            placeholder="Nombre completo"
+                                            disabled
+                                            readOnly
+                                            className="bg-gray-50 text-gray-500"
+                                        />
                                         {errors.nombreAlmacenista && <p className="text-red-500 text-xs mt-1">{errors.nombreAlmacenista.message}</p>}
                                     </div>
                                 </div>
@@ -376,45 +397,58 @@ export const NewWarehouseReportPage: React.FC = () => {
                                         />
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pt-4 border-t border-gray-100">
-                                        <div className="space-y-4">
-                                            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Quien Recibe</h3>
-                                            <Controller
-                                                name="firmaQuienRecibe"
-                                                control={control}
-                                                render={({ field }) => (
-                                                    <SignaturePad label="Firma digital" onChange={field.onChange} />
-                                                )}
-                                            />
-                                        </div>
-                                        <div className="space-y-4">
-                                            <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Almacenista</h3>
-                                            <Controller
-                                                name="firmaAlmacenista"
-                                                control={control}
-                                                render={({ field }) => (
-                                                    <SignaturePad label="Firma digital" onChange={field.onChange} />
-                                                )}
-                                            />
-                                        </div>
-                                    </div>
-
-                                    <div className="pt-6 border-t border-gray-100">
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                            <div>
-                                                <Label className="mb-2 block">Nombre quien entrega</Label>
-                                                <Input type="text" {...register('nombreQuienEntrega')} placeholder="Nombre completo" />
-                                            </div>
-                                            <div>
-                                                <Label className="mb-2 block">Firma quien entrega</Label>
+                                    <div className="flex flex-col gap-6 pt-4 border-t border-gray-100">
+                                        <Card className="p-6">
+                                            <div className="space-y-4">
+                                                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-0">Quien Recibe</h3>
                                                 <Controller
-                                                    name="firmaQuienEntrega"
+                                                    name="firmaQuienRecibe"
                                                     control={control}
                                                     render={({ field }) => (
                                                         <SignaturePad label="Firma digital" onChange={field.onChange} />
                                                     )}
                                                 />
                                             </div>
+                                        </Card>
+                                        <Card className="p-6">
+                                            <div className="space-y-4">
+                                                <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-0">Almacenista</h3>
+                                                <Controller
+                                                    name="firmaAlmacenista"
+                                                    control={control}
+                                                    render={({ field }) => (
+                                                        <SignaturePad label="Firma digital" onChange={field.onChange} />
+                                                    )}
+                                                />
+                                            </div>
+                                        </Card>
+                                    </div>
+
+                                    <div className="pt-6 border-t border-gray-100">
+                                        <div className="flex flex-col gap-6">
+                                            <div>
+                                                <Label className="mb-2 block">Nombre quien entrega</Label>
+                                                <Input
+                                                    type="text"
+                                                    {...register('nombreQuienEntrega')}
+                                                    placeholder="Nombre completo"
+                                                    disabled
+                                                    readOnly
+                                                    className="bg-gray-50 text-gray-500"
+                                                />
+                                            </div>
+                                            <Card className="p-6">
+                                                <div className="space-y-4">
+                                                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-0">Firma quien entrega</h3>
+                                                    <Controller
+                                                        name="firmaQuienEntrega"
+                                                        control={control}
+                                                        render={({ field }) => (
+                                                            <SignaturePad label="Firma digital" onChange={field.onChange} />
+                                                        )}
+                                                    />
+                                                </div>
+                                            </Card>
                                         </div>
                                     </div>
                                 </div>
@@ -430,8 +464,8 @@ export const NewWarehouseReportPage: React.FC = () => {
                         </form>
                     </div>
 
-                    {/* Right Column: Preview */}
-                    <div className="hidden lg:block">
+                    {/* Preview Section */}
+                    <div className="w-full">
                         <div className="sticky top-8 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
                             <h3 className="mb-4 text-sm font-medium text-gray-500">Vista previa del reporte</h3>
                             <WarehouseReportPreview values={watchedValues} />
