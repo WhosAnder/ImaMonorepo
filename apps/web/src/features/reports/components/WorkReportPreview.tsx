@@ -1,5 +1,12 @@
 import React from "react";
 
+export type ActivityPreview = {
+  nombre: string;
+  realizado?: boolean;
+  observaciones?: string;
+  evidenciasCount?: number;
+};
+
 export type WorkReportPreviewProps = {
   values: {
     subsistema?: string;
@@ -9,9 +16,7 @@ export type WorkReportPreviewProps = {
     frecuencia?: string;
     trabajadores?: string[];
 
-    inspeccionRealizada?: boolean;
-    observacionesActividad?: string;
-    evidencias?: Array<{ id?: string; url?: string; previewUrl?: string; key?: string } | string>;
+    actividadesRealizadas?: ActivityPreview[];
 
     herramientas?: string[];
     refacciones?: string[];
@@ -31,9 +36,7 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
     turno,
     frecuencia,
     trabajadores,
-    inspeccionRealizada,
-    observacionesActividad,
-    evidencias,
+    actividadesRealizadas,
     herramientas,
     refacciones,
     observacionesGenerales,
@@ -53,25 +56,27 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
     });
   };
 
+  const hasActivities = actividadesRealizadas && actividadesRealizadas.length > 0;
+
   return (
     <div className="rounded-xl border bg-white shadow-sm p-4 sticky top-6">
       <h2 className="mb-3 text-sm font-semibold text-gray-700">
         Vista previa del reporte
       </h2>
 
-      {/* 1. Outer page & frame */}
+      {/* Outer page & frame */}
       <div className="relative mx-auto w-full max-w-[750px] aspect-[8.5/11] bg-[#153A7A] p-4 text-xs leading-relaxed shadow-md overflow-hidden">
         <div className="relative h-full w-full rounded-[24px] border-[3px] border-[#F0493B] bg-[#f5f7ff] overflow-hidden flex flex-col">
-          {/* 2. Watermark - Visible behind content */}
+          {/* Watermark */}
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
             <span className="select-none text-[90px] font-bold text-gray-400/20 rotate-[-25deg] tracking-wider">
               IMA SOLUCIONES
             </span>
           </div>
 
-          {/* Page content - Transparent wrapper */}
+          {/* Page content */}
           <div className="relative z-10 h-full w-full flex flex-col bg-transparent">
-            {/* 3. Header layout */}
+            {/* Header */}
             <div className="flex items-center justify-between px-6 pt-5 pb-3">
               <div className="h-10 w-32 flex items-center justify-start">
                 <img
@@ -80,11 +85,7 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                   className="h-10 w-auto object-contain"
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
-                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
-                    if (fallback) {
-                      fallback.classList.remove("hidden");
-                      fallback.classList.add("flex");
-                    }
+                    e.currentTarget.nextElementSibling?.classList.remove("hidden");
                   }}
                 />
                 <div className="hidden h-10 w-28 bg-[#153A7A] text-white text-xs font-semibold rounded-md items-center justify-center">
@@ -101,14 +102,11 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
             <div className="mx-6 h-[2px] rounded-full bg-[#153A7A]" />
 
             <div className="flex-1 overflow-y-auto">
-              {/* 3. General data section */}
+              {/* General data section */}
               <div className="mt-4 space-y-2 px-6">
                 <div className="grid grid-cols-2 gap-4">
                   <LabeledPill label="SUBSISTEMA" value={subsistema} />
-                  <LabeledPill
-                    label="FECHA Y HORA"
-                    value={formatDate(fechaHoraInicio)}
-                  />
+                  <LabeledPill label="FECHA Y HORA" value={formatDate(fechaHoraInicio)} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <LabeledPill label="UBICACIÓN" value={ubicacion} />
@@ -118,48 +116,57 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                   <LabeledPill label="FRECUENCIA" value={frecuencia} />
                   <LabeledPill
                     label="TRABAJADORES INVOLUCRADOS"
-                    value={
-                      trabajadores && trabajadores.length > 0
-                        ? workersToString(trabajadores)
-                        : undefined
-                    }
+                    value={trabajadores && trabajadores.length > 0 ? workersToString(trabajadores) : undefined}
                   />
                 </div>
               </div>
 
-              {/* 4. Activity section */}
+              {/* Activities Table */}
               <section className="mt-5 px-6">
-                <div className="rounded-t-md bg-[#153A7A] px-3 py-1 text-[9px] font-semibold uppercase tracking-wide text-white">
-                  ACTIVIDAD
+                <div className="rounded-t-md bg-[#153A7A] px-3 py-1 text-[9px] font-semibold uppercase tracking-wide text-white flex">
+                  <span className="flex-1">ACTIVIDAD</span>
+                  <span className="w-12 text-center">SI/NO</span>
+                  <span className="w-24 text-center">OBSERVACIONES</span>
+                  <span className="w-16 text-center">EVIDENCIAS</span>
                 </div>
-                <div className="rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A] space-y-1">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">
-                      ¿Inspección realizada?
-                    </span>
-                    <span className="font-semibold">
-                      {inspeccionRealizada ? "SÍ" : "NO"}
-                    </span>
-                  </div>
-                  <div className="mt-1">
-                    <div className="text-[9px] font-semibold uppercase text-[#777]">
-                      OBSERVACIONES
+                <div className="rounded-b-md border border-[#153A7A] bg-white">
+                  {hasActivities ? (
+                    actividadesRealizadas.map((act, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex items-stretch text-[9px] text-[#153A7A] ${
+                          idx > 0 ? "border-t border-[#d0d5ee]" : ""
+                        }`}
+                      >
+                        <div className="flex-1 px-2 py-2 font-medium">{act.nombre}</div>
+                        <div className="w-12 px-1 py-2 flex items-center justify-center border-l border-[#d0d5ee]">
+                          <span className={`px-1 py-0.5 rounded text-[8px] font-bold ${
+                            act.realizado ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                          }`}>
+                            {act.realizado ? "SÍ" : "NO"}
+                          </span>
+                        </div>
+                        <div className="w-24 px-1 py-1 border-l border-[#d0d5ee] text-[8px] overflow-hidden">
+                          {act.observaciones && act.observaciones.trim() ? (
+                            <span className="line-clamp-2">{act.observaciones}</span>
+                          ) : (
+                            <span className="text-gray-400 italic">—</span>
+                          )}
+                        </div>
+                        <div className="w-16 px-1 py-2 flex items-center justify-center border-l border-[#d0d5ee]">
+                          <span className="text-[8px]">{act.evidenciasCount ?? 0}</span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="px-3 py-4 text-center text-[9px] text-gray-400 italic">
+                      No hay actividades seleccionadas
                     </div>
-                    <div className="min-h-[40px] rounded border border-[#d0d5ee] bg-white px-2 py-1 whitespace-pre-wrap">
-                      {observacionesActividad &&
-                      observacionesActividad.trim().length > 0
-                        ? observacionesActividad
-                        : "—"}
-                    </div>
-                  </div>
-                  <div className="mt-1 flex justify-between text-[9px] text-[#555]">
-                    <span>Evidencias adjuntas:</span>
-                    <span>{evidencias?.length ?? 0} / 5</span>
-                  </div>
+                  )}
                 </div>
               </section>
 
-              {/* 5. Tools and spare parts sections */}
+              {/* Tools and spare parts */}
               <section className="mt-5 px-6">
                 <div className="grid grid-cols-2 gap-4">
                   {/* HERRAMIENTAS */}
@@ -167,7 +174,7 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                     <div className="rounded-t-md bg-[#153A7A] px-3 py-1 text-[9px] font-semibold uppercase tracking-wide text-white">
                       HERRAMIENTAS UTILIZADAS
                     </div>
-                    <div className="min-h-[70px] rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A]">
+                    <div className="min-h-[50px] rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A]">
                       {herramientas && herramientas.length > 0 ? (
                         <ul className="list-disc pl-4">
                           {herramientas.map((tool) => (
@@ -175,7 +182,7 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                           ))}
                         </ul>
                       ) : (
-                        "Ninguna"
+                        <span className="text-gray-400 italic">Ninguna</span>
                       )}
                     </div>
                   </div>
@@ -185,7 +192,7 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                     <div className="rounded-t-md bg-[#153A7A] px-3 py-1 text-[9px] font-semibold uppercase tracking-wide text-white">
                       REFACCIONES UTILIZADAS
                     </div>
-                    <div className="min-h-[70px] rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A]">
+                    <div className="min-h-[50px] rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A]">
                       {refacciones && refacciones.length > 0 ? (
                         <ul className="list-disc pl-4">
                           {refacciones.map((item) => (
@@ -193,23 +200,22 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                           ))}
                         </ul>
                       ) : (
-                        "Ninguna"
+                        <span className="text-gray-400 italic">Ninguna</span>
                       )}
                     </div>
                   </div>
                 </div>
               </section>
 
-              {/* 6. Observaciones generales */}
+              {/* Observaciones generales */}
               <section className="mt-5 px-6">
                 <div className="rounded-t-md bg-[#153A7A] px-3 py-1 text-[9px] font-semibold uppercase tracking-wide text-white">
                   OBSERVACIONES GENERALES
                 </div>
-                <div className="min-h-[80px] rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A] whitespace-pre-wrap">
-                  {observacionesGenerales &&
-                  observacionesGenerales.trim().length > 0
+                <div className="min-h-[50px] rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A] whitespace-pre-wrap">
+                  {observacionesGenerales && observacionesGenerales.trim().length > 0
                     ? observacionesGenerales
-                    : "—"}
+                    : <span className="text-gray-400 italic">—</span>}
                 </div>
               </section>
 
@@ -221,18 +227,11 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                     <div className="rounded-t-md bg-[#153A7A] px-3 py-1 text-[9px] font-semibold uppercase tracking-wide text-white">
                       NOMBRE Y FIRMA DE SUPERVISOR
                     </div>
-                    <div className="rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A] flex flex-col justify-between min-h-[60px]">
-                      <div className="font-medium">
-                        {nombreResponsable || "—"}
-                      </div>
-                      <div className="mt-2 h-[24px] border-t border-dashed border-[#999] flex items-end justify-center">
-                        {/* optional tiny signature preview */}
+                    <div className="rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A] flex flex-col justify-between min-h-[50px]">
+                      <div className="font-medium">{nombreResponsable || "—"}</div>
+                      <div className="mt-2 h-[20px] border-t border-dashed border-[#999] flex items-end justify-center">
                         {firmaResponsable && (
-                          <img
-                            src={firmaResponsable}
-                            alt="Firma"
-                            className="h-6 object-contain"
-                          />
+                          <img src={firmaResponsable} alt="Firma" className="h-5 object-contain" />
                         )}
                       </div>
                     </div>
@@ -243,7 +242,7 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                     <div className="rounded-t-md bg-[#153A7A] px-3 py-1 text-[9px] font-semibold uppercase tracking-wide text-white">
                       FECHA Y HORA DE TÉRMINO
                     </div>
-                    <div className="rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A] min-h-[60px] flex items-center justify-center font-medium">
+                    <div className="rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A] min-h-[50px] flex items-center justify-center font-medium">
                       {fechaHoraTermino ? formatDate(fechaHoraTermino) : "—"}
                     </div>
                   </div>
@@ -270,7 +269,7 @@ function LabeledPill({ label, value }: { label: string; value?: string }) {
   );
 }
 
-// Helpers for formatting mock values
+// Helpers
 function workersToString(workers: string[]) {
   return workers
     .map((w) => w.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()))
