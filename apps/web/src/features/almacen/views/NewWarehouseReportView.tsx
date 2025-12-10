@@ -12,6 +12,7 @@ import { WarehouseReportPreview } from '../components/WarehouseReportPreview';
 import { warehouseReportSchema, WarehouseReportFormValues } from '../schemas/warehouseReportSchema';
 import { createWarehouseReport } from '@/api/reportsClient';
 import { Save, Plus, Trash2, Check, ChevronsUpDown } from 'lucide-react';
+import { useAuth } from '@/auth/AuthContext';
 
 const SUBSYSTEMS = [
     'EQUIPO DE GUIA/ TRABAJO DE GUIA',
@@ -83,6 +84,7 @@ Textarea.displayName = "Textarea"
 
 export const NewWarehouseReportPage: React.FC = () => {
     const router = useRouter();
+    const { user } = useAuth();
 
     // Fetch inventory - all active items are available for both sections
     const { data: inventoryItems, isLoading: isLoadingInventory } = useWarehouseItems({ status: 'active' });
@@ -105,6 +107,7 @@ export const NewWarehouseReportPage: React.FC = () => {
             turno: '',
             nombreQuienRecibe: '',
             nombreAlmacenista: '',
+            nombreQuienEntrega: '',
             herramientas: [],
             refacciones: [],
             observacionesGenerales: '',
@@ -133,11 +136,22 @@ export const NewWarehouseReportPage: React.FC = () => {
         }
     }, [fechaHoraEntrega, setValue]);
 
+    useEffect(() => {
+        if (user?.name) {
+            setValue('nombreAlmacenista', user.name, { shouldDirty: false, shouldValidate: true });
+            setValue('nombreQuienEntrega', user.name, { shouldDirty: false });
+        }
+    }, [user?.name, setValue]);
+
     const onSubmit = async (data: WarehouseReportFormValues) => {
         try {
+            const almacenistaName = user?.name ?? data.nombreAlmacenista ?? '';
+            const quienEntregaName = user?.name ?? data.nombreQuienEntrega ?? almacenistaName;
             // Build payload with required fields for the API
             const payload = {
                 ...data,
+                nombreAlmacenista: almacenistaName,
+                nombreQuienEntrega: quienEntregaName,
                 tipoMantenimiento: 'Preventivo', // Default value, could be added to form if needed
             };
 
@@ -206,7 +220,14 @@ export const NewWarehouseReportPage: React.FC = () => {
                                     </div>
                                     <div>
                                         <Label className="mb-2 block">Nombre almacenista</Label>
-                                        <Input type="text" {...register('nombreAlmacenista')} placeholder="Nombre completo" />
+                                        <Input
+                                            type="text"
+                                            {...register('nombreAlmacenista')}
+                                            placeholder="Nombre completo"
+                                            disabled
+                                            readOnly
+                                            className="bg-gray-50 text-gray-500"
+                                        />
                                         {errors.nombreAlmacenista && <p className="text-red-500 text-xs mt-1">{errors.nombreAlmacenista.message}</p>}
                                     </div>
                                 </div>
@@ -403,7 +424,14 @@ export const NewWarehouseReportPage: React.FC = () => {
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                             <div>
                                                 <Label className="mb-2 block">Nombre quien entrega</Label>
-                                                <Input type="text" {...register('nombreQuienEntrega')} placeholder="Nombre completo" />
+                                                <Input
+                                                    type="text"
+                                                    {...register('nombreQuienEntrega')}
+                                                    placeholder="Nombre completo"
+                                                    disabled
+                                                    readOnly
+                                                    className="bg-gray-50 text-gray-500"
+                                                />
                                             </div>
                                             <div>
                                                 <Label className="mb-2 block">Firma quien entrega</Label>
