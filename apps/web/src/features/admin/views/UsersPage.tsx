@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Button } from "@/shared/ui/Button";
-import { Plus, Pencil, Trash2, X, Ban, CheckCircle, UserCheck } from "lucide-react";
+import { Plus, Pencil, Trash2, X, Ban, CheckCircle, UserCheck, RefreshCcw, Copy } from "lucide-react";
 import type { UserRole } from "@/features/auth/types/roles";
 import { ROLE_LABELS } from "@/features/auth/types/roles";
 import {
@@ -14,6 +14,7 @@ import {
   useBanUser,
   useUnbanUser,
   useImpersonateUser,
+  useResetUserPassword,
 } from "@/hooks/useAdminUsers";
 
 // User type from BetterAuth admin plugin
@@ -36,9 +37,12 @@ export const UsersPage: React.FC = () => {
   const banMutation = useBanUser();
   const unbanMutation = useUnbanUser();
   const impersonateMutation = useImpersonateUser();
+  const resetPasswordMutation = useResetUserPassword();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<BetterAuthUser | null>(null);
+  const [resetResult, setResetResult] = useState<{ user: BetterAuthUser; tempPassword: string } | null>(null);
+  const [copied, setCopied] = useState(false);
 
   // Form state
   const [name, setName] = useState("");
@@ -106,6 +110,33 @@ export const UsersPage: React.FC = () => {
       await unbanMutation.mutateAsync(user.id);
     } else {
       await banMutation.mutateAsync({ userId: user.id, banReason: "Desactivado por admin" });
+    }
+  };
+
+  const handleResetPassword = async (user: BetterAuthUser) => {
+    const confirmReset = confirm(
+      `¿Seguro que quieres reiniciar la contraseña de ${user.name}? Se generará una contraseña temporal.`,
+    );
+    if (!confirmReset) {
+      return;
+    }
+    try {
+      const result = await resetPasswordMutation.mutateAsync(user.id);
+      setResetResult({ user, tempPassword: result.tempPassword });
+      setCopied(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "No se pudo reiniciar la contraseña");
+    }
+  };
+
+  const handleCopyPassword = async () => {
+    if (!resetResult) return;
+    try {
+      await navigator.clipboard.writeText(resetResult.tempPassword);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
     }
   };
 
@@ -212,6 +243,15 @@ export const UsersPage: React.FC = () => {
                     title="Eliminar"
                   >
                     <Trash2 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleResetPassword(user)}
+                    className="text-indigo-600 hover:text-indigo-900 mr-3 inline-flex items-center gap-1"
+                    title="Reiniciar contraseña"
+                    disabled={resetPasswordMutation.isPending}
+                  >
+                    <RefreshCcw className="w-4 h-4" />
+                    <span className="hidden xl:inline">Reiniciar</span>
                   </button>
                   {user.role !== "admin" && (
                     <button
@@ -321,6 +361,41 @@ export const UsersPage: React.FC = () => {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {resetResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
+            <div className="flex justify-between items-center p-6 border-b">
+              <h3 className="text-lg font-medium text-gray-900">Contraseña temporal generada</h3>
+              <button
+                onClick={() => setResetResult(null)}
+                className="text-gray-400 hover:text-gray-500"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-gray-600">
+                Comparte esta contraseña temporal con <span className="font-semibold">{resetResult.user.name}</span> ({resetResult.user.email}). 
+                El usuario deberá cambiarla al iniciar sesión.
+              </p>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex items-center justify-between">
+                <code className="text-lg font-mono tracking-wide">{resetResult.tempPassword}</code>
+                <button
+                  className="ml-4 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                  onClick={handleCopyPassword}
+                >
+                  <Copy className="w-4 h-4" />
+                  {copied ? "Copiado" : "Copiar"}
+                </button>
+              </div>
+              <div className="flex justify-end pt-2">
+                <Button onClick={() => setResetResult(null)}>Entendido</Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

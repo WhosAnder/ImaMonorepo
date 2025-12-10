@@ -11,7 +11,7 @@ export type LoginResponse = {
   role: string;
   name: string;
   active: boolean;
-  mustChangePassword?: boolean;
+  mustChangePassword: boolean;
 };
 
 export type RegisterRequest = {
