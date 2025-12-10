@@ -5,7 +5,8 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/shared/ui/Button';
 import { AppLayout } from '@/shared/layout/AppLayout';
 import { WarehouseReportPreview } from '../components/WarehouseReportPreview';
-import { ArrowLeft } from 'lucide-react';
+import { generatePDFReport } from '../helpers/generate-pdf';
+import { ArrowLeft, DownloadIcon } from 'lucide-react';
 import { useWarehouseReportQuery } from '@/hooks/useWarehouseReports';
 
 export const WarehouseReportDetailPage: React.FC = () => {
@@ -65,6 +66,7 @@ export const WarehouseReportDetailPage: React.FC = () => {
                         <WarehouseReportPreview values={report} />
                     </div>
                 </div>
+                <Button variant="secondary" onClick={() => generatePDFReport(report as any)}>Descargar PDF <DownloadIcon className="h-4 w-4 ml-2" /></Button>
             </div>
         </AppLayout>
     );
