@@ -31,8 +31,10 @@ export async function login(payload: LoginRequest): Promise<LoginResponse> {
   });
 
   if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error || "Error al iniciar sesión");
+    if (response.status === 401) {
+      throw new Error("Correo o contraseña incorrectos");
+    }
+    throw new Error("No pudimos iniciar sesión. Inténtalo nuevamente.");
   }
 
   return response.json();
