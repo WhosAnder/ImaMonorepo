@@ -4,8 +4,9 @@ import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/shared/ui/Button';
 import { AppLayout } from '@/shared/layout/AppLayout';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, DownloadIcon } from 'lucide-react';
 import { WorkReportPreview } from '../components/WorkReportPreview';
+import { generateWorkReportPDF } from '../helpers/generate-pdf';
 import { useWorkReportQuery } from '@/hooks/useWorkReports';
 
 export const WorkReportDetailPage: React.FC = () => {
@@ -46,6 +47,9 @@ export const WorkReportDetailPage: React.FC = () => {
                 </div>
 
                 <WorkReportPreview values={report} />
+                <Button variant="secondary" onClick={() => generateWorkReportPDF(report as any)}>
+                    Descargar PDF <DownloadIcon className="h-4 w-4 ml-2" />
+                </Button>
             </div>
         </AppLayout>
     );

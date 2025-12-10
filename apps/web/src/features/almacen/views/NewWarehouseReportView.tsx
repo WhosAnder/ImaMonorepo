@@ -10,6 +10,7 @@ import { SignaturePad } from '@/shared/ui/SignaturePad';
 import { ImageUpload } from '@/shared/ui/ImageUpload';
 import { WarehouseReportPreview } from '../components/WarehouseReportPreview';
 import { warehouseReportSchema, WarehouseReportFormValues } from '../schemas/warehouseReportSchema';
+import { createWarehouseReport } from '@/api/reportsClient';
 import { Save, Plus, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 
 const SUBSYSTEMS = [
@@ -83,14 +84,11 @@ Textarea.displayName = "Textarea"
 export const NewWarehouseReportPage: React.FC = () => {
     const router = useRouter();
 
-    // Fetch inventory
-    const { data: inventoryItems } = useWarehouseItems({ status: 'active' });
-    const herramientasOptions = inventoryItems?.filter(i =>
-        i.category?.toLowerCase() === 'herramientas'
-    ) || [];
-    const refaccionesOptions = inventoryItems?.filter(i =>
-        i.category?.toLowerCase() === 'refacciones'
-    ) || [];
+    // Fetch inventory - all active items are available for both sections
+    const { data: inventoryItems, isLoading: isLoadingInventory } = useWarehouseItems({ status: 'active' });
+    // Note: If categories are added to warehouse items in the future, 
+    // you can filter here: inventoryItems?.filter(i => i.category?.toLowerCase() === 'herramientas')
+    const inventoryOptions = inventoryItems || [];
 
     const {
         register,
@@ -136,21 +134,22 @@ export const NewWarehouseReportPage: React.FC = () => {
     }, [fechaHoraEntrega, setValue]);
 
     const onSubmit = async (data: WarehouseReportFormValues) => {
-        // Auto-set end time
-        const now = new Date();
-        const offset = now.getTimezoneOffset() * 60000;
-        const localISOTime = (new Date(now.getTime() - offset)).toISOString().slice(0, 16);
+        try {
+            // Build payload with required fields for the API
+            const payload = {
+                ...data,
+                tipoMantenimiento: 'Preventivo', // Default value, could be added to form if needed
+            };
 
-        // We might need to add fechaHoraTermino to the schema/types if it's not there, 
-        // but assuming it's part of the standard report structure.
-        // For now, I'll log it as simulated save.
-        const payload = {
-            ...data,
-            fechaHoraTermino: localISOTime
-        };
+            const result = await createWarehouseReport(payload);
+            console.log("Warehouse report created:", result);
 
-        console.log("Simulating save with data:", payload);
-        alert("Simulación: El reporte se generaría correctamente (Guardado deshabilitado).");
+            // Redirect to reports list on success
+            router.push('/almacen');
+        } catch (error) {
+            console.error("Error creating warehouse report:", error);
+            alert(`Error al crear el reporte: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+        }
     };
 
     // Watch values for preview
@@ -239,7 +238,7 @@ export const NewWarehouseReportPage: React.FC = () => {
                                                     <Label className="mb-1.5 block text-xs text-gray-500">Herramienta</Label>
                                                     <Select {...register(`herramientas.${index}.name`)} className="h-9">
                                                         <option value="">Seleccionar...</option>
-                                                        {herramientasOptions.map(item => (
+                                                        {inventoryOptions.map((item) => (
                                                             <option key={item._id} value={item.name}>
                                                                 {item.name} (Stock: {item.quantityOnHand})
                                                             </option>
@@ -313,7 +312,7 @@ export const NewWarehouseReportPage: React.FC = () => {
                                                     <Label className="mb-1.5 block text-xs text-gray-500">Refacción</Label>
                                                     <Select {...register(`refacciones.${index}.name`)} className="h-9">
                                                         <option value="">Seleccionar...</option>
-                                                        {refaccionesOptions.map(item => (
+                                                        {inventoryOptions.map((item) => (
                                                             <option key={item._id} value={item.name}>
                                                                 {item.name} (Stock: {item.quantityOnHand})
                                                             </option>
