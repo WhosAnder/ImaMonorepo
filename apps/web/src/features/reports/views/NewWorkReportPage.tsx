@@ -198,204 +198,237 @@ export const NewWorkReportPage: React.FC = () => {
     refacciones: watchedValues.refacciones,
   };
 
+  const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all";
+  const labelClass = "block text-sm font-medium text-gray-700 mb-1";
+  const sectionHeaderClass = "flex items-center gap-3 mb-6";
+  const numberBadgeClass = "w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-sm";
+  const sectionTitleClass = "text-lg font-semibold text-gray-800";
+
   return (
-    <div className="min-h-screen bg-gray-100 py-8 px-4 sm:px-6 lg:px-8 font-sans">
+    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-[1600px] mx-auto">
+
+        {/* Page Header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Formato de trabajo</h1>
+          <p className="text-gray-500 mt-1">Llena el formato de trabajo para registrar la actividad realizada.</p>
+        </div>
 
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
 
           {/* Left Column: Form */}
-          <div className="bg-white rounded-lg shadow-xl overflow-hidden border-4 border-blue-900">
-            {/* Header */}
-            <div className="bg-white p-6 border-b-4 border-blue-900 flex flex-col md:flex-row justify-between items-center gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-48 h-16 bg-gray-200 flex items-center justify-center text-gray-400 font-bold italic">
-                  LOGO IMA
+          <div className="space-y-6">
+
+            {/* Phase 1: Selection */}
+            {!selectedTemplate && (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className={sectionHeaderClass}>
+                  <div className={numberBadgeClass}>1</div>
+                  <h2 className={sectionTitleClass}>Selección de Actividad</h2>
                 </div>
-              </div>
-              <div className="text-right">
-                <h1 className="text-2xl font-bold text-blue-900 uppercase tracking-wide">Formato de trabajo proyecto</h1>
-                <h2 className="text-xl font-bold text-blue-900 uppercase tracking-wide">AEROTREN AICM</h2>
-              </div>
-            </div>
 
-            <div className="p-6 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className={labelClass}>Subsistema</label>
+                    <select
+                      {...register('subsistema')}
+                      className={inputClass}
+                      disabled={isLoadingFilters}
+                    >
+                      <option value="">Seleccionar...</option>
+                      {subsystems.map(sub => (
+                        <option key={sub} value={sub}>{sub}</option>
+                      ))}
+                    </select>
+                  </div>
 
-              {/* Phase 1: Selection */}
-              {!selectedTemplate && (
-                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <h2 className="text-xl font-bold text-gray-800 border-b pb-2">Selección de Actividad</h2>
+                  <div>
+                    <label className={labelClass}>Frecuencia</label>
+                    <select
+                      {...register('frecuencia')}
+                      className={inputClass}
+                      disabled={!subsistema || isLoadingFreq}
+                    >
+                      <option value="">{subsistema ? 'Seleccionar...' : 'Selecciona un subsistema'}</option>
+                      {frequencies.map(freq => (
+                        <option key={freq.code} value={freq.code}>{freq.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {subsistema && frecuencia && (
+                  <div className="mt-8">
+                    <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider mb-4">Actividades Disponibles</h3>
+                    {isLoadingActivities ? (
+                      <div className="text-center py-8 text-gray-500">Cargando actividades...</div>
+                    ) : activities && activities.length > 0 ? (
+                      <div className="grid gap-3">
+                        {activities.map((activity) => (
+                          <button
+                            key={activity.id}
+                            type="button"
+                            onClick={() => handleSelectActivity(activity)}
+                            className="text-left w-full p-4 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all group bg-white shadow-sm"
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium text-gray-800 group-hover:text-blue-700">{activity.name}</span>
+                              <span className="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded">{activity.code}</span>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">{activity.template.tipoMantenimiento}</p>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-200 rounded-lg">
+                        No se encontraron actividades para esta selección.
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Phase 2: Form */}
+            {selectedTemplate && (
+              <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
+
+                <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                  <div className="flex items-center gap-3">
+                    <Button type="button" variant="ghost" size="sm" onClick={handleBackToSelection} className="text-gray-500 hover:text-gray-900">
+                      <ArrowLeft className="w-4 h-4" />
+                    </Button>
+                    <div>
+                      <span className="block text-xs text-gray-500 uppercase tracking-wide">Actividad seleccionada</span>
+                      <span className="font-bold text-gray-900">{selectedTemplate.nombreCorto || selectedTemplate.descripcion}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 1. Datos Generales */}
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                  <div className={sectionHeaderClass}>
+                    <div className={numberBadgeClass}>1</div>
+                    <h2 className={sectionTitleClass}>Datos generales</h2>
+                  </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Subsistema</label>
-                      <select
-                        {...register('subsistema')}
-                        className="w-full border-2 border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:border-blue-500"
-                        disabled={isLoadingFilters}
-                      >
-                        <option value="">Seleccionar...</option>
-                        {subsystems.map(sub => (
-                          <option key={sub} value={sub}>{sub}</option>
-                        ))}
-                      </select>
+                      <label className={labelClass}>Subsistema</label>
+                      <div className="relative">
+                        <select {...register('subsistema')} className={`${inputClass} appearance-none bg-gray-50`} disabled>
+                          <option value={subsistema}>{subsistema}</option>
+                        </select>
+                      </div>
                     </div>
-
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Frecuencia</label>
-                      <select
-                        {...register('frecuencia')}
-                        className="w-full border-2 border-gray-300 rounded-md py-2 px-3 focus:outline-none focus:border-blue-500"
-                        disabled={!subsistema || isLoadingFreq}
-                      >
-                        <option value="">{subsistema ? 'Seleccionar...' : 'Selecciona un subsistema'}</option>
-                        {frequencies.map(freq => (
-                          <option key={freq.code} value={freq.code}>{freq.label}</option>
-                        ))}
+                      <label className={labelClass}>Ubicación</label>
+                      <input type="text" {...register('ubicacion')} className={inputClass} placeholder="Ej. Estación A - Andén 2" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Fecha y hora de inicio</label>
+                      <input type="datetime-local" {...register('fechaHoraInicio')} className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Turno</label>
+                      <input type="text" {...register('turno')} readOnly className={`${inputClass} bg-gray-50`} />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Frecuencia</label>
+                      <select {...register('frecuencia')} className={`${inputClass} appearance-none bg-gray-50`} disabled>
+                        <option value={frecuencia}>{frequencies.find(f => f.code === frecuencia)?.label || frecuencia}</option>
                       </select>
                     </div>
-                  </div>
-
-                  {subsistema && frecuencia && (
-                    <div className="mt-8">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4">Actividades Programadas</h3>
-                      {isLoadingActivities ? (
-                        <div className="text-center py-8 text-gray-500">Cargando actividades...</div>
-                      ) : activities && activities.length > 0 ? (
-                        <div className="grid gap-4">
-                          {activities.map((activity) => (
-                            <button
-                              key={activity.id}
-                              type="button"
-                              onClick={() => handleSelectActivity(activity)}
-                              className="text-left w-full p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all group"
-                            >
-                              <div className="flex justify-between items-center">
-                                <span className="font-medium text-lg text-gray-800 group-hover:text-blue-700">{activity.name}</span>
-                                <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">{activity.code}</span>
-                              </div>
-                              <p className="text-sm text-gray-500 mt-1">{activity.template.tipoMantenimiento}</p>
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center py-8 text-gray-500 border-2 border-dashed border-gray-300 rounded-lg">
-                          No se encontraron actividades para esta selección.
-                        </div>
-                      )}
+                    <div className="md:col-span-2">
+                      <label className={labelClass}>Trabajadores</label>
+                      <Controller
+                        name="trabajadores"
+                        control={control}
+                        render={({ field }) => (
+                          <MultiSelect
+                            options={mockWorkers}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder="Seleccionar..."
+                            className="border-gray-300 rounded-lg"
+                          />
+                        )}
+                      />
                     </div>
-                  )}
+                  </div>
                 </div>
-              )}
 
-              {/* Phase 2: Form */}
-              {selectedTemplate && (
-                <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
+                {/* 2. Actividad */}
+                {selectedTemplate.secciones?.actividad?.enabled && (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div className={sectionHeaderClass}>
+                      <div className={numberBadgeClass}>2</div>
+                      <h2 className={sectionTitleClass}>Actividad</h2>
+                    </div>
 
-                  <div className="flex items-center justify-between mb-6">
-                    <Button type="button" variant="ghost" onClick={handleBackToSelection} className="text-gray-600 hover:text-gray-900">
-                      <ArrowLeft className="w-4 h-4 mr-2" /> Volver a selección
-                    </Button>
-                    <div className="text-right">
-                      <span className="block text-sm text-gray-500">Actividad seleccionada:</span>
-                      <span className="font-bold text-blue-900">{selectedTemplate.nombreCorto || selectedTemplate.descripcion}</span>
-                    </div>
-                  </div>
-
-                  {/* General Info (Always Visible) */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
-                    <div className="flex items-center">
-                      <label className="w-32 bg-blue-900 text-white font-bold py-2 px-3 rounded-l-md text-sm uppercase">Subsistema</label>
-                      <input type="text" value={subsistema} readOnly className="flex-1 border-2 border-blue-200 rounded-r-md py-2 px-3 bg-gray-50" />
-                    </div>
-                    <div className="flex items-center">
-                      <label className="w-32 bg-blue-900 text-white font-bold py-2 px-3 rounded-l-md text-sm uppercase">Fecha Inicio</label>
-                      <input type="datetime-local" {...register('fechaHoraInicio')} className="flex-1 border-2 border-blue-200 rounded-r-md py-2 px-3 focus:outline-none focus:border-blue-500" />
-                    </div>
-                    <div className="flex items-center">
-                      <label className="w-32 bg-blue-900 text-white font-bold py-2 px-3 rounded-l-md text-sm uppercase">Ubicación</label>
-                      <input type="text" {...register('ubicacion')} className="flex-1 border-2 border-blue-200 rounded-r-md py-2 px-3 focus:outline-none focus:border-blue-500" />
-                    </div>
-                    <div className="flex items-center">
-                      <label className="w-32 bg-blue-900 text-white font-bold py-2 px-3 rounded-l-md text-sm uppercase">Turno</label>
-                      <input type="text" {...register('turno')} readOnly className="flex-1 border-2 border-blue-200 rounded-r-md py-2 px-3 bg-gray-50" />
-                    </div>
-                    <div className="flex flex-col gap-1 md:col-span-2">
-                      <label className="bg-blue-900 text-white font-bold py-1 px-3 rounded-t-md text-sm uppercase w-full">Trabajadores Involucrados:</label>
-                      <div className="border-2 border-blue-200 rounded-b-md">
-                        <Controller
-                          name="trabajadores"
-                          control={control}
-                          render={({ field }) => (
-                            <MultiSelect
-                              options={mockWorkers}
-                              value={field.value}
-                              onChange={field.onChange}
-                              placeholder="Seleccionar..."
-                              className="border-0 shadow-none"
+                    <div className="space-y-6">
+                      {fields.map((field, index) => (
+                        <div key={field.id} className="space-y-4">
+                          <div className="flex items-center gap-3">
+                            <Controller
+                              name={`actividadesRealizadas.${index}.realizado`}
+                              control={control}
+                              render={({ field: { value, onChange } }) => (
+                                <div className="flex items-center gap-3">
+                                  <input
+                                    type="checkbox"
+                                    id={`check-${index}`}
+                                    checked={value}
+                                    onChange={(e) => onChange(e.target.checked)}
+                                    className="w-5 h-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                  />
+                                  <label htmlFor={`check-${index}`} className="text-gray-700 font-medium cursor-pointer">
+                                    Inspección realizada
+                                  </label>
+                                </div>
+                              )}
                             />
-                          )}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                          </div>
 
-                  {/* Dynamic Sections based on Template */}
-
-                  {/* Actividad Section */}
-                  {selectedTemplate.secciones?.actividad?.enabled && (
-                    <div className="mt-8">
-                      <div className="grid grid-cols-[2fr_0.5fr_1.5fr_1fr] gap-2 mb-2">
-                        <div className="bg-blue-900 text-white font-bold py-2 px-4 rounded-md uppercase text-center">Actividad</div>
-                        <div className="bg-blue-900 text-white font-bold py-2 px-4 rounded-md uppercase text-center">SI/NO</div>
-                        <div className="bg-blue-900 text-white font-bold py-2 px-4 rounded-md uppercase text-center">Observaciones</div>
-                        <div className="bg-blue-900 text-white font-bold py-2 px-4 rounded-md uppercase text-center">Evidencias</div>
-                      </div>
-                      <div className="space-y-4">
-                        {fields.map((field, index) => (
-                          <div key={field.id} className="grid grid-cols-[2fr_0.5fr_1.5fr_1fr] gap-2 items-start">
-                            <div className="border-2 border-blue-200 rounded-md p-3 min-h-[100px] flex items-center bg-white">
-                              <span className="font-medium text-gray-800">{selectedTemplate.nombreCorto || selectedTemplate.descripcion}</span>
-                            </div>
-                            <div className="border-2 border-blue-200 rounded-md p-3 min-h-[100px] flex items-center justify-center bg-white">
-                              <Controller
-                                name={`actividadesRealizadas.${index}.realizado`}
-                                control={control}
-                                render={({ field: { value, onChange } }) => (
-                                  <button
-                                    type="button"
-                                    onClick={() => onChange(!value)}
-                                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-colors ${value ? 'bg-green-500 text-white' : 'bg-gray-200 text-gray-400'}`}
-                                  >
-                                    {value ? <Check className="w-8 h-8" /> : <X className="w-8 h-8" />}
-                                  </button>
-                                )}
+                          {/* Observaciones & Evidencias (Conditional on checked? Or always visible? Let's keep always visible for now but maybe styled cleaner) */}
+                          <div className="pl-8 space-y-4">
+                            <div>
+                              <label className={labelClass}>Observaciones</label>
+                              <textarea
+                                {...register(`actividadesRealizadas.${index}.observaciones`)}
+                                className={inputClass}
+                                rows={3}
+                                placeholder="Escribe tus observaciones aquí..."
                               />
                             </div>
-                            <div className="border-2 border-blue-200 rounded-md min-h-[100px] bg-white">
-                              <textarea {...register(`actividadesRealizadas.${index}.observaciones`)} className="w-full h-full p-3 resize-none focus:outline-none rounded-md" placeholder="Observaciones..." />
-                            </div>
-                            <div className="border-2 border-blue-200 rounded-md min-h-[100px] p-2 bg-white flex flex-col justify-center">
+                            <div>
                               <Controller
                                 name={`actividadesRealizadas.${index}.evidencias`}
                                 control={control}
                                 render={({ field }) => (
-                                  <ImageUpload onChange={field.onChange} compact />
+                                  <ImageUpload label="Evidencias adjuntas" onChange={field.onChange} compact />
                                 )}
                               />
                             </div>
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {/* Tools & Parts */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-                    {selectedTemplate.secciones?.herramientas?.enabled && (
-                      <div>
-                        <div className="bg-blue-900 text-white font-bold py-2 px-4 rounded-t-md uppercase text-center">Herramientas Utilizadas:</div>
-                        <div className="border-2 border-blue-200 rounded-b-md p-4 bg-white min-h-[150px]">
+                {/* 3. Herramientas y refacciones */}
+                {(selectedTemplate.secciones?.herramientas?.enabled || selectedTemplate.secciones?.refacciones?.enabled) && (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div className={sectionHeaderClass}>
+                      <div className={numberBadgeClass}>3</div>
+                      <h2 className={sectionTitleClass}>Herramientas y refacciones</h2>
+                    </div>
+
+                    <div className="space-y-6">
+                      {selectedTemplate.secciones?.herramientas?.enabled && (
+                        <div>
+                          <label className={labelClass}>Herramientas utilizadas</label>
                           <Controller
                             name="herramientas"
                             control={control}
@@ -404,18 +437,16 @@ export const NewWorkReportPage: React.FC = () => {
                                 options={toolsOptions}
                                 value={field.value || []}
                                 onChange={field.onChange}
-                                placeholder="Seleccionar..."
-                                className="border-0 shadow-none"
+                                placeholder="Seleccionar herramientas..."
+                                className="border-gray-300 rounded-lg"
                               />
                             )}
                           />
                         </div>
-                      </div>
-                    )}
-                    {selectedTemplate.secciones?.refacciones?.enabled && (
-                      <div>
-                        <div className="bg-blue-900 text-white font-bold py-2 px-4 rounded-t-md uppercase text-center">Refacciones Utilizadas:</div>
-                        <div className="border-2 border-blue-200 rounded-b-md p-4 bg-white min-h-[150px]">
+                      )}
+                      {selectedTemplate.secciones?.refacciones?.enabled && (
+                        <div>
+                          <label className={labelClass}>Refacciones utilizadas</label>
                           <Controller
                             name="refacciones"
                             control={control}
@@ -424,78 +455,86 @@ export const NewWorkReportPage: React.FC = () => {
                                 options={partsOptions}
                                 value={field.value || []}
                                 onChange={field.onChange}
-                                placeholder="Seleccionar..."
-                                className="border-0 shadow-none"
+                                placeholder="Seleccionar refacciones..."
+                                className="border-gray-300 rounded-lg"
                               />
                             )}
                           />
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
+                )}
 
-                  {/* General Observations */}
-                  {selectedTemplate.secciones?.observacionesGenerales?.enabled && (
-                    <div className="mt-8">
-                      <div className="bg-blue-900 text-white font-bold py-2 px-4 rounded-t-md uppercase text-center">Observaciones Generales</div>
-                      <div className="border-2 border-blue-200 rounded-b-md bg-white">
-                        <textarea
-                          {...register('observacionesGenerales')}
-                          rows={4}
-                          className="w-full p-4 resize-none focus:outline-none rounded-b-md"
-                          placeholder="Comentarios generales..."
-                        />
+                {/* 4. Cierre */}
+                {(selectedTemplate.secciones?.observacionesGenerales?.enabled || selectedTemplate.secciones?.firmas?.enabled) && (
+                  <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div className={sectionHeaderClass}>
+                      <div className={numberBadgeClass}>4</div>
+                      <h2 className={sectionTitleClass}>Cierre del reporte</h2>
+                    </div>
+
+                    <div className="space-y-6">
+                      {selectedTemplate.secciones?.observacionesGenerales?.enabled && (
+                        <div>
+                          <label className={labelClass}>Observaciones Generales</label>
+                          <textarea
+                            {...register('observacionesGenerales')}
+                            rows={3}
+                            className={inputClass}
+                            placeholder="Comentarios generales..."
+                          />
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {selectedTemplate.secciones?.firmas?.enabled && (
+                          <div>
+                            <label className={labelClass}>Nombre del Supervisor</label>
+                            <input
+                              type="text"
+                              {...register('nombreResponsable')}
+                              className={inputClass}
+                              placeholder="Nombre completo"
+                            />
+                            <div className="mt-4">
+                              <Controller
+                                name="firmaResponsable"
+                                control={control}
+                                render={({ field }) => (
+                                  <SignaturePad label="Firma del Supervisor" onChange={field.onChange} />
+                                )}
+                              />
+                            </div>
+                          </div>
+                        )}
+                        {selectedTemplate.secciones?.fechas?.enabled && (
+                          <div>
+                            <label className={labelClass}>Fecha y Hora de Término</label>
+                            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 text-center text-gray-500 text-sm">
+                              Se registrará automáticamente al guardar el reporte.
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
-                  )}
-
-                  {/* Footer: Signatures & End Date */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-8">
-                    {selectedTemplate.secciones?.firmas?.enabled && (
-                      <div>
-                        <div className="bg-blue-900 text-white font-bold py-2 px-4 rounded-t-md uppercase text-center">Nombre y Firma de Supervisor</div>
-                        <div className="border-2 border-blue-200 rounded-b-md p-4 bg-white">
-                          <input
-                            type="text"
-                            {...register('nombreResponsable')}
-                            className="w-full border-b border-gray-300 py-2 mb-4 focus:outline-none focus:border-blue-500"
-                            placeholder="Nombre del supervisor"
-                          />
-                          <Controller
-                            name="firmaResponsable"
-                            control={control}
-                            render={({ field }) => (
-                              <SignaturePad onChange={field.onChange} />
-                            )}
-                          />
-                        </div>
-                      </div>
-                    )}
-                    {selectedTemplate.secciones?.fechas?.enabled && (
-                      <div>
-                        <div className="bg-blue-900 text-white font-bold py-2 px-4 rounded-t-md uppercase text-center">Fecha y Hora de Termino</div>
-                        <div className="border-2 border-blue-200 rounded-b-md p-4 bg-white flex items-center justify-center h-full">
-                          <div className="text-gray-500 italic">Se registrará automáticamente al guardar</div>
-                        </div>
-                      </div>
-                    )}
                   </div>
+                )}
 
-                  {/* Submit Button */}
-                  <div className="flex justify-end pt-8">
-                    <Button
-                      type="submit"
-                      className="w-full md:w-auto px-12 py-4 text-lg bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-md shadow-lg transform transition hover:scale-105"
-                      isLoading={isSubmitting}
-                    >
-                      <Save className="w-6 h-6 mr-2" />
-                      GUARDAR REPORTE
-                    </Button>
-                  </div>
+                {/* Submit Button */}
+                <div className="flex justify-end pt-4">
+                  <Button
+                    type="submit"
+                    className="w-full md:w-auto px-8 py-3 text-base font-medium bg-blue-900 hover:bg-blue-800 text-white rounded-lg shadow-md transition-all"
+                    isLoading={isSubmitting}
+                  >
+                    <Save className="w-5 h-5 mr-2" />
+                    Guardar Reporte
+                  </Button>
+                </div>
 
-                </form>
-              )}
-            </div>
+              </form>
+            )}
           </div>
 
           {/* Right Column: Preview */}
