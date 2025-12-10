@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 const warehouseItemSchema = z.object({
     id: z.string(),
+    inventoryItemId: z.string().optional(),
     sku: z.string().optional(),
     name: z.string().min(1, "Selecciona un item"),
     units: z.number().min(1, "Mínimo 1 unidad"),
