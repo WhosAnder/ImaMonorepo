@@ -7,6 +7,7 @@ interface ImageUploadProps {
   label?: string;
   error?: string;
   maxFiles?: number;
+  compact?: boolean;
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({
@@ -14,6 +15,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   label,
   error,
   maxFiles = 5,
+  compact = false,
 }) => {
   const [previews, setPreviews] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
@@ -60,27 +62,28 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             capture="environment"
             multiple
             className="hidden"
-            id="evidence-upload"
+            id={`evidence-upload-${label || 'default'}`}
             onChange={handleFileChange}
             disabled={files.length >= maxFiles}
           />
           <label
-            htmlFor="evidence-upload"
+            htmlFor={`evidence-upload-${label || 'default'}`}
             className={`
-              flex items-center justify-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 cursor-pointer
+              flex items-center justify-center border border-gray-300 shadow-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 cursor-pointer
               ${files.length >= maxFiles ? "opacity-50 cursor-not-allowed" : ""}
+              ${compact ? "px-2 py-1 text-xs" : "px-4 py-2 text-sm"}
             `}
           >
-            <Camera className="w-4 h-4 mr-2" />
-            Tomar foto
+            <Camera className={`${compact ? "w-3 h-3 mr-1" : "w-4 h-4 mr-2"}`} />
+            {compact ? "Foto" : "Tomar foto"}
           </label>
           <span className="text-xs text-gray-500">
-            {files.length} / {maxFiles} fotos
+            {files.length} / {maxFiles}
           </span>
         </div>
 
         {previews.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div className={`grid gap-2 ${compact ? "grid-cols-4" : "grid-cols-2 sm:grid-cols-3"}`}>
             {previews.map((preview, index) => (
               <div
                 key={index}
@@ -103,7 +106,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           </div>
         )}
 
-        {previews.length === 0 && (
+        {previews.length === 0 && !compact && (
           <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 flex flex-col items-center justify-center text-gray-400">
             <ImageIcon className="w-8 h-8 mb-2" />
             <span className="text-sm">No hay evidencias seleccionadas</span>
