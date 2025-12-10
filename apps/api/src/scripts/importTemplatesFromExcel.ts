@@ -1,5 +1,8 @@
-import "dotenv/config";
 import path from "node:path";
+import dotenv from "dotenv";
+
+// Load .env from apps/api directory
+dotenv.config({ path: path.resolve(__dirname, "..", "..", ".env") });
 import * as XLSX from "xlsx";
 import { getTemplateCollection } from "../db/mongo";
 import type { Template } from "../modules/templates/templates.types";
@@ -66,9 +69,12 @@ async function main() {
         // C: Activity / Description / Nombre Corto
         // D: Frecuencia
 
-        const rawSubsistema = row["A"];
-        const activity = row["C"];
-        const frecuencia = row["D"];
+        const rawSubsistema = row["A"]; // Subsistema
+const codigoMantenimiento = row["B"]; // Código de mantenimiento (optional)
+const activity = row["C"]; // Actividad / Nombre corto
+const frecuencia = row["D"]; // Frecuencia
+
+
 
         // Propagate subsistema
         if (rawSubsistema && typeof rawSubsistema === 'string' && rawSubsistema.trim() !== "") {
@@ -117,21 +123,23 @@ async function main() {
           tipoMantenimiento: normalizedType,
           frecuencia: frecuenciaLabel,
           frecuenciaCodigo: frecuenciaCodigo,
+          numeroActividad: codigoMantenimiento ? Number(codigoMantenimiento) : undefined,
           nombreCorto: String(activity).trim(),
           descripcion: String(activity).trim(),
-          codigoMantenimiento: undefined, // Explicitly undefined as requested
+          codigoMantenimiento: codigoMantenimiento ? String(codigoMantenimiento).trim() : undefined,
           secciones: DEFAULT_SECCIONES,
           activo: true,
           createdAt: new Date(),
           updatedAt: new Date()
         };
 
-        // Upsert logic
+        // Upsert logic - use numeroActividad to differentiate activities with same name
         const uniqueFilter = {
             tipoReporte: template.tipoReporte,
             subsistema: template.subsistema,
             tipoMantenimiento: template.tipoMantenimiento,
             frecuenciaCodigo: template.frecuenciaCodigo,
+            numeroActividad: template.numeroActividad,
             nombreCorto: template.nombreCorto
         };
 
