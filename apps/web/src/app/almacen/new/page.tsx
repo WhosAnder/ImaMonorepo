@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { AppLayout } from '@/shared/layout/AppLayout';
-import { NewWarehouseReportPage } from '@/features/almacen/views/NewWarehouseReportPage';
+import { NewWarehouseReportPage } from '@/features/almacen/views/NewWarehouseReportView';
 
 export default function Page() {
     return (
