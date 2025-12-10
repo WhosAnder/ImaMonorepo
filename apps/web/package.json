@@ -4,13 +4,14 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "next dev",
+    "dev": "npx @react-grab/cursor@latest && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
+    "@react-pdf/renderer": "^4.3.1",
     "@tailwindcss/postcss": "^4.1.17",
     "@tanstack/react-query": "^5.90.11",
     "@tanstack/react-query-devtools": "^5.91.1",

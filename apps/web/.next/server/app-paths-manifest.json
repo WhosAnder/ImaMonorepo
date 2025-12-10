@@ -1,9 +1,0 @@
-{
-  "/reports/page": "app/reports/page.js",
-  "/inventario/page": "app/inventario/page.js",
-  "/almacen/new/page": "app/almacen/new/page.js",
-  "/almacen/[id]/page": "app/almacen/[id]/page.js",
-  "/dashboard/page": "app/dashboard/page.js",
-  "/reports/[id]/page": "app/reports/[id]/page.js",
-  "/almacen/page": "app/almacen/page.js"
-}
