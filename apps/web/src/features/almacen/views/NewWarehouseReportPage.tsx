@@ -13,6 +13,7 @@ import { WarehouseReportPreview } from '../components/WarehouseReportPreview';
 import { warehouseReportSchema, WarehouseReportFormValues } from '../schemas/warehouseReportSchema';
 import { Save, Plus, Trash2, Package, Wrench } from 'lucide-react';
 import { AppLayout } from '@/shared/layout/AppLayout';
+import { createReport } from '../helpers/create-report';
 
 const SUBSYSTEMS = [
     'EQUIPO DE GUIA/ TRABAJO DE GUIA',
@@ -29,13 +30,13 @@ const SUBSYSTEMS = [
 export const NewWarehouseReportPage: React.FC = () => {
     const router = useRouter();
     const createMutation = useCreateWarehouseReportMutation();
-    
+
     // Fetch inventory
     const { data: inventoryItems, isLoading: loadingInventory } = useWarehouseItems({ status: 'active' });
-    const herramientasOptions = inventoryItems?.filter(i => 
+    const herramientasOptions = inventoryItems?.filter(i =>
         i.category?.toLowerCase() === 'herramientas'
     ) || [];
-    const refaccionesOptions = inventoryItems?.filter(i => 
+    const refaccionesOptions = inventoryItems?.filter(i =>
         i.category?.toLowerCase() === 'refacciones'
     ) || [];
 
@@ -83,15 +84,14 @@ export const NewWarehouseReportPage: React.FC = () => {
     }, [fechaHoraEntrega, setValue]);
 
     const onSubmit = async (data: WarehouseReportFormValues) => {
-        data.fechaHoraRecepcion = new Date().toISOString().slice(0, 16);
-        
-        try {
-            const result = await createMutation.mutateAsync(data);
-            alert('Reporte generado correctamente');
-            router.push(`/almacen/${(result as any)._id}`);
-        } catch (error) {
-            console.error("Error:", error);
-            alert('Error al generar el reporte');
+        const { data: report, error } = await createReport(data)
+
+        if (report) {
+            alert('Reporte creado exitosamente');
+        }
+
+        if (error) {
+            alert(error);
         }
     };
 
@@ -104,11 +104,11 @@ export const NewWarehouseReportPage: React.FC = () => {
     return (
         <div className="max-w-[1600px] mx-auto pb-12">
             <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-                
+
                 {/* Left Column: Form */}
                 <div>
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                        
+
                         {/* Header Section */}
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -170,9 +170,9 @@ export const NewWarehouseReportPage: React.FC = () => {
                                     <Wrench className="w-5 h-5 text-green-600" />
                                     <h2 className="text-lg font-semibold text-gray-800">Herramientas que se entregan</h2>
                                 </div>
-                                <Button 
-                                    type="button" 
-                                    variant="secondary" 
+                                <Button
+                                    type="button"
+                                    variant="secondary"
                                     onClick={() => appendTool({ id: crypto.randomUUID(), name: '', units: 1, observations: '', evidences: [] })}
                                 >
                                     <Plus className="w-4 h-4 mr-1" /> Agregar
@@ -198,9 +198,9 @@ export const NewWarehouseReportPage: React.FC = () => {
                                             </div>
                                             <div className="col-span-2">
                                                 <label className="text-xs text-gray-500">Unidades</label>
-                                                <input 
-                                                    type="number" 
-                                                    {...register(`herramientas.${index}.units`, { valueAsNumber: true })} 
+                                                <input
+                                                    type="number"
+                                                    {...register(`herramientas.${index}.units`, { valueAsNumber: true })}
                                                     className={inputClass}
                                                     min={1}
                                                 />
@@ -236,9 +236,9 @@ export const NewWarehouseReportPage: React.FC = () => {
                                     <Package className="w-5 h-5 text-green-600" />
                                     <h2 className="text-lg font-semibold text-gray-800">Refacciones que se entregan</h2>
                                 </div>
-                                <Button 
-                                    type="button" 
-                                    variant="secondary" 
+                                <Button
+                                    type="button"
+                                    variant="secondary"
                                     onClick={() => appendPart({ id: crypto.randomUUID(), name: '', units: 1, observations: '', evidences: [] })}
                                 >
                                     <Plus className="w-4 h-4 mr-1" /> Agregar
@@ -264,9 +264,9 @@ export const NewWarehouseReportPage: React.FC = () => {
                                             </div>
                                             <div className="col-span-2">
                                                 <label className="text-xs text-gray-500">Unidades</label>
-                                                <input 
-                                                    type="number" 
-                                                    {...register(`refacciones.${index}.units`, { valueAsNumber: true })} 
+                                                <input
+                                                    type="number"
+                                                    {...register(`refacciones.${index}.units`, { valueAsNumber: true })}
                                                     className={inputClass}
                                                     min={1}
                                                 />
@@ -298,9 +298,9 @@ export const NewWarehouseReportPage: React.FC = () => {
                         {/* Observaciones Generales */}
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                             <label className={labelClass}>Observaciones Generales</label>
-                            <textarea 
-                                {...register('observacionesGenerales')} 
-                                rows={3} 
+                            <textarea
+                                {...register('observacionesGenerales')}
+                                rows={3}
                                 className={inputClass}
                                 placeholder="Notas adicionales..."
                             />

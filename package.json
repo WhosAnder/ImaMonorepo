@@ -24,6 +24,7 @@
     "packages/*"
   ],
   "dependencies": {
+    "@react-pdf/renderer": "^4.3.1",
     "better-auth": "^1.4.4"
   }
 }
