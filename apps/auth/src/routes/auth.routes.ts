@@ -91,11 +91,15 @@ authRoute.post("/login", async (c) => {
 
   applySetCookies(c, cookies);
 
+  const mustChangePassword = !found.hasChangedPassword;
+
   return c.json({
     id: found.id,
     email: found.email,
     role: found.role || DEFAULT_ROLE,
     name: found.name,
+    active: !found.banned,
+    mustChangePassword,
   });
 });
 

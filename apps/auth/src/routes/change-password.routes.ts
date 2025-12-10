@@ -1,7 +1,10 @@
 import { Hono } from "hono";
 import { z } from "zod";
+import { eq } from "drizzle-orm";
 import { auth } from "../lib/auth";
 import { getSessionFromRequest } from "../lib/session";
+import { db } from "../db/client";
+import { user } from "../db/schema";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
@@ -49,7 +52,16 @@ changePasswordRoute.post("/", async (c) => {
       },
       headers: c.req.raw.headers,
     });
-    return c.json({ success: true });
+
+    await db
+      .update(user)
+      .set({
+        hasChangedPassword: true,
+        updatedAt: new Date(),
+      })
+      .where(eq(user.id, userId));
+
+    return c.json({ success: true, hasChangedPassword: true });
   } catch (error) {
     return c.json({ error: "Failed to change password" }, 500);
   }
