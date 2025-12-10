@@ -41,7 +41,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-xs text-gray-500 mb-1">
           {label}
         </label>
       )}

@@ -50,10 +50,6 @@ export function WarehouseReportPreview({ values, className = '', printableElemen
 
     return (
         <div className={`rounded-xl border shadow-sm p-4 ${className}`} style={{ backgroundColor: '#ffffff' }}>
-            <h2 className="mb-3 text-sm font-semibold" style={{ color: '#374151' }}>
-                Vista previa del reporte
-            </h2>
-
             <div className="relative mx-auto w-full max-w-[750px] aspect-[8.5/11] p-4 text-xs leading-relaxed shadow-md overflow-hidden" style={{ backgroundColor: '#111827' }}>
                 <div
                     id={printableElementId}
