@@ -1,10 +1,12 @@
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { auth } from "../lib/auth";
 import { db } from "../db/client";
-import { user } from "../db/schema";
+import { account, user } from "../db/schema";
 import { loginSchema, registerSchema } from "../schemas/auth.schema";
-import { applySetCookies, collectSetCookies } from "../lib/session";
+import { applySetCookies, collectSetCookies, getSessionFromRequest, hasAdminRole } from "../lib/session";
+import { hashPassword } from "better-auth/crypto";
+import { randomBytes } from "crypto";
 
 const DEFAULT_ROLE = "warehouse";
 
@@ -103,8 +105,69 @@ authRoute.post("/login", async (c) => {
   });
 });
 
+authRoute.post("/admin/users/:id/reset-password", async (c) => {
+  const session = await getSessionFromRequest(c);
+  applySetCookies(c, session.cookies);
+
+  if (!session.user || !hasAdminRole(session.user.role)) {
+    return c.json({ error: "Forbidden" }, 403);
+  }
+
+  const userId = c.req.param("id");
+
+  const [targetUser] = await db.select().from(user).where(eq(user.id, userId)).limit(1);
+
+  if (!targetUser) {
+    return c.json({ error: "User not found" }, 404);
+  }
+
+  const tempPassword = generateTemporaryPassword();
+  const hashedPassword = await hashPassword(tempPassword);
+
+  const updatedAccount = await db
+    .update(account)
+    .set({
+      password: hashedPassword,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(account.userId, userId),
+        inArray(account.providerId, ["email", "credential"]),
+      ),
+    )
+    .returning({ id: account.id });
+
+  if (!updatedAccount.length) {
+    return c.json({ error: "User account not found" }, 404);
+  }
+
+  await db
+    .update(user)
+    .set({
+      hasChangedPassword: false,
+      updatedAt: new Date(),
+    })
+    .where(eq(user.id, userId));
+
+  return c.json({
+    success: true,
+    tempPassword,
+  });
+});
+
 // Handle all remaining Better Auth routes (session, sign-out, admin, etc.)
 authRoute.all("/*", async (c) => {
   const response = await auth.handler(c.req.raw);
   return response;
 });
+
+function generateTemporaryPassword(length = 12) {
+  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz0123456789!@#$%";
+  const randomBuffer = randomBytes(length);
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += alphabet[randomBuffer[i] % alphabet.length];
+  }
+  return password;
+}
