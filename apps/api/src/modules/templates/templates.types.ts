@@ -19,6 +19,7 @@ export interface TemplateSectionConfig {
 export interface Template {
   _id?: ObjectId;
   codigoMantenimiento?: string | null;
+  numeroActividad?: number; // Activity number from Excel column B
   tipoReporte: ReportType;
   subsistema: string;
   tipoMantenimiento: string;
