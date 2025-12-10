@@ -14,6 +14,7 @@ import { warehouseReportSchema, WarehouseReportFormValues } from '../schemas/war
 import { Save, Plus, Trash2, Package, Wrench } from 'lucide-react';
 import { AppLayout } from '@/shared/layout/AppLayout';
 import { createReport } from '../helpers/create-report';
+import { generatePDFReport } from '../helpers/generate-pdf';
 
 const SUBSYSTEMS = [
     'EQUIPO DE GUIA/ TRABAJO DE GUIA',
@@ -88,6 +89,8 @@ export const NewWarehouseReportPage: React.FC = () => {
 
         if (report) {
             alert('Reporte creado exitosamente');
+            // Generate PDF
+            await generatePDFReport(data);
         }
 
         if (error) {
@@ -338,7 +341,9 @@ export const NewWarehouseReportPage: React.FC = () => {
                 {/* Right Column: Preview */}
                 <div className="hidden lg:block">
                     <div className="sticky top-6">
-                        <WarehouseReportPreview values={watchedValues} />
+                        <div id="warehouse-report-preview-content">
+                            <WarehouseReportPreview values={watchedValues} />
+                        </div>
                     </div>
                 </div>
             </div>

@@ -13,9 +13,11 @@ type DeepPartial<T> = {
 
 export type WarehouseReportPreviewProps = {
     values: DeepPartial<WarehouseReportFormValues>;
+    className?: string;
+    printableElementId?: string;
 };
 
-export function WarehouseReportPreview({ values }: WarehouseReportPreviewProps) {
+export function WarehouseReportPreview({ values, className = '', printableElementId }: WarehouseReportPreviewProps) {
     const {
         subsistema,
         fechaHoraEntrega,
@@ -27,7 +29,7 @@ export function WarehouseReportPreview({ values }: WarehouseReportPreviewProps) 
         observacionesGenerales,
         fechaHoraRecepcion,
         nombreQuienEntrega,
-        nombreAlmacenistaCierre,
+        // nombreAlmacenistaCierre, // Field does not exist in schema, reusing nombreAlmacenista or omitting
         firmaQuienRecibe,
         firmaAlmacenista,
         firmaQuienEntrega,
@@ -47,21 +49,21 @@ export function WarehouseReportPreview({ values }: WarehouseReportPreviewProps) 
     };
 
     return (
-        <div className="rounded-xl border bg-white shadow-sm p-4 sticky top-6">
-            <h2 className="mb-3 text-sm font-semibold text-gray-700">
+        <div className={`rounded-xl border shadow-sm p-4 ${className}`} style={{ backgroundColor: '#ffffff' }}>
+            <h2 className="mb-3 text-sm font-semibold" style={{ color: '#374151' }}>
                 Vista previa del reporte
             </h2>
 
-            {/* Outer page & frame */}
-            <div className="relative mx-auto w-full max-w-[750px] aspect-[8.5/11] bg-gray-900 p-4 text-xs leading-relaxed shadow-md overflow-hidden">
+            <div className="relative mx-auto w-full max-w-[750px] aspect-[8.5/11] p-4 text-xs leading-relaxed shadow-md overflow-hidden" style={{ backgroundColor: '#111827' }}>
                 <div
+                    id={printableElementId}
                     className="relative h-full w-full rounded-[24px] border-[3px] bg-[#f5f7ff] overflow-hidden flex flex-col"
                     style={{ borderColor: '#F0493B' }} // Red border as requested
                 >
 
                     {/* Watermark */}
                     <div className="pointer-events-none absolute inset-0 flex items-center justify-center z-0">
-                        <span className="select-none text-[90px] font-bold text-gray-400/10 rotate-[-25deg] tracking-wider">
+                        <span className="select-none text-[90px] font-bold rotate-[-25deg] tracking-wider" style={{ color: 'rgba(156, 163, 175, 0.1)' }}>
                             ALMACÉN IMA
                         </span>
                     </div>
@@ -114,60 +116,60 @@ export function WarehouseReportPreview({ values }: WarehouseReportPreviewProps) 
 
                             {/* Herramientas */}
                             <section className="mt-5 px-6">
-                                <div className="rounded-t-md px-3 py-1 text-[9px] font-semibold uppercase tracking-wide text-white" style={{ backgroundColor: primaryColor }}>
+                                <div className="rounded-t-md px-3 py-1 text-[9px] font-semibold uppercase tracking-wide" style={{ backgroundColor: primaryColor, color: '#ffffff' }}>
                                     HERRAMIENTAS QUE SE ENTREGAN
                                 </div>
-                                <div className="rounded-b-md border bg-white px-3 py-2 text-[10px] space-y-1" style={{ borderColor: primaryColor, color: primaryColor }}>
+                                <div className="rounded-b-md border px-3 py-2 text-[10px] space-y-1" style={{ borderColor: primaryColor, color: primaryColor, backgroundColor: '#ffffff' }}>
                                     {herramientas && herramientas.length > 0 ? (
                                         <div className="space-y-2">
                                             {herramientas.map((item, idx) => (
-                                                <div key={item.id || idx} className="border-b border-gray-100 last:border-0 pb-1 last:pb-0">
+                                                <div key={item.id || idx} className="border-b last:border-0 pb-1 last:pb-0" style={{ borderColor: '#f3f4f6' }}>
                                                     <div className="flex justify-between font-semibold">
                                                         <span>{item.name}</span>
                                                         <span>{item.units} un.</span>
                                                     </div>
-                                                    <div className="text-[9px] text-gray-500">{item.observations || 'Sin observaciones'}</div>
-                                                    <div className="text-[9px] text-gray-400">Evidencias: {item.evidences?.length || 0} / 5 fotos</div>
+                                                    <div className="text-[9px]" style={{ color: '#6b7280' }}>{item.observations || 'Sin observaciones'}</div>
+                                                    <div className="text-[9px]" style={{ color: '#9ca3af' }}>Evidencias: {item.evidences?.length || 0} / 5 fotos</div>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="text-center py-2 text-gray-400 italic">Sin herramientas registradas</div>
+                                        <div className="text-center py-2 italic" style={{ color: '#9ca3af' }}>Sin herramientas registradas</div>
                                     )}
                                 </div>
                             </section>
 
                             {/* Refacciones */}
                             <section className="mt-5 px-6">
-                                <div className="rounded-t-md px-3 py-1 text-[9px] font-semibold uppercase tracking-wide text-white" style={{ backgroundColor: primaryColor }}>
+                                <div className="rounded-t-md px-3 py-1 text-[9px] font-semibold uppercase tracking-wide" style={{ backgroundColor: primaryColor, color: '#ffffff' }}>
                                     REFACCIONES QUE SE ENTREGAN
                                 </div>
-                                <div className="rounded-b-md border bg-white px-3 py-2 text-[10px] space-y-1" style={{ borderColor: primaryColor, color: primaryColor }}>
+                                <div className="rounded-b-md border px-3 py-2 text-[10px] space-y-1" style={{ borderColor: primaryColor, color: primaryColor, backgroundColor: '#ffffff' }}>
                                     {refacciones && refacciones.length > 0 ? (
                                         <div className="space-y-2">
                                             {refacciones.map((item, idx) => (
-                                                <div key={item.id || idx} className="border-b border-gray-100 last:border-0 pb-1 last:pb-0">
+                                                <div key={item.id || idx} className="border-b last:border-0 pb-1 last:pb-0" style={{ borderColor: '#f3f4f6' }}>
                                                     <div className="flex justify-between font-semibold">
                                                         <span>{item.name}</span>
                                                         <span>{item.units} un.</span>
                                                     </div>
-                                                    <div className="text-[9px] text-gray-500">{item.observations || 'Sin observaciones'}</div>
-                                                    <div className="text-[9px] text-gray-400">Evidencias: {item.evidences?.length || 0} / 5 fotos</div>
+                                                    <div className="text-[9px]" style={{ color: '#6b7280' }}>{item.observations || 'Sin observaciones'}</div>
+                                                    <div className="text-[9px]" style={{ color: '#9ca3af' }}>Evidencias: {item.evidences?.length || 0} / 5 fotos</div>
                                                 </div>
                                             ))}
                                         </div>
                                     ) : (
-                                        <div className="text-center py-2 text-gray-400 italic">Sin refacciones registradas</div>
+                                        <div className="text-center py-2 italic" style={{ color: '#9ca3af' }}>Sin refacciones registradas</div>
                                     )}
                                 </div>
                             </section>
 
                             {/* Observaciones Generales */}
                             <section className="mt-5 px-6">
-                                <div className="rounded-t-md px-3 py-1 text-[9px] font-semibold uppercase tracking-wide text-white" style={{ backgroundColor: primaryColor }}>
+                                <div className="rounded-t-md px-3 py-1 text-[9px] font-semibold uppercase tracking-wide" style={{ backgroundColor: primaryColor, color: '#ffffff' }}>
                                     OBSERVACIONES GENERALES
                                 </div>
-                                <div className="min-h-[60px] rounded-b-md border bg-white px-3 py-2 text-[10px] whitespace-pre-wrap" style={{ borderColor: primaryColor, color: primaryColor }}>
+                                <div className="min-h-[60px] rounded-b-md border px-3 py-2 text-[10px] whitespace-pre-wrap" style={{ borderColor: primaryColor, color: primaryColor, backgroundColor: '#ffffff' }}>
                                     {observacionesGenerales && observacionesGenerales.trim().length > 0
                                         ? observacionesGenerales
                                         : "—"}
@@ -192,7 +194,7 @@ export function WarehouseReportPreview({ values }: WarehouseReportPreviewProps) 
                                     {/* Almacenista */}
                                     <SignatureBox
                                         label="ALMACENISTA"
-                                        name={nombreAlmacenistaCierre}
+                                        name={nombreAlmacenista}
                                         signature={firmaAlmacenista}
                                         color={primaryColor}
                                     />
@@ -217,10 +219,10 @@ export function WarehouseReportPreview({ values }: WarehouseReportPreviewProps) 
 function LabeledPill({ label, value, color }: { label: string; value?: string; color: string }) {
     return (
         <div className="flex flex-col gap-1">
-            <div className="inline-flex self-start rounded-full px-3 py-1 text-[9px] font-semibold tracking-wide text-white" style={{ backgroundColor: color }}>
+            <div className="inline-flex self-start rounded-full px-3 py-1 text-[9px] font-semibold tracking-wide" style={{ backgroundColor: color, color: '#ffffff' }}>
                 {label}
             </div>
-            <div className="min-h-[24px] rounded-full border bg-white px-3 py-1 text-[10px] font-medium" style={{ borderColor: color, color: color }}>
+            <div className="min-h-[24px] rounded-full border px-3 py-1 text-[10px] font-medium" style={{ borderColor: color, color: color, backgroundColor: '#ffffff' }}>
                 {value && value.trim().length > 0 ? value : "—"}
             </div>
         </div>
@@ -230,16 +232,16 @@ function LabeledPill({ label, value, color }: { label: string; value?: string; c
 function SignatureBox({ label, name, signature, color }: { label: string; name?: string; signature?: string | null; color: string }) {
     return (
         <div>
-            <div className="rounded-t-md px-2 py-1 text-[8px] font-semibold uppercase tracking-wide text-white text-center" style={{ backgroundColor: color }}>
+            <div className="rounded-t-md px-2 py-1 text-[8px] font-semibold uppercase tracking-wide text-center" style={{ backgroundColor: color, color: '#ffffff' }}>
                 {label}
             </div>
-            <div className="rounded-b-md border bg-white px-2 py-2 text-[9px] flex flex-col justify-between min-h-[60px]" style={{ borderColor: color, color: color }}>
+            <div className="rounded-b-md border px-2 py-2 text-[9px] flex flex-col justify-between min-h-[60px]" style={{ borderColor: color, color: color, backgroundColor: '#ffffff' }}>
                 <div className="font-medium text-center truncate">{name || "—"}</div>
-                <div className="mt-1 h-[24px] border-t border-dashed border-gray-300 flex items-end justify-center">
+                <div className="mt-1 h-[24px] border-t border-dashed flex items-end justify-center" style={{ borderColor: '#d1d5db' }}>
                     {signature ? (
                         <img src={signature} alt="Firma" className="h-full object-contain" />
                     ) : (
-                        <span className="text-[8px] text-gray-300">Sin firma</span>
+                        <span className="text-[8px]" style={{ color: '#d1d5db' }}>Sin firma</span>
                     )}
                 </div>
             </div>

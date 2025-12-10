@@ -8,6 +8,14 @@ import {
 } from './workReports.service';
 import { WorkReportFilters, NewWorkReport } from './workReports.repository';
 
+function mapReportToResponse(report: any) {
+  const { _id, ...rest } = report;
+  return {
+    id: _id?.toString(),
+    ...rest,
+  };
+}
+
 export async function listWorkReportsController(c: Context) {
   const subsistema = c.req.query('subsistema');
   const frecuencia = c.req.query('frecuencia');
@@ -19,7 +27,7 @@ export async function listWorkReportsController(c: Context) {
   if (tipoMantenimiento) filters.tipoMantenimiento = tipoMantenimiento;
 
   const reports = await listWorkReports(filters);
-  return c.json(reports);
+  return c.json(reports.map(mapReportToResponse));
 }
 
 export async function getWorkReportByIdController(c: Context) {
@@ -29,7 +37,7 @@ export async function getWorkReportByIdController(c: Context) {
     if (!report) {
       return c.json({ error: 'Report not found' }, 404);
     }
-    return c.json(report);
+    return c.json(mapReportToResponse(report));
   } catch {
     return c.json({ error: 'Invalid ID format' }, 400);
   }

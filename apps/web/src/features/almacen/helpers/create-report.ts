@@ -1,13 +1,11 @@
 import { WarehouseReportFormValues } from "../schemas/warehouseReportSchema";
 import { API_URL } from "@/config/env";
+import { useRef } from "react";
+// import genPDF from 'react-to-pdf';
 
 interface CreateReportResponse {
     error?: string;
     data?: any;
-}
-
-function toPDF(data: WarehouseReportFormValues) {
-
 }
 
 export async function createReport(data: WarehouseReportFormValues): Promise<CreateReportResponse> {
