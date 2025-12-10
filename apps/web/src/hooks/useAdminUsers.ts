@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authClient } from "@/shared/lib/auth";
 import type { UserRole } from "@/features/auth/types/roles";
 
+const AUTH_BASE_URL =
+  process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:5001/auth";
+
 export const ADMIN_USERS_KEY = ["admin-users"];
 
 export type AdminUser = {
@@ -187,6 +190,34 @@ export function useStopImpersonating() {
     onSuccess: () => {
       // Reload the page to return to admin session
       window.location.href = "/admin/users";
+    },
+  });
+}
+
+export function useResetUserPassword() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await fetch(
+        `${AUTH_BASE_URL}/admin/users/${userId}/reset-password`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.error || "No se pudo reiniciar la contraseña",
+        );
+      }
+
+      return response.json() as Promise<{ success: boolean; tempPassword: string }>;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ADMIN_USERS_KEY });
     },
   });
 }

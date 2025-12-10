@@ -1,5 +1,6 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 export type AuthUser = {
   id: string;
@@ -7,7 +8,7 @@ export type AuthUser = {
   role: string;
   name: string;
   active: boolean;
-  mustChangePassword?: boolean;
+  mustChangePassword: boolean;
 };
 
 type AuthContextValue = {
@@ -15,6 +16,7 @@ type AuthContextValue = {
   setUser: (user: AuthUser | null) => void;
   login: (user: AuthUser) => void;
   logout: () => Promise<void>;
+  isReady: boolean;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -23,26 +25,40 @@ const AUTH_STORAGE_KEY = "ima_auth_user";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserState] = useState<AuthUser | null>(null);
+  const [isReady, setIsReady] = useState(false);
+  const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const stored = localStorage.getItem(AUTH_STORAGE_KEY);
     if (stored) {
       try {
-        setUserState(JSON.parse(stored));
+        const parsed = JSON.parse(stored) as AuthUser;
+        setUserState({
+          ...parsed,
+          mustChangePassword: Boolean(parsed.mustChangePassword),
+        });
       } catch (e) {
         console.error("Failed to parse auth user from local storage", e);
         localStorage.removeItem(AUTH_STORAGE_KEY);
       }
     }
+    setIsReady(true);
   }, []);
 
   const setUser = (newUser: AuthUser | null) => {
-    setUserState(newUser);
     if (newUser) {
-      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(newUser));
+      const normalizedUser: AuthUser = {
+        ...newUser,
+        mustChangePassword: Boolean(newUser.mustChangePassword),
+      };
+      setUserState(normalizedUser);
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(normalizedUser));
     } else {
       localStorage.removeItem(AUTH_STORAGE_KEY);
+      setUserState(null);
     }
+    setIsReady(true);
   };
 
   const login = (userData: AuthUser) => {
@@ -66,8 +82,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.location.href = "/login";
   };
 
+  useEffect(() => {
+    if (!isReady || !user) {
+      return;
+    }
+
+    if (user.mustChangePassword && pathname !== "/change-password") {
+      router.replace("/change-password");
+    }
+  }, [user, router, pathname, isReady]);
+
   return (
-    <AuthContext.Provider value={{ user, setUser, login, logout }}>
+    <AuthContext.Provider value={{ user, setUser, login, logout, isReady }}>
       {children}
     </AuthContext.Provider>
   );

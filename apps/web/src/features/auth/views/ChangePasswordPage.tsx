@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Button } from "@/shared/ui/Button";
 import { useChangePassword } from "@/hooks/useChangePassword";
 import { useAuth } from "@/auth/AuthContext";
@@ -13,8 +13,23 @@ export const ChangePasswordPage: React.FC = () => {
   const [error, setError] = useState("");
   
   const { mutate: changePassword, isPending } = useChangePassword();
-  const { setUser, user } = useAuth();
+  const { setUser, user, isReady } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (!isReady) {
+      return;
+    }
+
+    if (!user) {
+      router.replace("/login");
+      return;
+    }
+
+    if (!user.mustChangePassword) {
+      router.replace("/dashboard");
+    }
+  }, [user, router, isReady]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +64,14 @@ export const ChangePasswordPage: React.FC = () => {
       },
     );
   };
+
+  if (!isReady || !user || !user.mustChangePassword) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+        <p className="text-gray-600">Redirigiendo...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
