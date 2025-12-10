@@ -127,6 +127,12 @@ export const LoginPage: React.FC = () => {
             )}
           </div>
 
+          {errors.general && (
+            <div className="p-3 bg-red-50 text-red-700 text-sm rounded-md">
+              {errors.general}
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <div className="text-sm">
               <a
