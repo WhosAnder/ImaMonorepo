@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTemplateFilters, useActivitiesBySubsystemAndFrequency } from '@/hooks/useTemplates';
 import { useCreateWorkReportMutation } from '@/hooks/useWorkReports';
@@ -10,9 +10,10 @@ import { MultiSelect } from '@/shared/ui/MultiSelect';
 import { SignaturePad } from '@/shared/ui/SignaturePad';
 import { ImageUpload } from '@/shared/ui/ImageUpload';
 import { workReportSchema, WorkReportFormValues } from '../schemas/workReportSchema';
-import { Save, Check, X, ArrowLeft } from 'lucide-react';
+import { Save, ArrowLeft } from 'lucide-react';
 import { Template } from '@/types/template';
 import { WorkReportPreview } from '../components/WorkReportPreview';
+import type { WarehouseItem } from '@/api/warehouseClient';
 
 const mockWorkers = [
   { value: 'ana_garcia', label: 'Ana García' },
@@ -22,22 +23,15 @@ const mockWorkers = [
   { value: 'jose_hernandez', label: 'José Hernández' },
 ];
 
+const WORK_REPORT_DRAFT_KEY = 'ima-work-report-draft';
+
 export const NewWorkReportPage: React.FC = () => {
   const router = useRouter();
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const draftRestorationGuardRef = useRef(false);
 
-  // --- Form Setup ---
-  const {
-    register,
-    control,
-    handleSubmit,
-    watch,
-    setValue,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<WorkReportFormValues>({
-    resolver: zodResolver(workReportSchema) as any,
-    defaultValues: {
+  const initialFormValues = useMemo<Partial<WorkReportFormValues>>(
+    () => ({
       fechaHoraInicio: new Date().toISOString().slice(0, 16),
       turno: '',
       trabajadores: [],
@@ -47,7 +41,23 @@ export const NewWorkReportPage: React.FC = () => {
       nombreResponsable: 'Juan Supervisor',
       firmaResponsable: undefined,
       templateIds: [],
-    }
+    }),
+    []
+  );
+
+  // --- Form Setup ---
+  const {
+    register,
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    reset,
+    getValues,
+    formState: { errors, isSubmitting },
+  } = useForm<WorkReportFormValues>({
+    resolver: zodResolver(workReportSchema) as any,
+    defaultValues: initialFormValues
   });
 
   const { fields, replace } = useFieldArray({
@@ -59,6 +69,8 @@ export const NewWorkReportPage: React.FC = () => {
   const fechaHoraInicio = watch('fechaHoraInicio');
   const subsistema = watch('subsistema');
   const frecuencia = watch('frecuencia');
+  const herramientasSeleccionadas = watch('herramientas');
+  const refaccionesSeleccionadas = watch('refacciones');
 
   // --- Data Fetching ---
   // 1. Filters
@@ -76,16 +88,85 @@ export const NewWorkReportPage: React.FC = () => {
   });
 
   // 3. Warehouse Items (Tools & Parts)
-  const { data: inventoryItems } = useWarehouseItems({ status: 'active' });
-  const toolsOptions = inventoryItems?.filter(i => i.category?.toLowerCase() === 'herramientas').map(i => ({ value: i.name, label: i.name })) || [];
-  const partsOptions = inventoryItems?.filter(i => i.category?.toLowerCase() === 'refacciones').map(i => ({ value: i.name, label: i.name })) || [];
+  const {
+    data: warehouseItems = [],
+    isLoading: isLoadingInventory,
+    error: inventoryError,
+  } = useWarehouseItems({ status: 'active' });
+
+  const { herramientasOptions, refaccionesOptions } = useMemo(() => {
+    const toOption = (item: WarehouseItem) => {
+      const stockInfo =
+        typeof item.quantityOnHand === 'number'
+          ? ` · Stock: ${item.quantityOnHand}${item.unit ? ` ${item.unit}` : ''}`
+          : '';
+      return {
+        value: item.name,
+        label: `${item.name}${stockInfo}`,
+      };
+    };
+
+    const filterByCategory = (category: string) =>
+      warehouseItems
+        .filter((item) => item.category?.toLowerCase() === category)
+        .map(toOption);
+
+    const baseOptions = warehouseItems.map(toOption);
+    const herramientas = filterByCategory('herramientas');
+    const refacciones = filterByCategory('refacciones');
+
+    return {
+      herramientasOptions: herramientas.length > 0 ? herramientas : baseOptions,
+      refaccionesOptions: refacciones.length > 0 ? refacciones : baseOptions,
+    };
+  }, [warehouseItems]);
 
   // --- Effects ---
 
-  // Auto-set start time on mount
+  const [draftStatus, setDraftStatus] = useState<'pending' | 'restored' | 'empty'>('pending');
+
+  // Restore draft from localStorage
   useEffect(() => {
+    if (typeof window === 'undefined' || draftStatus !== 'pending') {
+      return;
+    }
+
+    const storedDraft = localStorage.getItem(WORK_REPORT_DRAFT_KEY);
+    if (!storedDraft) {
+      setDraftStatus('empty');
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedDraft);
+      if (parsed.formValues) {
+        draftRestorationGuardRef.current = true;
+        const restoredValues = {
+          ...initialFormValues,
+          ...parsed.formValues,
+        } as WorkReportFormValues;
+        reset(restoredValues);
+        replace(restoredValues.actividadesRealizadas || []);
+        setSelectedTemplate(parsed.selectedTemplate || null);
+        setTimeout(() => {
+          draftRestorationGuardRef.current = false;
+        }, 0);
+      }
+      setDraftStatus('restored');
+    } catch (error) {
+      console.error('Error restoring work report draft:', error);
+      draftRestorationGuardRef.current = false;
+      setDraftStatus('empty');
+    }
+  }, [initialFormValues, reset, replace, draftStatus]);
+
+  // Auto-set start time on mount if there is no draft
+  useEffect(() => {
+    if (draftStatus !== 'empty') {
+      return;
+    }
     setValue('fechaHoraInicio', new Date().toISOString().slice(0, 16));
-  }, [setValue]);
+  }, [draftStatus, setValue]);
 
   // Auto-calculate shift
   useEffect(() => {
@@ -101,12 +182,18 @@ export const NewWorkReportPage: React.FC = () => {
 
   // Reset selection when subsistema changes
   useEffect(() => {
+    if (draftRestorationGuardRef.current) {
+      return;
+    }
     setValue('frecuencia', '');
     setSelectedTemplate(null);
   }, [subsistema, setValue]);
 
   // Reset selection when frecuencia changes
   useEffect(() => {
+    if (draftRestorationGuardRef.current) {
+      return;
+    }
     setSelectedTemplate(null);
   }, [frecuencia]);
 
@@ -137,6 +224,28 @@ export const NewWorkReportPage: React.FC = () => {
 
   const createReportMutation = useCreateWorkReportMutation();
 
+  const prepareActivityEvidence = async (
+    activities: WorkReportFormValues['actividadesRealizadas'] = []
+  ) => {
+    return Promise.all(
+      (activities || []).map(async (act) => {
+        const evidencias = await Promise.all(
+          (act.evidencias || []).map(async (file: any) => {
+            if (typeof window !== 'undefined' && file instanceof File) {
+              return new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(file);
+              });
+            }
+            return file;
+          })
+        );
+        return { ...act, evidencias };
+      })
+    );
+  };
+
   const onSubmit = async (data: WorkReportFormValues) => {
     // Auto-set end time
     const now = new Date();
@@ -145,21 +254,7 @@ export const NewWorkReportPage: React.FC = () => {
     data.fechaHoraTermino = localISOTime;
 
     // Process evidences
-    const actividadesConEvidencias = await Promise.all(
-      (data.actividadesRealizadas || []).map(async (act) => {
-        const evidencias = await Promise.all((act.evidencias || []).map(async (file: any) => {
-          if (file instanceof File) {
-            return new Promise<string>((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result as string);
-              reader.readAsDataURL(file);
-            });
-          }
-          return file;
-        }));
-        return { ...act, evidencias };
-      })
-    );
+    const actividadesConEvidencias = await prepareActivityEvidence(data.actividadesRealizadas);
 
     const payload = {
       ...data,
@@ -172,11 +267,39 @@ export const NewWorkReportPage: React.FC = () => {
 
     try {
       const result = await createReportMutation.mutateAsync(payload as any);
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(WORK_REPORT_DRAFT_KEY);
+      }
       alert('Reporte generado exitosamente');
       router.push(`/reports/${(result as any)._id}`);
     } catch (error) {
       console.error("Error creating report:", error);
       alert('Error al generar el reporte');
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      const currentValues = getValues();
+      const actividadesConEvidencias = await prepareActivityEvidence(currentValues.actividadesRealizadas);
+      const draftPayload = {
+        formValues: {
+          ...currentValues,
+          actividadesRealizadas: actividadesConEvidencias,
+        },
+        selectedTemplate,
+        timestamp: new Date().toISOString(),
+      };
+
+      localStorage.setItem(WORK_REPORT_DRAFT_KEY, JSON.stringify(draftPayload));
+      alert('Borrador guardado correctamente');
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      alert('No se pudo guardar el borrador');
     }
   };
 
@@ -197,6 +320,25 @@ export const NewWorkReportPage: React.FC = () => {
     herramientas: watchedValues.herramientas,
     refacciones: watchedValues.refacciones,
   };
+
+  const formatStock = (item: WarehouseItem) => {
+    const stockValue = typeof item.quantityOnHand === 'number' ? item.quantityOnHand : 0;
+    return `${stockValue}${item.unit ? ` ${item.unit}` : ''}`;
+  };
+
+  const selectedToolsDetails = useMemo(() => {
+    if (!herramientasSeleccionadas?.length) return [];
+    return herramientasSeleccionadas
+      .map((nombre) => warehouseItems.find((item) => item.name === nombre))
+      .filter((item): item is WarehouseItem => Boolean(item));
+  }, [herramientasSeleccionadas, warehouseItems]);
+
+  const selectedPartsDetails = useMemo(() => {
+    if (!refaccionesSeleccionadas?.length) return [];
+    return refaccionesSeleccionadas
+      .map((nombre) => warehouseItems.find((item) => item.name === nombre))
+      .filter((item): item is WarehouseItem => Boolean(item));
+  }, [refaccionesSeleccionadas, warehouseItems]);
 
   const inputClass = "w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all";
   const labelClass = "block text-sm font-medium text-gray-700 mb-1";
@@ -295,7 +437,7 @@ export const NewWorkReportPage: React.FC = () => {
 
                 <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                   <div className="flex items-center gap-3">
-                    <Button type="button" variant="ghost" size="sm" onClick={handleBackToSelection} className="text-gray-500 hover:text-gray-900">
+                    <Button type="button" variant="ghost" onClick={handleBackToSelection} className="text-gray-500 hover:text-gray-900">
                       <ArrowLeft className="w-4 h-4" />
                     </Button>
                     <div>
@@ -434,14 +576,42 @@ export const NewWorkReportPage: React.FC = () => {
                             control={control}
                             render={({ field }) => (
                               <MultiSelect
-                                options={toolsOptions}
+                                options={herramientasOptions}
                                 value={field.value || []}
                                 onChange={field.onChange}
-                                placeholder="Seleccionar herramientas..."
+                                placeholder={
+                                  isLoadingInventory
+                                    ? "Cargando inventario..."
+                                    : warehouseItems.length === 0
+                                      ? "Sin herramientas registradas"
+                                      : "Seleccionar herramientas..."
+                                }
                                 className="border-gray-300 rounded-lg"
                               />
                             )}
                           />
+                          {isLoadingInventory && (
+                            <p className="text-xs text-gray-500 mt-1">Cargando inventario del almacén...</p>
+                          )}
+                          {!isLoadingInventory && warehouseItems.length === 0 && (
+                            <p className="text-xs text-amber-600 mt-1">No hay herramientas activas en el almacén.</p>
+                          )}
+                          {inventoryError && (
+                            <p className="text-xs text-red-500 mt-1">No se pudo cargar el inventario del almacén.</p>
+                          )}
+                          {selectedToolsDetails.length > 0 && (
+                            <ul className="mt-2 text-xs text-gray-500 space-y-1">
+                              {selectedToolsDetails.map((item) => (
+                                <li
+                                  key={item._id}
+                                  className="flex items-center justify-between border-b border-dashed border-gray-200 pb-1 last:pb-0 last:border-0"
+                                >
+                                  <span>{item.name}</span>
+                                  <span className="text-gray-400">Stock: {formatStock(item)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
                       )}
                       {selectedTemplate.secciones?.refacciones?.enabled && (
@@ -452,14 +622,42 @@ export const NewWorkReportPage: React.FC = () => {
                             control={control}
                             render={({ field }) => (
                               <MultiSelect
-                                options={partsOptions}
+                                options={refaccionesOptions}
                                 value={field.value || []}
                                 onChange={field.onChange}
-                                placeholder="Seleccionar refacciones..."
+                                placeholder={
+                                  isLoadingInventory
+                                    ? "Cargando inventario..."
+                                    : warehouseItems.length === 0
+                                      ? "Sin refacciones registradas"
+                                      : "Seleccionar refacciones..."
+                                }
                                 className="border-gray-300 rounded-lg"
                               />
                             )}
                           />
+                          {isLoadingInventory && (
+                            <p className="text-xs text-gray-500 mt-1">Cargando inventario del almacén...</p>
+                          )}
+                          {!isLoadingInventory && warehouseItems.length === 0 && (
+                            <p className="text-xs text-amber-600 mt-1">No hay refacciones activas en el almacén.</p>
+                          )}
+                          {inventoryError && (
+                            <p className="text-xs text-red-500 mt-1">No se pudo cargar el inventario del almacén.</p>
+                          )}
+                          {selectedPartsDetails.length > 0 && (
+                            <ul className="mt-2 text-xs text-gray-500 space-y-1">
+                              {selectedPartsDetails.map((item) => (
+                                <li
+                                  key={item._id}
+                                  className="flex items-center justify-between border-b border-dashed border-gray-200 pb-1 last:pb-0 last:border-0"
+                                >
+                                  <span>{item.name}</span>
+                                  <span className="text-gray-400">Stock: {formatStock(item)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
                         </div>
                       )}
                     </div>
@@ -522,7 +720,16 @@ export const NewWorkReportPage: React.FC = () => {
                 )}
 
                 {/* Submit Button */}
-                <div className="flex justify-end pt-4">
+                <div className="flex flex-col gap-3 md:flex-row md:justify-end pt-4">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full md:w-auto px-8 py-3 text-base font-medium"
+                    onClick={handleSaveDraft}
+                    disabled={isSubmitting}
+                  >
+                    Guardar como borrador
+                  </Button>
                   <Button
                     type="submit"
                     className="w-full md:w-auto px-8 py-3 text-base font-medium bg-blue-900 hover:bg-blue-800 text-white rounded-lg shadow-md transition-all"

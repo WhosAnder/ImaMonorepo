@@ -14,23 +14,25 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   onChange,
   label,
   error,
-  maxFiles = 5,
+  maxFiles = 3,
   compact = false,
 }) => {
   const [previews, setPreviews] = useState<string[]>([]);
   const [files, setFiles] = useState<File[]>([]);
+  const effectiveMaxFiles = Math.min(Math.max(maxFiles, 1), 3);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const newFiles = Array.from(e.target.files);
-      const totalFiles = [...files, ...newFiles].slice(0, maxFiles);
+      const remainingSlots = Math.max(effectiveMaxFiles - files.length, 0);
+      const newFiles = Array.from(e.target.files).slice(0, remainingSlots);
+      const totalFiles = [...files, ...newFiles].slice(0, effectiveMaxFiles);
 
       setFiles(totalFiles);
       onChange(totalFiles);
 
       // Create previews
       const newPreviews = newFiles.map((file) => URL.createObjectURL(file));
-      setPreviews((prev) => [...prev, ...newPreviews].slice(0, maxFiles));
+      setPreviews((prev) => [...prev, ...newPreviews].slice(0, effectiveMaxFiles));
     }
   };
 
@@ -60,17 +62,17 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             type="file"
             accept="image/*"
             capture="environment"
-            multiple
+            multiple={effectiveMaxFiles > 1}
             className="hidden"
             id={`evidence-upload-${label || 'default'}`}
             onChange={handleFileChange}
-            disabled={files.length >= maxFiles}
+            disabled={files.length >= effectiveMaxFiles}
           />
           <label
             htmlFor={`evidence-upload-${label || 'default'}`}
             className={`
               flex items-center justify-center border border-gray-300 shadow-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 cursor-pointer
-              ${files.length >= maxFiles ? "opacity-50 cursor-not-allowed" : ""}
+              ${files.length >= effectiveMaxFiles ? "opacity-50 cursor-not-allowed" : ""}
               ${compact ? "px-2 py-1 text-xs" : "px-4 py-2 text-sm"}
             `}
           >
@@ -78,7 +80,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             {compact ? "Foto" : "Tomar foto"}
           </label>
           <span className="text-xs text-gray-500">
-            {files.length} / {maxFiles}
+            {files.length} / {effectiveMaxFiles}
           </span>
         </div>
 
