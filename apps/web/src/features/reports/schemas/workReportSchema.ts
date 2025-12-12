@@ -42,9 +42,7 @@ export const workReportSchema = z
       .refine((val) => val !== null, {
         message: "La firma es obligatoria",
       }),
-    fechaHoraTermino: z
-      .string()
-      .min(1, "La fecha y hora de término son obligatorias"),
+    fechaHoraTermino: z.string().optional(),
     
     templateIds: z.array(z.string()).optional(),
   });

@@ -308,7 +308,13 @@ export const NewWarehouseReportPage: React.FC = () => {
                                                         name={`herramientas.${index}.evidences`}
                                                         control={control}
                                                         render={({ field }) => (
-                                                            <ImageUpload label="Evidencias" onChange={field.onChange} maxFiles={3} compact />
+                                                            <ImageUpload
+                                                                label="Evidencias"
+                                                                value={field.value ?? []}
+                                                                onChange={field.onChange}
+                                                                maxFiles={3}
+                                                                compact
+                                                            />
                                                         )}
                                                     />
                                                 </div>
@@ -405,7 +411,13 @@ export const NewWarehouseReportPage: React.FC = () => {
                                                         name={`refacciones.${index}.evidences`}
                                                         control={control}
                                                         render={({ field }) => (
-                                                            <ImageUpload label="Evidencias" onChange={field.onChange} maxFiles={3} compact />
+                                                            <ImageUpload
+                                                                label="Evidencias"
+                                                                value={field.value ?? []}
+                                                                onChange={field.onChange}
+                                                                maxFiles={3}
+                                                                compact
+                                                            />
                                                         )}
                                                     />
                                                 </div>

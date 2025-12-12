@@ -1,4 +1,5 @@
 import React from "react";
+import { API_URL } from "@/config/env";
 
 export type WorkReportPreviewProps = {
   values: {
@@ -11,7 +12,7 @@ export type WorkReportPreviewProps = {
 
     inspeccionRealizada?: boolean;
     observacionesActividad?: string;
-    evidenciasCount?: number;
+    evidencias?: Array<{ id?: string; url?: string; previewUrl?: string } | string>;
 
     herramientas?: string[];
     refacciones?: string[];
@@ -21,6 +22,56 @@ export type WorkReportPreviewProps = {
     fechaHoraTermino?: string;
     firmaResponsable?: string | null;
   };
+};
+
+const resolveEvidenceUrl = (
+  item: { id?: string; url?: string; previewUrl?: string; key?: string } | string
+): string | undefined => {
+  // Extract filename from URL if it contains /upload/
+  const extractFilename = (url: string): string => {
+    const uploadIndex = url.indexOf("/upload/");
+    if (uploadIndex !== -1) {
+      return url.substring(uploadIndex + "/upload/".length);
+    }
+    return url;
+  };
+
+  if (typeof item === "string") {
+    // If it's a full URL with /upload/, extract filename and use API_URL
+    if (item.includes("/upload/")) {
+      const filename = extractFilename(item);
+      return `${API_URL}/upload/${filename}`;
+    }
+    // If it's a full URL without /upload/, use it as-is
+    if (item.startsWith("http://") || item.startsWith("https://")) {
+      return item;
+    }
+    // Otherwise, treat it as a filename
+    return `${API_URL}/upload/${item}`;
+  }
+
+  // If it's an object
+  if (item.url) {
+    // If url contains /upload/, extract filename and use API_URL
+    if (item.url.includes("/upload/")) {
+      const filename = extractFilename(item.url);
+      return `${API_URL}/upload/${filename}`;
+    }
+    // If url is a full URL without /upload/, use it as-is
+    if (item.url.startsWith("http://") || item.url.startsWith("https://")) {
+      return item.url;
+    }
+    // Otherwise, treat it as a filename
+    return `${API_URL}/upload/${item.url}`;
+  }
+
+  // Use id or key as filename
+  const filename = item.id || item.key;
+  if (filename) {
+    return `${API_URL}/upload/${filename}`;
+  }
+
+  return undefined;
 };
 
 export function WorkReportPreview({ values }: WorkReportPreviewProps) {
@@ -33,7 +84,7 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
     trabajadores,
     inspeccionRealizada,
     observacionesActividad,
-    evidenciasCount,
+    evidencias,
     herramientas,
     refacciones,
     observacionesGenerales,
@@ -80,12 +131,14 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                   className="h-10 w-auto object-contain"
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
-                    e.currentTarget.nextElementSibling?.classList.remove(
-                      "hidden",
-                    );
+                    const fallback = e.currentTarget.nextElementSibling as HTMLElement;
+                    if (fallback) {
+                      fallback.classList.remove("hidden");
+                      fallback.classList.add("flex");
+                    }
                   }}
                 />
-                <div className="hidden h-10 w-28 bg-[#153A7A] text-white text-xs font-semibold rounded-md flex items-center justify-center">
+                <div className="hidden h-10 w-28 bg-[#153A7A] text-white text-xs font-semibold rounded-md items-center justify-center">
                   LOGO IMA
                 </div>
               </div>
@@ -152,7 +205,7 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                   </div>
                   <div className="mt-1 flex justify-between text-[9px] text-[#555]">
                     <span>Evidencias adjuntas:</span>
-                    <span>{evidenciasCount ?? 0} / 5</span>
+                    <span>{evidencias?.length ?? 0} / 5</span>
                   </div>
                 </div>
               </section>

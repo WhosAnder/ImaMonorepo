@@ -8,12 +8,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Button } from '@/shared/ui/Button';
 import { MultiSelect } from '@/shared/ui/MultiSelect';
 import { SignaturePad } from '@/shared/ui/SignaturePad';
-import { ImageUpload } from '@/shared/ui/ImageUpload';
+import { ImageUpload, type LocalEvidence } from '@/shared/ui/ImageUpload';
 import { workReportSchema, WorkReportFormValues } from '../schemas/workReportSchema';
 import { Save, ArrowLeft } from 'lucide-react';
 import { Template } from '@/types/template';
 import { WorkReportPreview } from '../components/WorkReportPreview';
 import type { WarehouseItem } from '@/api/warehouseClient';
+import { uploadEvidence } from '@/api/storageClient';
 
 const mockWorkers = [
   { value: 'ana_garcia', label: 'Ana García' },
@@ -224,26 +225,216 @@ export const NewWorkReportPage: React.FC = () => {
 
   const createReportMutation = useCreateWorkReportMutation();
 
+  const blobToBase64 = (blob: Blob) =>
+    new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+
+  const fileToBase64 = (file: File) => blobToBase64(file);
+
+  const fetchUrlToBase64 = async (url: string) => {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error("Failed to fetch file for conversion");
+    }
+    const blob = await response.blob();
+    return blobToBase64(blob);
+  };
+
+  const dataUrlToFile = (dataUrl: string, fileName: string) => {
+    if (!dataUrl.startsWith("data:")) {
+      throw new Error("Invalid data URL");
+    }
+    const parts = dataUrl.split(",");
+    if (parts.length < 2) {
+      throw new Error("Invalid data URL");
+    }
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : "application/octet-stream";
+    const binary = atob(parts[1]);
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return new File([bytes], fileName, { type: mime });
+  };
+
+  const evidenceHasRemoteUrl = (evidence: any) => {
+    if (typeof evidence === "string") {
+      return /^https?:\/\//i.test(evidence);
+    }
+    if (evidence && typeof evidence === "object" && typeof evidence.url === "string") {
+      return /^https?:\/\//i.test(evidence.url);
+    }
+    return false;
+  };
+
+  const extractEvidenceDataUrl = (evidence: any) => {
+    if (!evidence) {
+      return null;
+    }
+    if (typeof evidence === "string" && evidence.startsWith("data:")) {
+      return evidence;
+    }
+    if (typeof evidence === "object") {
+      if (typeof evidence.base64 === "string" && evidence.base64.startsWith("data:")) {
+        return evidence.base64;
+      }
+      if (typeof evidence.previewUrl === "string" && evidence.previewUrl.startsWith("data:")) {
+        return evidence.previewUrl;
+      }
+    }
+    return null;
+  };
+
+  const ensureEvidencesAreUploaded = async (
+    evidences: any[] = [],
+    templateId: string
+  ) => {
+    return Promise.all(
+      evidences.map(async (evidence, index) => {
+        if (evidenceHasRemoteUrl(evidence)) {
+          return evidence;
+        }
+
+        const dataUrl = extractEvidenceDataUrl(evidence);
+        if (!dataUrl) {
+          return evidence;
+        }
+
+        const fileName = `work-evidence-${templateId}-${index + 1}.png`;
+        const file = dataUrlToFile(dataUrl, fileName);
+        const uploaded = await uploadEvidence(file, {
+          entityId: templateId,
+          category: "work-report",
+          order: index,
+        });
+
+        return {
+          id: uploaded.id || uploaded.key,
+          previewUrl: uploaded.previewUrl || uploaded.url,
+          url: uploaded.url,
+          key: uploaded.key,
+        };
+      })
+    );
+  };
+
+  const convertEvidenceToBase64 = async (evidence: any): Promise<string | any> => {
+    if (typeof window === "undefined") {
+      return evidence;
+    }
+
+    if (typeof evidence === "string") {
+      if (evidence.startsWith("data:")) {
+        return evidence;
+      }
+      if (/^https?:\/\//i.test(evidence)) {
+        try {
+          return await fetchUrlToBase64(evidence);
+        } catch {
+          return evidence;
+        }
+      }
+      return evidence;
+    }
+
+    if (evidence instanceof File) {
+      return fileToBase64(evidence);
+    }
+
+    if (evidence && typeof evidence === "object") {
+      const candidate = evidence as Partial<LocalEvidence> & { url?: string };
+      if (typeof candidate.base64 === "string" && candidate.base64.startsWith("data:")) {
+        return candidate.base64;
+      }
+      const src =
+        typeof candidate.previewUrl === "string"
+          ? candidate.previewUrl
+          : typeof candidate.url === "string"
+            ? candidate.url
+            : undefined;
+      if (typeof src === "string") {
+        if (src.startsWith("data:")) {
+          return src;
+        }
+        try {
+          return await fetchUrlToBase64(src);
+        } catch {
+          return src;
+        }
+      }
+    }
+
+    return evidence;
+  };
+
+  const convertSignatureToBase64 = async (signature: string | null | undefined) => {
+    if (!signature) {
+      return null;
+    }
+    if (signature.startsWith("data:")) {
+      return signature;
+    }
+    if (/^https?:\/\//i.test(signature)) {
+      try {
+        return await fetchUrlToBase64(signature);
+      } catch {
+        return signature;
+      }
+    }
+    return signature;
+  };
+
   const prepareActivityEvidence = async (
     activities: WorkReportFormValues['actividadesRealizadas'] = []
   ) => {
     return Promise.all(
       (activities || []).map(async (act) => {
         const evidencias = await Promise.all(
-          (act.evidencias || []).map(async (file: any) => {
-            if (typeof window !== 'undefined' && file instanceof File) {
-              return new Promise<string>((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.readAsDataURL(file);
-              });
-            }
-            return file;
-          })
+          (act.evidencias || []).map((file: any) => convertEvidenceToBase64(file))
         );
         return { ...act, evidencias };
       })
     );
+  };
+
+  const buildWorkReportPayload = async (formValues: WorkReportFormValues) => {
+    const actividadesConEvidencias = await prepareActivityEvidence(formValues.actividadesRealizadas);
+    const primaryActivity = actividadesConEvidencias?.[0];
+    const {
+      templateIds,
+      actividadesRealizadas,
+      inspeccionRealizada,
+      observacionesActividad,
+      evidencias,
+      ...rest
+    } = formValues;
+
+    const templateId = selectedTemplate?._id || templateIds?.[0];
+    if (!templateId) {
+      throw new Error('Debes seleccionar una actividad para generar el reporte.');
+    }
+
+    const normalizedSignature = await convertSignatureToBase64(rest.firmaResponsable);
+    const evidenciasSubidas = await ensureEvidencesAreUploaded(
+      primaryActivity?.evidencias || [],
+      templateId
+    );
+
+    return {
+      ...rest,
+      templateId,
+      tipoMantenimiento: selectedTemplate?.tipoMantenimiento || 'Preventivo',
+      inspeccionRealizada: primaryActivity?.realizado ?? false,
+      observacionesActividad: primaryActivity?.observaciones ?? '',
+      evidencias: evidenciasSubidas,
+      firmaResponsable: normalizedSignature,
+    };
   };
 
   const onSubmit = async (data: WorkReportFormValues) => {
@@ -253,19 +444,9 @@ export const NewWorkReportPage: React.FC = () => {
     const localISOTime = (new Date(now.getTime() - offset)).toISOString().slice(0, 16);
     data.fechaHoraTermino = localISOTime;
 
-    // Process evidences
-    const actividadesConEvidencias = await prepareActivityEvidence(data.actividadesRealizadas);
-
-    const payload = {
-      ...data,
-      actividadesRealizadas: actividadesConEvidencias,
-      templateIds: [selectedTemplate?._id],
-      tipoMantenimiento: selectedTemplate?.tipoMantenimiento || 'Preventivo'
-    };
-
-    console.log('Form Data Submitted:', payload);
-
     try {
+      const payload = await buildWorkReportPayload(data);
+      console.log('Form Data Submitted:', payload);
       const result = await createReportMutation.mutateAsync(payload as any);
       if (typeof window !== 'undefined') {
         localStorage.removeItem(WORK_REPORT_DRAFT_KEY);
@@ -274,7 +455,7 @@ export const NewWorkReportPage: React.FC = () => {
       router.push(`/reports/${(result as any)._id}`);
     } catch (error) {
       console.error("Error creating report:", error);
-      alert('Error al generar el reporte');
+      alert(error instanceof Error ? error.message : 'Error al generar el reporte');
     }
   };
 
@@ -286,10 +467,12 @@ export const NewWorkReportPage: React.FC = () => {
     try {
       const currentValues = getValues();
       const actividadesConEvidencias = await prepareActivityEvidence(currentValues.actividadesRealizadas);
+      const firmaResponsable = await convertSignatureToBase64(currentValues.firmaResponsable);
       const draftPayload = {
         formValues: {
           ...currentValues,
           actividadesRealizadas: actividadesConEvidencias,
+          firmaResponsable,
         },
         selectedTemplate,
         timestamp: new Date().toISOString(),
@@ -314,7 +497,7 @@ export const NewWorkReportPage: React.FC = () => {
     // Map the first activity's data to the preview fields
     inspeccionRealizada: watchedValues.actividadesRealizadas?.[0]?.realizado,
     observacionesActividad: watchedValues.actividadesRealizadas?.[0]?.observaciones,
-    evidenciasCount: watchedValues.actividadesRealizadas?.[0]?.evidencias?.length || 0,
+    evidencias: watchedValues.actividadesRealizadas?.[0]?.evidencias ?? [],
     // Map workers to string array if needed, or keep as is if Preview expects strings
     trabajadores: watchedValues.trabajadores,
     herramientas: watchedValues.herramientas,
@@ -548,7 +731,12 @@ export const NewWorkReportPage: React.FC = () => {
                                 name={`actividadesRealizadas.${index}.evidencias`}
                                 control={control}
                                 render={({ field }) => (
-                                  <ImageUpload label="Evidencias adjuntas" onChange={field.onChange} compact />
+                                  <ImageUpload
+                                    label="Evidencias adjuntas"
+                                    value={field.value ?? []}
+                                    onChange={field.onChange}
+                                    compact
+                                  />
                                 )}
                               />
                             </div>

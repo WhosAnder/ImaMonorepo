@@ -11,15 +11,18 @@
     "seed:warehouse": "tsx src/scripts/seedWarehouse.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.883.0",
     "@hono/node-server": "^1.13.0",
     "dotenv": "^16.0.0",
     "hono": "^4.0.0",
     "mongodb": "^7.0.0",
+    "multer": "^2.0.2",
     "xlsx": "^0.18.5",
     "zod": "^3.23.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "@types/multer": "^1.4.12",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0"
   }
