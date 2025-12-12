@@ -1,5 +1,4 @@
 import React from "react";
-import { API_URL } from "@/config/env";
 
 export type WorkReportPreviewProps = {
   values: {
@@ -12,7 +11,7 @@ export type WorkReportPreviewProps = {
 
     inspeccionRealizada?: boolean;
     observacionesActividad?: string;
-    evidencias?: Array<{ id?: string; url?: string; previewUrl?: string } | string>;
+    evidencias?: Array<{ id?: string; url?: string; previewUrl?: string; key?: string } | string>;
 
     herramientas?: string[];
     refacciones?: string[];
@@ -22,56 +21,6 @@ export type WorkReportPreviewProps = {
     fechaHoraTermino?: string;
     firmaResponsable?: string | null;
   };
-};
-
-const resolveEvidenceUrl = (
-  item: { id?: string; url?: string; previewUrl?: string; key?: string } | string
-): string | undefined => {
-  // Extract filename from URL if it contains /upload/
-  const extractFilename = (url: string): string => {
-    const uploadIndex = url.indexOf("/upload/");
-    if (uploadIndex !== -1) {
-      return url.substring(uploadIndex + "/upload/".length);
-    }
-    return url;
-  };
-
-  if (typeof item === "string") {
-    // If it's a full URL with /upload/, extract filename and use API_URL
-    if (item.includes("/upload/")) {
-      const filename = extractFilename(item);
-      return `${API_URL}/upload/${filename}`;
-    }
-    // If it's a full URL without /upload/, use it as-is
-    if (item.startsWith("http://") || item.startsWith("https://")) {
-      return item;
-    }
-    // Otherwise, treat it as a filename
-    return `${API_URL}/upload/${item}`;
-  }
-
-  // If it's an object
-  if (item.url) {
-    // If url contains /upload/, extract filename and use API_URL
-    if (item.url.includes("/upload/")) {
-      const filename = extractFilename(item.url);
-      return `${API_URL}/upload/${filename}`;
-    }
-    // If url is a full URL without /upload/, use it as-is
-    if (item.url.startsWith("http://") || item.url.startsWith("https://")) {
-      return item.url;
-    }
-    // Otherwise, treat it as a filename
-    return `${API_URL}/upload/${item.url}`;
-  }
-
-  // Use id or key as filename
-  const filename = item.id || item.key;
-  if (filename) {
-    return `${API_URL}/upload/${filename}`;
-  }
-
-  return undefined;
 };
 
 export function WorkReportPreview({ values }: WorkReportPreviewProps) {

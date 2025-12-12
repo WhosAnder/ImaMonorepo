@@ -1,9 +1,15 @@
 import type { Context } from "hono";
 import { randomUUID } from "crypto";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
+import { Readable } from "node:stream";
+import { createReadStream, existsSync } from "node:fs";
+import { join } from "node:path";
 import { createStorageService } from "./storage.service";
 import { storagePolicies } from "./storage.policies";
 import { createMulterAdapter } from "./adapters/multer-adapter";
 import { createS3Adapter } from "./adapters/s3-adapter";
+import { getS3Client } from "../../config/s3";
+import { getUploadDir } from "../../config/multer";
 
 const shouldUseS3 = () => {
   const env = process.env.NODE_ENV || "development";
@@ -89,4 +95,136 @@ export async function uploadEvidenceController(c: Context) {
     console.error("Error uploading evidence:", error);
     return c.json({ error: "File upload failed" }, 500);
   }
+}
+
+const contentTypeMap: Record<string, string> = {
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  gif: "image/gif",
+  webp: "image/webp",
+  mp4: "video/mp4",
+  mpeg: "video/mpeg",
+  mov: "video/quicktime",
+  avi: "video/x-msvideo",
+};
+
+const resolveContentType = (filename: string, fallback?: string) => {
+  if (fallback) {
+    return fallback;
+  }
+  const ext = filename.split(".").pop()?.toLowerCase() || "";
+  return contentTypeMap[ext] || "application/octet-stream";
+};
+
+const toWebStream = (body: unknown) => {
+  if (!body) {
+    return null;
+  }
+  if (body instanceof Readable) {
+    return Readable.toWeb(body);
+  }
+  if (typeof (body as any).transformToWebStream === "function") {
+    return (body as any).transformToWebStream();
+  }
+  return null;
+};
+
+const bodyToUint8Array = async (body: unknown) => {
+  if (!body) {
+    return null;
+  }
+  if (body instanceof Uint8Array) {
+    return body;
+  }
+  if (Buffer.isBuffer(body)) {
+    return new Uint8Array(body);
+  }
+  if (typeof body === "string") {
+    return new TextEncoder().encode(body);
+  }
+  if (body instanceof Readable) {
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of body) {
+      chunks.push(typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk);
+    }
+    return new Uint8Array(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))));
+  }
+  if (typeof (body as any).arrayBuffer === "function") {
+    const buffer = await (body as any).arrayBuffer();
+    return new Uint8Array(buffer);
+  }
+  if (typeof (body as any).transformToByteArray === "function") {
+    const data = await (body as any).transformToByteArray();
+    return data instanceof Uint8Array ? data : new Uint8Array(data);
+  }
+  return null;
+};
+
+const buildDownloadHeaders = (key: string, contentType?: string, contentLength?: number | bigint) => {
+  const headers: Record<string, string> = {
+    "Content-Type": resolveContentType(key, contentType),
+    "Cache-Control": "public, max-age=300",
+  };
+
+  if (typeof contentLength === "number") {
+    headers["Content-Length"] = String(contentLength);
+  } else if (typeof contentLength === "bigint") {
+    headers["Content-Length"] = contentLength.toString();
+  }
+
+  return headers;
+};
+
+export async function getEvidenceController(c: Context) {
+  const key = c.req.param("key");
+  if (!key) {
+    return c.json({ error: "Evidence key is required" }, 400);
+  }
+
+  if (shouldUseS3()) {
+    try {
+      const bucket = process.env.S3_BUCKET;
+      if (!bucket) {
+        throw new Error("S3_BUCKET environment variable is required");
+      }
+      const command = new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      });
+      const result = await getS3Client().send(command);
+
+      if (!result.Body) {
+        return c.json({ error: "Evidence not found" }, 404);
+      }
+
+      const headers = buildDownloadHeaders(key, result.ContentType, result.ContentLength);
+      const stream = toWebStream(result.Body);
+      if (stream) {
+        return new Response(stream, { headers });
+      }
+
+      const buffer = await bodyToUint8Array(result.Body);
+      if (!buffer) {
+        return c.json({ error: "Evidence not found" }, 404);
+      }
+      return new Response(buffer, { headers });
+    } catch (error) {
+      console.error("Error fetching S3 evidence:", error);
+      const status = (error as any)?.$metadata?.httpStatusCode;
+      if (status === 404) {
+        return c.json({ error: "Evidence not found" }, 404);
+      }
+      return c.json({ error: "Unable to fetch evidence" }, 500);
+    }
+  }
+
+  const filePath = join(getUploadDir(), key);
+  if (!existsSync(filePath)) {
+    return c.json({ error: "Evidence not found" }, 404);
+  }
+
+  const stream = createReadStream(filePath);
+  const headers = buildDownloadHeaders(key);
+  return new Response(Readable.toWeb(stream), { headers });
 }
