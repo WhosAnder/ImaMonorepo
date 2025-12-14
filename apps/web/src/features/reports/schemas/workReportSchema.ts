@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export const activityDetailSchema = z.object({
   templateId: z.string(),
-  realizado: z.boolean(),
+  nombre: z.string(), // Activity name for display
+  realizado: z.boolean().default(true), // Auto-true when selected
   observaciones: z.string().optional(),
   evidencias: z.array(z.any()).optional(),
 });
