@@ -20,8 +20,15 @@ export const getS3Client = () => {
     throw new Error("AWS_S3_ENDPOINT environment variable is required");
   }
 
-  const accessKeyId = process.env.AWS_ACCESS_KEY_ID ?? "";
-  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY ?? "";
+  const accessKeyId = process.env.AWS_ACCESS_KEY_ID;
+  if (!accessKeyId) {
+    throw new Error("AWS_ACCESS_KEY_ID environment variable is required");
+  }
+
+  const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
+  if (!secretAccessKey) {
+    throw new Error("AWS_SECRET_ACCESS_KEY environment variable is required");
+  }
 
   cachedClient = new S3Client({
     region,

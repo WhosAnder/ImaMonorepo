@@ -2,7 +2,6 @@ import { API_URL, S3_PRESIGNER_BASE } from "@/config/env";
 
 const buildStorageEvidenceUrl = (key: string) => {
   const filename = key.split("/").pop() || key;
-  console.log("filename", filename);
   return `${S3_PRESIGNER_BASE}/${filename}`;
 };
 
