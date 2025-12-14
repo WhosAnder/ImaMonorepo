@@ -15,6 +15,7 @@ import { Save, Plus, Trash2, Package, Wrench } from 'lucide-react';
 import { AppLayout } from '@/shared/layout/AppLayout';
 import { createReport } from '../helpers/create-report';
 import { generatePDFReport } from '../helpers/generate-pdf';
+import { uploadEvidence as uploadEvidencePresigned } from '@/api/evidencesClient';
 
 const SUBSYSTEMS = [
     'EQUIPO DE GUIA/ TRABAJO DE GUIA',
@@ -84,10 +85,74 @@ export const NewWarehouseReportPage: React.FC = () => {
         }
     }, [fechaHoraEntrega, setValue]);
 
+    /**
+     * Upload evidences from tools/parts to S3 bucket
+     */
+    const uploadAllEvidences = async (reportId: string, data: WarehouseReportFormValues) => {
+        const allEvidences: any[] = [];
+        
+        // Collect evidences from herramientas
+        data.herramientas?.forEach((tool: any) => {
+            if (tool.evidences && Array.isArray(tool.evidences)) {
+                allEvidences.push(...tool.evidences);
+            }
+        });
+        
+        // Collect evidences from refacciones
+        data.refacciones?.forEach((part: any) => {
+            if (part.evidences && Array.isArray(part.evidences)) {
+                allEvidences.push(...part.evidences);
+            }
+        });
+        
+        // Upload each evidence
+        for (const evidence of allEvidences) {
+            if (!evidence) continue;
+            
+            // Skip if already uploaded (has remote URL)
+            if (evidence.url && evidence.url.startsWith('http')) continue;
+            
+            // Get dataUrl from evidence
+            const dataUrl = evidence.base64 || evidence.previewUrl;
+            if (!dataUrl || !dataUrl.startsWith('data:')) continue;
+            
+            try {
+                // Convert dataUrl to File
+                const [header, base64Data] = dataUrl.split(',');
+                const mimeMatch = header.match(/data:(.+);/);
+                const mimeType = mimeMatch?.[1] || 'image/jpeg';
+                const byteString = atob(base64Data);
+                const ab = new ArrayBuffer(byteString.length);
+                const ia = new Uint8Array(ab);
+                for (let i = 0; i < byteString.length; i++) {
+                    ia[i] = byteString.charCodeAt(i);
+                }
+                const blob = new Blob([ab], { type: mimeType });
+                const file = new File([blob], evidence.name || 'evidence.jpg', { type: mimeType });
+                
+                await uploadEvidencePresigned({
+                    reportId,
+                    reportType: 'warehouse',
+                    file,
+                });
+            } catch (err) {
+                console.error('Failed to upload evidence:', err);
+            }
+        }
+    };
+
     const onSubmit = async (data: WarehouseReportFormValues) => {
         const { data: report, error } = await createReport(data)
 
         if (report) {
+            // Upload evidences to S3 with the new reportId
+            const reportId = report._id;
+            if (reportId) {
+                console.log('Uploading evidences to S3...');
+                await uploadAllEvidences(reportId, data);
+                console.log('Evidences uploaded');
+            }
+            
             alert('Reporte creado exitosamente');
             // Generate PDF
             await generatePDFReport(data);
