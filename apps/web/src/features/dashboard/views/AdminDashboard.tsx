@@ -13,12 +13,16 @@ export function AdminDashboard() {
 
   const { data: workReports = [] } = useQuery<WorkReportListItem[]>({
     queryKey: ["workReports"],
-    queryFn: () => apiGet("/reports"),
+    queryFn: () => apiGet("/api/reports"),
+    enabled: true,
+    refetchOnMount: true,
   });
 
   const { data: warehouseReports = [] } = useQuery<WarehouseReportListItem[]>({
     queryKey: ["warehouseReports"],
-    queryFn: () => apiGet("/warehouse-reports"),
+    queryFn: () => apiGet("/api/warehouse-reports"),
+    enabled: true,
+    refetchOnMount: true,
   });
 
   const totalWorkReports = workReports.length;

@@ -12,7 +12,9 @@ export function WarehouseDashboard() {
 
   const { data: warehouseReports = [] } = useQuery<WarehouseReportListItem[]>({
     queryKey: ["warehouseReports"],
-    queryFn: () => apiGet("/warehouse-reports"),
+    queryFn: () => apiGet("/api/warehouse-reports"),
+    enabled: true,
+    refetchOnMount: true,
   });
 
   const totalWarehouseReports = warehouseReports.length;
