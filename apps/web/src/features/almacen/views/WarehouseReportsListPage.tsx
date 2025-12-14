@@ -1,4 +1,3 @@
-
 "use client";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -8,6 +7,7 @@ import { Button } from "@/shared/ui/Button";
 import { useRouter } from 'next/navigation';
 import { useWarehouseReportsQuery } from '@/hooks/useWarehouseReports';
 import { AppLayout } from "@/shared/layout/AppLayout";
+import { ReportExplorer } from "../../reports/components/ReportExplorer";
 
 export const WarehouseReportsListPage: React.FC = () => {
     const router = useRouter();
@@ -76,68 +76,74 @@ export const WarehouseReportsListPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
-                                <tr>
-                                    <th className="px-6 py-3 font-medium whitespace-nowrap">Folio</th>
-                                    <th className="px-6 py-3 font-medium whitespace-nowrap">Subsistema</th>
-                                    <th className="px-6 py-3 font-medium whitespace-nowrap">Fecha Entrega</th>
-                                    <th className="px-6 py-3 font-medium whitespace-nowrap">Almacenista</th>
-                                    <th className="px-6 py-3 font-medium whitespace-nowrap">Recibe</th>
-                                    <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-200">
-                                {filteredReports?.length === 0 ? (
+                    {!searchTerm ? (
+                        <div className="p-6">
+                            <ReportExplorer type="warehouse" />
+                        </div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b border-gray-200">
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                                            No se encontraron reportes que coincidan con tu búsqueda
-                                        </td>
+                                        <th className="px-6 py-3 font-medium whitespace-nowrap">Folio</th>
+                                        <th className="px-6 py-3 font-medium whitespace-nowrap">Subsistema</th>
+                                        <th className="px-6 py-3 font-medium whitespace-nowrap">Fecha Entrega</th>
+                                        <th className="px-6 py-3 font-medium whitespace-nowrap">Almacenista</th>
+                                        <th className="px-6 py-3 font-medium whitespace-nowrap">Recibe</th>
+                                        <th className="px-6 py-3 font-medium text-right whitespace-nowrap">Acciones</th>
                                     </tr>
-                                ) : (
-                                    filteredReports?.map((report) => (
-                                        <tr key={report.id} className="bg-white hover:bg-gray-50 transition-colors">
-                                            <td className="px-6 py-4 font-medium text-blue-600 whitespace-nowrap">
-                                                {report.folio}
-                                            </td>
-                                            <td className="px-6 py-4 text-gray-900">
-                                                <div className="flex items-center">
-                                                    <Package className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
-                                                    <span className="block truncate max-w-[200px]" title={report.subsistema}>{report.subsistema}</span>
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
-                                                <div className="flex items-center">
-                                                    <Calendar className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
-                                                    {report.fechaEntrega}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-gray-900 whitespace-nowrap">
-                                                <div className="flex items-center">
-                                                    <User className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
-                                                    {report.responsableAlmacen}
-                                                </div>
-                                            </td>
-                                            <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
-                                                {report.responsableRecepcion}
-                                            </td>
-                                            <td className="px-6 py-4 text-right whitespace-nowrap">
-                                                <Button
-                                                    variant="ghost"
-                                                    className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                                                    onClick={() => router.push(`/almacen/${report.id}`)}
-                                                >
-                                                    Ver detalle
-                                                    <ArrowRight className="ml-1 h-3 w-3" />
-                                                </Button>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200">
+                                    {filteredReports?.length === 0 ? (
+                                        <tr>
+                                            <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                                                No se encontraron reportes que coincidan con tu búsqueda
                                             </td>
                                         </tr>
-                                    ))
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                    ) : (
+                                        filteredReports?.map((report) => (
+                                            <tr key={report.id} className="bg-white hover:bg-gray-50 transition-colors">
+                                                <td className="px-6 py-4 font-medium text-blue-600 whitespace-nowrap">
+                                                    {report.folio}
+                                                </td>
+                                                <td className="px-6 py-4 text-gray-900">
+                                                    <div className="flex items-center">
+                                                        <Package className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
+                                                        <span className="block truncate max-w-[200px]" title={report.subsistema}>{report.subsistema}</span>
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
+                                                    <div className="flex items-center">
+                                                        <Calendar className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
+                                                        {report.fechaEntrega}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-gray-900 whitespace-nowrap">
+                                                    <div className="flex items-center">
+                                                        <User className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
+                                                        {report.responsableAlmacen}
+                                                    </div>
+                                                </td>
+                                                <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
+                                                    {report.responsableRecepcion}
+                                                </td>
+                                                <td className="px-6 py-4 text-right whitespace-nowrap">
+                                                    <Button
+                                                        variant="ghost"
+                                                        className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                                                        onClick={() => router.push(`/almacen/${report.id}`)}
+                                                    >
+                                                        Ver detalle
+                                                        <ArrowRight className="ml-1 h-3 w-3" />
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
 
                     <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center">
                         <span>Mostrando {filteredReports?.length || 0} reportes</span>

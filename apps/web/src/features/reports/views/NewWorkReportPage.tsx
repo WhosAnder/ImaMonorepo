@@ -14,7 +14,7 @@ import { Save, ArrowLeft } from 'lucide-react';
 import { Template } from '@/types/template';
 import { WorkReportPreview } from '../components/WorkReportPreview';
 import type { WarehouseItem } from '@/api/warehouseClient';
-import { uploadEvidence } from '@/api/storageClient';
+import { uploadEvidence as uploadEvidencePresigned } from '@/api/evidencesClient';
 
 const mockWorkers = [
   { value: 'ana_garcia', label: 'Ana García' },
@@ -291,37 +291,61 @@ export const NewWorkReportPage: React.FC = () => {
     return null;
   };
 
-  const ensureEvidencesAreUploaded = async (
+  /**
+   * Upload evidences using presigned URL flow.
+   * Requires reportId - must be called AFTER report is created.
+   */
+  const uploadEvidencesToBucket = async (
     evidences: any[] = [],
-    templateId: string
+    reportId: string
   ) => {
-    return Promise.all(
-      evidences.map(async (evidence, index) => {
-        if (evidenceHasRemoteUrl(evidence)) {
-          return evidence;
+    const uploaded: { id: string; key: string; originalName: string }[] = [];
+    
+    for (let index = 0; index < evidences.length; index++) {
+      const evidence = evidences[index];
+      
+      // Skip if already uploaded (has remote URL)
+      if (evidenceHasRemoteUrl(evidence)) {
+        if (evidence.key) {
+          uploaded.push({
+            id: evidence.id || evidence.key,
+            key: evidence.key,
+            originalName: evidence.name || `evidence-${index + 1}`,
+          });
         }
+        continue;
+      }
 
-        const dataUrl = extractEvidenceDataUrl(evidence);
-        if (!dataUrl) {
-          return evidence;
-        }
+      // Extract dataUrl from evidence
+      const dataUrl = extractEvidenceDataUrl(evidence);
+      if (!dataUrl) {
+        continue;
+      }
 
-        const fileName = `work-evidence-${templateId}-${index + 1}.png`;
-        const file = dataUrlToFile(dataUrl, fileName);
-        const uploaded = await uploadEvidence(file, {
-          entityId: templateId,
-          category: "work-report",
-          order: index,
+      // Convert dataUrl to File
+      const fileName = evidence.name || `work-evidence-${index + 1}.jpg`;
+      const file = dataUrlToFile(dataUrl, fileName);
+      
+      try {
+        // Upload using presigned URL flow
+        const result = await uploadEvidencePresigned({
+          reportId,
+          reportType: 'work',
+          file,
         });
-
-        return {
-          id: uploaded.id || uploaded.key,
-          previewUrl: uploaded.previewUrl || uploaded.url,
-          url: uploaded.url,
-          key: uploaded.key,
-        };
-      })
-    );
+        
+        uploaded.push({
+          id: result.id,
+          key: result.key,
+          originalName: result.originalName,
+        });
+      } catch (err) {
+        console.error(`Failed to upload evidence ${index + 1}:`, err);
+        // Continue with other evidences
+      }
+    }
+    
+    return uploaded;
   };
 
   const convertEvidenceToBase64 = async (evidence: any): Promise<string | any> => {
@@ -421,19 +445,19 @@ export const NewWorkReportPage: React.FC = () => {
     }
 
     const normalizedSignature = await convertSignatureToBase64(rest.firmaResponsable);
-    const evidenciasSubidas = await ensureEvidencesAreUploaded(
-      primaryActivity?.evidencias || [],
-      templateId
-    );
 
+    // Return payload WITHOUT uploading evidences - they'll be uploaded after report creation
     return {
-      ...rest,
-      templateId,
-      tipoMantenimiento: selectedTemplate?.tipoMantenimiento || 'Preventivo',
-      inspeccionRealizada: primaryActivity?.realizado ?? false,
-      observacionesActividad: primaryActivity?.observaciones ?? '',
-      evidencias: evidenciasSubidas,
-      firmaResponsable: normalizedSignature,
+      payload: {
+        ...rest,
+        templateId,
+        tipoMantenimiento: selectedTemplate?.tipoMantenimiento || 'Preventivo',
+        inspeccionRealizada: primaryActivity?.realizado ?? false,
+        observacionesActividad: primaryActivity?.observaciones ?? '',
+        evidencias: [], // Will be populated after report is created
+        firmaResponsable: normalizedSignature,
+      },
+      localEvidences: primaryActivity?.evidencias || [],
     };
   };
 
@@ -445,14 +469,30 @@ export const NewWorkReportPage: React.FC = () => {
     data.fechaHoraTermino = localISOTime;
 
     try {
-      const payload = await buildWorkReportPayload(data);
-      console.log('Form Data Submitted:', payload);
+      // 1. Build payload (without uploading evidences yet)
+      const { payload, localEvidences } = await buildWorkReportPayload(data);
+      console.log('Creating report...', payload);
+      
+      // 2. Create the report first
       const result = await createReportMutation.mutateAsync(payload as any);
+      const reportId = (result as any)._id;
+      console.log('Report created:', reportId);
+      
+      // 3. Upload evidences to S3 using the new reportId
+      if (localEvidences.length > 0) {
+        console.log('Uploading evidences to S3...', localEvidences.length);
+        const uploadedEvidences = await uploadEvidencesToBucket(localEvidences, reportId);
+        console.log('Evidences uploaded:', uploadedEvidences);
+        // Note: Evidence metadata is stored in 'evidences' collection, linked to reportId
+      }
+      
+      // 4. Clean up
       if (typeof window !== 'undefined') {
         localStorage.removeItem(WORK_REPORT_DRAFT_KEY);
       }
+      
       alert('Reporte generado exitosamente');
-      router.push(`/reports/${(result as any)._id}`);
+      router.push(`/reports/${reportId}`);
     } catch (error) {
       console.error("Error creating report:", error);
       alert(error instanceof Error ? error.message : 'Error al generar el reporte');
