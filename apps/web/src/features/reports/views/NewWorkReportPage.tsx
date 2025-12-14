@@ -60,6 +60,7 @@ export const NewWorkReportPage: React.FC = () => {
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<WorkReportFormValues>({
     resolver: zodResolver(workReportSchema) as any,
@@ -161,9 +162,10 @@ export const NewWorkReportPage: React.FC = () => {
     ));
   };
 
-  const updateActivityEvidencias = (id: string, files: File[]) => {
+  const updateActivityEvidencias = (id: string, files: any[]) => {
+    const fileObjects = files.map(f => f.file).filter(Boolean) as File[];
     setActivitiesState(prev => prev.map(a => 
-      a.id === id ? { ...a, evidencias: files } : a
+      a.id === id ? { ...a, evidencias: fileObjects } : a
     ));
   };
 
@@ -203,7 +205,15 @@ export const NewWorkReportPage: React.FC = () => {
     };
 
     try {
+      console.log('Creating report...', payload);
+      
       const result = await createReportMutation.mutateAsync(payload as any);
+      const reportId = (result as any)._id;
+      console.log('Report created:', reportId);
+      
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(WORK_REPORT_DRAFT_KEY);
+      }
       alert('Reporte generado exitosamente');
       router.push(`/reports/${(result as any)._id}`);
     } catch (error) {
