@@ -30,6 +30,8 @@ import { workReportSchema, WorkReportFormValues } from '../schemas/workReportSch
 import { Save } from 'lucide-react';
 import { Template } from '@/types/template';
 import { WorkReportPreview } from '../components/WorkReportPreview';
+import type { WarehouseItem } from '@/api/warehouseClient';
+import { uploadEvidence as uploadEvidencePresigned } from '@/api/evidencesClient';
 
 const mockWorkers = [
   { value: 'ana_garcia', label: 'Ana García' },
@@ -39,7 +41,16 @@ const mockWorkers = [
   { value: 'jose_hernandez', label: 'José Hernández' },
 ];
 
-const WORK_REPORT_DRAFT_KEY = 'ima-work-report-draft';
+interface ActivityWithDetails {
+  id: string;
+  name: string;
+  code?: string;
+  template: Template;
+  isSelected: boolean;
+  observaciones: string;
+  evidencias: File[];
+  expanded: boolean;
+}
 
 interface ActivityWithDetails {
   id: string;
@@ -100,6 +111,9 @@ export const NewWorkReportPage: React.FC = () => {
   const partsOptions = inventoryItems?.filter(i => i.category?.toLowerCase() === 'refacciones').map(i => ({ value: i.name, label: i.name })) || [];
 
   useEffect(() => {
+    if (draftStatus !== 'empty') {
+      return;
+    }
     setValue('fechaHoraInicio', new Date().toISOString().slice(0, 16));
   }, [setValue]);
 
@@ -205,22 +219,63 @@ export const NewWorkReportPage: React.FC = () => {
       templateIds: selectedActivitiesData.map(a => a.template._id || a.id),
       tipoMantenimiento: selectedActivitiesData[0]?.template.tipoMantenimiento || 'Preventivo'
     };
+  };
 
     try {
+      // 1. Build payload (without uploading evidences yet)
+      const { payload, localEvidences } = await buildWorkReportPayload(data);
       console.log('Creating report...', payload);
       
+      // 2. Create the report first
       const result = await createReportMutation.mutateAsync(payload as any);
       const reportId = (result as any)._id;
       console.log('Report created:', reportId);
       
+      // 3. Upload evidences to S3 using the new reportId
+      if (localEvidences.length > 0) {
+        console.log('Uploading evidences to S3...', localEvidences.length);
+        const uploadedEvidences = await uploadEvidencesToBucket(localEvidences, reportId);
+        console.log('Evidences uploaded:', uploadedEvidences);
+        // Note: Evidence metadata is stored in 'evidences' collection, linked to reportId
+      }
+      
+      // 4. Clean up
       if (typeof window !== 'undefined') {
         localStorage.removeItem(WORK_REPORT_DRAFT_KEY);
       }
+      
       alert('Reporte generado exitosamente');
-      router.push(`/reports/${(result as any)._id}`);
+      router.push(`/reports/${reportId}`);
     } catch (error) {
       console.error("Error creating report:", error);
       alert('Error al generar el reporte');
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    try {
+      const currentValues = getValues();
+      const actividadesConEvidencias = await prepareActivityEvidence(currentValues.actividadesRealizadas);
+      const firmaResponsable = await convertSignatureToBase64(currentValues.firmaResponsable);
+      const draftPayload = {
+        formValues: {
+          ...currentValues,
+          actividadesRealizadas: actividadesConEvidencias,
+          firmaResponsable,
+        },
+        selectedTemplate,
+        timestamp: new Date().toISOString(),
+      };
+
+      localStorage.setItem(WORK_REPORT_DRAFT_KEY, JSON.stringify(draftPayload));
+      alert('Borrador guardado correctamente');
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      alert('No se pudo guardar el borrador');
     }
   };
 
