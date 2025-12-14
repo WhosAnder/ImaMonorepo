@@ -39,6 +39,8 @@ const mockWorkers = [
   { value: 'jose_hernandez', label: 'José Hernández' },
 ];
 
+const WORK_REPORT_DRAFT_KEY = 'ima-work-report-draft';
+
 interface ActivityWithDetails {
   id: string;
   name: string;

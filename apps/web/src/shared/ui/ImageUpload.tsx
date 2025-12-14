@@ -28,7 +28,6 @@ type IncomingEvidence =
       base64?: string;
       name?: string;
       size?: number;
-      url?: string;
       key?: string;
     };
 
