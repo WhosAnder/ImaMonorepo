@@ -1,12 +1,22 @@
-/**
- * @deprecated This module is deprecated and kept for backward compatibility.
- * Use the new evidences module at /api/evidences/* for presigned URL uploads.
- * This legacy module uses server-side multer/S3 upload.
- */
 import { Hono } from "hono";
-import { uploadEvidenceController, getEvidenceController } from "./storage.controller";
+import { 
+  uploadEvidenceController, 
+  getEvidenceController,
+  presignUploadController,
+  confirmUploadController,
+  presignDownloadController,
+  listEvidencesController
+} from "./storage.controller";
 
 export const storageRoute = new Hono();
 
+// Legacy endpoint (keep for now)
 storageRoute.post("/evidences", uploadEvidenceController);
 storageRoute.get("/evidences/:key", getEvidenceController);
+
+// New endpoints for presigned URL flow
+storageRoute.post("/presign-upload", presignUploadController);
+storageRoute.post("/confirm-upload", confirmUploadController);
+storageRoute.post("/presign-download", presignDownloadController);
+storageRoute.get("/report/:reportId", listEvidencesController);
+

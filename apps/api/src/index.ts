@@ -6,7 +6,6 @@ import { warehouseReportsRoute } from './modules/warehouseReports/warehouseRepor
 import { templatesRoute } from './modules/templates/templates.route';
 import { warehouseRoute } from './modules/warehouse/warehouse.route';
 import { storageRoute } from './modules/storage/storage.route';
-import { evidencesRoute } from './modules/evidences/evidences.route';
 import { reportsRoute } from './modules/reports/reports.route';
 import { getUploadDir } from './config/multer';
 import { readFileSync, existsSync } from 'fs';
@@ -85,7 +84,6 @@ api.route('/warehouse-reports', warehouseReportsRoute);
 api.route('/warehouse', warehouseRoute);
 api.route('/templates', templatesRoute);
 api.route('/storage', storageRoute);
-api.route('/evidences', evidencesRoute);
 api.route('/reports-explorer', reportsRoute);
 
 // Mount API routes under /api prefix

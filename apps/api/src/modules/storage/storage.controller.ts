@@ -97,6 +97,163 @@ export async function uploadEvidenceController(c: Context) {
   }
 }
 
+// ... (existing imports)
+import { 
+  createPresignedUpload, 
+  confirmUploadWithVerification, 
+  createPresignedDownload,
+  listEvidencesByReport
+} from "./storage.service";
+import { 
+  presignUploadRequestSchema, 
+  confirmUploadRequestSchema, 
+  presignDownloadRequestSchema,
+  validateUploadRequest 
+} from "./storage.schema";
+import { storageRepo } from "./storage.repo";
+import { isS3Configured } from "../../config/s3";
+
+// ... (existing code for uploadEvidenceController)
+
+export async function presignUploadController(c: Context) {
+  try {
+    const body = await c.req.json();
+    
+    const parseResult = presignUploadRequestSchema.safeParse(body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0];
+      return c.json({ error: firstError?.message || "Invalid request" }, 400);
+    }
+    
+    const data = parseResult.data;
+    
+    const validation = validateUploadRequest(data);
+    if (!validation.success) {
+      return c.json({ error: validation.error }, 400);
+    }
+    
+    if (!isS3Configured()) {
+      return c.json({ error: "Storage not configured" }, 503);
+    }
+    
+    const result = await createPresignedUpload({
+      reportId: data.reportId,
+      reportType: data.reportType,
+      originalName: data.originalName,
+      mimeType: data.mimeType,
+      size: data.size,
+    });
+    
+    return c.json(result);
+  } catch (error) {
+    console.error("Error creating presigned upload:", error);
+    const message = error instanceof Error ? error.message : "Failed to create upload URL";
+    const status = message.includes("not found") ? 404 : 500;
+    return c.json({ error: message }, status);
+  }
+}
+
+export async function confirmUploadController(c: Context) {
+  try {
+    const body = await c.req.json();
+    
+    const parseResult = confirmUploadRequestSchema.safeParse(body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0];
+      return c.json({ error: firstError?.message || "Invalid request" }, 400);
+    }
+    
+    const { fileId } = parseResult.data;
+    
+    const success = await confirmUploadWithVerification(fileId);
+    
+    if (success) {
+      const evidence = await storageRepo.findById(fileId);
+      return c.json({ 
+        success: true,
+        evidence: evidence ? {
+          id: evidence._id?.toString(),
+          key: evidence.key,
+          originalName: evidence.originalName,
+          status: evidence.status,
+        } : null,
+      });
+    } else {
+      return c.json({ error: "Failed to confirm upload" }, 500);
+    }
+  } catch (error) {
+    console.error("Error confirming upload:", error);
+    const message = error instanceof Error ? error.message : "Failed to confirm upload";
+    return c.json({ error: message }, 500);
+  }
+}
+
+export async function presignDownloadController(c: Context) {
+  try {
+    const body = await c.req.json();
+    
+    const parseResult = presignDownloadRequestSchema.safeParse(body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0];
+      return c.json({ error: firstError?.message || "Invalid request" }, 400);
+    }
+    
+    const data = parseResult.data;
+    
+    if (!isS3Configured()) {
+      return c.json({ error: "Storage not configured" }, 503);
+    }
+    
+    const result = await createPresignedDownload({
+      fileId: data.fileId,
+      key: data.key,
+    });
+    
+    return c.json(result);
+  } catch (error) {
+    console.error("Error creating presigned download:", error);
+    const message = error instanceof Error ? error.message : "Failed to create download URL";
+    const status = message === "Evidence not found" ? 404 : 500;
+    return c.json({ error: message }, status);
+  }
+}
+
+export async function listEvidencesController(c: Context) {
+  try {
+    const reportId = c.req.param("reportId");
+    const includePending = c.req.query("includePending") === "true";
+    
+    if (!reportId) {
+      return c.json({ error: "reportId is required" }, 400);
+    }
+    
+    const evidences = await listEvidencesByReport(reportId, includePending);
+    
+    return c.json({
+      reportId,
+      count: evidences.length,
+      evidences: evidences.map((e) => ({
+        id: e._id?.toString(),
+        key: e.key,
+        originalName: e.originalName,
+        mimeType: e.mimeType,
+        size: e.size,
+        subsystem: e.subsystem,
+        datePath: e.datePath,
+        status: e.status,
+        createdAt: e.createdAt,
+      })),
+    });
+  } catch (error) {
+    console.error("Error listing evidences:", error);
+    return c.json({ error: "Failed to list evidences" }, 500);
+  }
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
 const contentTypeMap: Record<string, string> = {
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
@@ -226,5 +383,6 @@ export async function getEvidenceController(c: Context) {
 
   const stream = createReadStream(filePath);
   const headers = buildDownloadHeaders(key);
-  return new Response(Readable.toWeb(stream), { headers });
+  return new Response(Readable.toWeb(stream) as ReadableStream, { headers });
 }
+
