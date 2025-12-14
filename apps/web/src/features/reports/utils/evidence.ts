@@ -1,13 +1,9 @@
-import { API_URL } from "@/config/env";
-
-const STORAGE_EVIDENCE_BASE = `${API_URL}/api/storage/evidences`;
-
-const S3_PRESIGNER_BASE = "https://s3-public-presigner-production.up.railway.app";
+import { API_URL, S3_PRESIGNER_BASE } from "@/config/env";
 
 const buildStorageEvidenceUrl = (key: string) => {
-  // Extract filename from key (handle both full paths and just filenames)
   const filename = key.split("/").pop() || key;
-  return `${S3_PRESIGNER_BASE}/${encodeURIComponent(filename)}`;
+  console.log("filename", filename);
+  return `${S3_PRESIGNER_BASE}/${filename}`;
 };
 
 const buildUploadUrl = (filename: string) => `${API_URL}/upload/${filename}`;
