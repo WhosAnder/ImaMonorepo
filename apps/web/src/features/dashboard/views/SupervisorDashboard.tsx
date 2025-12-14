@@ -12,7 +12,9 @@ export function SupervisorDashboard() {
 
   const { data: workReports = [] } = useQuery<WorkReportListItem[]>({
     queryKey: ["workReports"],
-    queryFn: () => apiGet("/reports"),
+    queryFn: () => apiGet("/api/reports"),
+    enabled: true,
+    refetchOnMount: true,
   });
 
   const totalWorkReports = workReports.length;

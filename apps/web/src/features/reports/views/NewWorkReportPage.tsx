@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTemplateFilters, useActivitiesBySubsystemAndFrequency } from '@/hooks/useTemplates';
 import { useCreateWorkReportMutation } from '@/hooks/useWorkReports';
@@ -25,7 +25,7 @@ import {
 // Custom components
 import { MultiSelect } from '@/shared/ui/MultiSelect';
 import { SignaturePad } from '@/shared/ui/SignaturePad';
-import { ImageUpload, type LocalEvidence } from '@/shared/ui/ImageUpload';
+import { ImageUpload } from '@/shared/ui/ImageUpload';
 import { workReportSchema, WorkReportFormValues } from '../schemas/workReportSchema';
 import { Save } from 'lucide-react';
 import { Template } from '@/types/template';
@@ -52,6 +52,17 @@ interface ActivityWithDetails {
   expanded: boolean;
 }
 
+interface ActivityWithDetails {
+  id: string;
+  name: string;
+  code?: string;
+  template: Template;
+  isSelected: boolean;
+  observaciones: string;
+  evidencias: File[];
+  expanded: boolean;
+}
+
 export const NewWorkReportPage: React.FC = () => {
   const router = useRouter();
   const [activitiesState, setActivitiesState] = useState<ActivityWithDetails[]>([]);
@@ -62,17 +73,26 @@ export const NewWorkReportPage: React.FC = () => {
     handleSubmit,
     watch,
     setValue,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<WorkReportFormValues>({
     resolver: zodResolver(workReportSchema) as any,
-    defaultValues: initialFormValues
+    defaultValues: {
+      fechaHoraInicio: new Date().toISOString().slice(0, 16),
+      turno: '',
+      trabajadores: [],
+      actividadesRealizadas: [],
+      herramientas: [],
+      refacciones: [],
+      nombreResponsable: 'Juan Supervisor',
+      firmaResponsable: undefined,
+      templateIds: [],
+    }
   });
 
   const fechaHoraInicio = watch('fechaHoraInicio');
   const subsistema = watch('subsistema');
   const frecuencia = watch('frecuencia');
-  const herramientasSeleccionadas = watch('herramientas');
-  const refaccionesSeleccionadas = watch('refacciones');
 
   const { data: filtersData, isLoading: isLoadingFilters } = useTemplateFilters('work');
   const subsystems = filtersData?.subsistemas || [];
@@ -95,7 +115,7 @@ export const NewWorkReportPage: React.FC = () => {
       return;
     }
     setValue('fechaHoraInicio', new Date().toISOString().slice(0, 16));
-  }, [draftStatus, setValue]);
+  }, [setValue]);
 
   useEffect(() => {
     if (fechaHoraInicio) {
@@ -158,9 +178,10 @@ export const NewWorkReportPage: React.FC = () => {
     ));
   };
 
-  const updateActivityEvidencias = (id: string, files: File[]) => {
+  const updateActivityEvidencias = (id: string, files: any[]) => {
+    const fileObjects = files.map(f => f.file).filter(Boolean) as File[];
     setActivitiesState(prev => prev.map(a => 
-      a.id === id ? { ...a, evidencias: files } : a
+      a.id === id ? { ...a, evidencias: fileObjects } : a
     ));
   };
 
@@ -191,7 +212,6 @@ export const NewWorkReportPage: React.FC = () => {
         };
       })
     );
-  };
 
     const payload = {
       ...data,
@@ -228,7 +248,7 @@ export const NewWorkReportPage: React.FC = () => {
       router.push(`/reports/${reportId}`);
     } catch (error) {
       console.error("Error creating report:", error);
-      alert(error instanceof Error ? error.message : 'Error al generar el reporte');
+      alert('Error al generar el reporte');
     }
   };
 

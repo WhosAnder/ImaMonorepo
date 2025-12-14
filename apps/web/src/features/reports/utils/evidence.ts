@@ -1,9 +1,9 @@
-import { API_URL } from "@/config/env";
+import { API_URL, S3_PRESIGNER_BASE } from "@/config/env";
 
-const STORAGE_EVIDENCE_BASE = `${API_URL}/api/storage/evidences`;
-
-const buildStorageEvidenceUrl = (key: string) =>
-  `${STORAGE_EVIDENCE_BASE}/${encodeURIComponent(key)}`;
+const buildStorageEvidenceUrl = (key: string) => {
+  const filename = key.split("/").pop() || key;
+  return `${S3_PRESIGNER_BASE}/${filename}`;
+};
 
 const buildUploadUrl = (filename: string) => `${API_URL}/upload/${filename}`;
 

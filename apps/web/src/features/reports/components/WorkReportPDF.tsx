@@ -281,7 +281,7 @@ export const WorkReportPDF = ({ values }: WorkReportPDFProps) => {
                         <View style={{ borderWidth: 1, borderTopWidth: 0, borderColor: primaryColor, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, overflow: 'hidden' }}>
                             {hasActivities ? (
                                 actividadesRealizadas.map((act, idx) => (
-                                    <View key={idx} style={[styles.tableRow, idx === actividadesRealizadas.length - 1 && { borderBottomWidth: 0 }]}>
+                                    <View key={idx} style={[styles.tableRow, idx === actividadesRealizadas.length - 1 ? { borderBottomWidth: 0 } : {}]}>
                                         <View style={[styles.tableCell, { flex: 2 }]}>
                                             <Text>{act.nombre}</Text>
                                         </View>
