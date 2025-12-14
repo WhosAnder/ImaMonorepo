@@ -244,7 +244,7 @@ export const NewWarehouseReportPage: React.FC = () => {
                                         type="button"
                                         variant="secondary"
 
-                                        onClick={() => appendTool({ id: crypto.randomUUID(), name: '', units: 1, observations: '', evidences: [] })}
+                                        onClick={() => appendTool({ id: crypto.randomUUID(), inventoryItemId: '', sku: '', name: '', units: 1, observations: '', evidences: [] })}
                                         className="h-9"
                                     >
                                         <Plus className="w-4 h-4 mr-2" /> Agregar
@@ -257,14 +257,37 @@ export const NewWarehouseReportPage: React.FC = () => {
                                             <div className="grid grid-cols-12 gap-4">
                                                 <div className="col-span-12 md:col-span-5">
                                                     <Label className="mb-1.5 block text-xs text-gray-500">Herramienta</Label>
-                                                    <Select {...register(`herramientas.${index}.name`)} className="h-9">
-                                                        <option value="">Seleccionar...</option>
-                                                        {inventoryOptions.map((item) => (
-                                                            <option key={item._id} value={item.name}>
-                                                                {item.name} (Stock: {item.quantityOnHand})
-                                                            </option>
-                                                        ))}
-                                                    </Select>
+                                                    <Controller
+                                                        control={control}
+                                                        name={`herramientas.${index}.inventoryItemId`}
+                                                        render={({ field }) => (
+                                                            <Select
+                                                                value={field.value || ''}
+                                                                onChange={(event) => {
+                                                                    const selectedId = event.target.value;
+                                                                    field.onChange(selectedId);
+                                                                    const selectedItem = inventoryOptions.find((item) => item._id === selectedId);
+                                                                    setValue(`herramientas.${index}.name`, selectedItem?.name ?? '', { shouldValidate: true, shouldDirty: true });
+                                                                    setValue(`herramientas.${index}.sku`, selectedItem?.sku ?? '', { shouldDirty: true });
+                                                                }}
+                                                                className="h-9"
+                                                            >
+                                                                <option value="">Seleccionar...</option>
+                                                                {inventoryOptions.map((item) => (
+                                                                    <option key={item._id} value={item._id}>
+                                                                        {item.name} (Stock: {item.quantityOnHand})
+                                                                    </option>
+                                                                ))}
+                                                            </Select>
+                                                        )}
+                                                    />
+                                                    <input type="hidden" {...register(`herramientas.${index}.name`)} />
+                                                    <input type="hidden" {...register(`herramientas.${index}.sku`)} />
+                                                    {errors.herramientas?.[index]?.name?.message && (
+                                                        <p className="text-red-500 text-xs mt-1">
+                                                            {errors.herramientas?.[index]?.name?.message as string}
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 <div className="col-span-6 md:col-span-2">
                                                     <Label className="mb-1.5 block text-xs text-gray-500">Unidades</Label>
@@ -285,7 +308,13 @@ export const NewWarehouseReportPage: React.FC = () => {
                                                         name={`herramientas.${index}.evidences`}
                                                         control={control}
                                                         render={({ field }) => (
-                                                            <ImageUpload label="Evidencias" onChange={field.onChange} maxFiles={3} compact />
+                                                            <ImageUpload
+                                                                label="Evidencias"
+                                                                value={field.value ?? []}
+                                                                onChange={field.onChange}
+                                                                maxFiles={3}
+                                                                compact
+                                                            />
                                                         )}
                                                     />
                                                 </div>
@@ -318,7 +347,7 @@ export const NewWarehouseReportPage: React.FC = () => {
                                         type="button"
                                         variant="secondary"
 
-                                        onClick={() => appendPart({ id: crypto.randomUUID(), name: '', units: 1, observations: '', evidences: [] })}
+                                        onClick={() => appendPart({ id: crypto.randomUUID(), inventoryItemId: '', sku: '', name: '', units: 1, observations: '', evidences: [] })}
                                         className="h-9"
                                     >
                                         <Plus className="w-4 h-4 mr-2" /> Agregar
@@ -331,14 +360,37 @@ export const NewWarehouseReportPage: React.FC = () => {
                                             <div className="grid grid-cols-12 gap-4">
                                                 <div className="col-span-12 md:col-span-5">
                                                     <Label className="mb-1.5 block text-xs text-gray-500">Refacción</Label>
-                                                    <Select {...register(`refacciones.${index}.name`)} className="h-9">
-                                                        <option value="">Seleccionar...</option>
-                                                        {inventoryOptions.map((item) => (
-                                                            <option key={item._id} value={item.name}>
-                                                                {item.name} (Stock: {item.quantityOnHand})
-                                                            </option>
-                                                        ))}
-                                                    </Select>
+                                                    <Controller
+                                                        control={control}
+                                                        name={`refacciones.${index}.inventoryItemId`}
+                                                        render={({ field }) => (
+                                                            <Select
+                                                                value={field.value || ''}
+                                                                onChange={(event) => {
+                                                                    const selectedId = event.target.value;
+                                                                    field.onChange(selectedId);
+                                                                    const selectedItem = inventoryOptions.find((item) => item._id === selectedId);
+                                                                    setValue(`refacciones.${index}.name`, selectedItem?.name ?? '', { shouldValidate: true, shouldDirty: true });
+                                                                    setValue(`refacciones.${index}.sku`, selectedItem?.sku ?? '', { shouldDirty: true });
+                                                                }}
+                                                                className="h-9"
+                                                            >
+                                                                <option value="">Seleccionar...</option>
+                                                                {inventoryOptions.map((item) => (
+                                                                    <option key={item._id} value={item._id}>
+                                                                        {item.name} (Stock: {item.quantityOnHand})
+                                                                    </option>
+                                                                ))}
+                                                            </Select>
+                                                        )}
+                                                    />
+                                                    <input type="hidden" {...register(`refacciones.${index}.name`)} />
+                                                    <input type="hidden" {...register(`refacciones.${index}.sku`)} />
+                                                    {errors.refacciones?.[index]?.name?.message && (
+                                                        <p className="text-red-500 text-xs mt-1">
+                                                            {errors.refacciones?.[index]?.name?.message as string}
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 <div className="col-span-6 md:col-span-2">
                                                     <Label className="mb-1.5 block text-xs text-gray-500">Unidades</Label>
@@ -359,7 +411,13 @@ export const NewWarehouseReportPage: React.FC = () => {
                                                         name={`refacciones.${index}.evidences`}
                                                         control={control}
                                                         render={({ field }) => (
-                                                            <ImageUpload label="Evidencias" onChange={field.onChange} maxFiles={3} compact />
+                                                            <ImageUpload
+                                                                label="Evidencias"
+                                                                value={field.value ?? []}
+                                                                onChange={field.onChange}
+                                                                maxFiles={3}
+                                                                compact
+                                                            />
                                                         )}
                                                     />
                                                 </div>

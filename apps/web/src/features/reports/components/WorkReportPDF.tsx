@@ -1,6 +1,13 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
 
+export type ActivityPDFItem = {
+    nombre: string;
+    realizado?: boolean;
+    observaciones?: string;
+    evidenciasCount?: number;
+};
+
 export type WorkReportPDFProps = {
     values: {
         subsistema?: string;
@@ -9,9 +16,7 @@ export type WorkReportPDFProps = {
         turno?: string;
         frecuencia?: string;
         trabajadores?: string[];
-        inspeccionRealizada?: boolean;
-        observacionesActividad?: string;
-        evidenciasCount?: number;
+        actividadesRealizadas?: ActivityPDFItem[];
         herramientas?: string[];
         refacciones?: string[];
         observacionesGenerales?: string;
@@ -152,6 +157,38 @@ const styles = StyleSheet.create({
         color: '#9ca3af',
         fontStyle: 'italic',
     },
+    // Activity table styles
+    tableHeader: {
+        flexDirection: 'row',
+        backgroundColor: primaryColor,
+        borderTopLeftRadius: 6,
+        borderTopRightRadius: 6,
+    },
+    tableHeaderCell: {
+        color: 'white',
+        fontSize: 7,
+        fontWeight: 'bold',
+        paddingVertical: 4,
+        paddingHorizontal: 4,
+        textTransform: 'uppercase',
+    },
+    tableRow: {
+        flexDirection: 'row',
+        borderBottomWidth: 1,
+        borderBottomColor: '#d0d5ee',
+        backgroundColor: 'white',
+    },
+    tableCell: {
+        fontSize: 8,
+        color: primaryColor,
+        paddingVertical: 4,
+        paddingHorizontal: 4,
+        borderRightWidth: 1,
+        borderRightColor: '#d0d5ee',
+    },
+    tableCellLast: {
+        borderRightWidth: 0,
+    },
 });
 
 const formatDate = (dateStr?: string) => {
@@ -184,9 +221,7 @@ export const WorkReportPDF = ({ values }: WorkReportPDFProps) => {
         turno,
         frecuencia,
         trabajadores,
-        inspeccionRealizada,
-        observacionesActividad,
-        evidenciasCount,
+        actividadesRealizadas,
         herramientas,
         refacciones,
         observacionesGenerales,
@@ -196,6 +231,7 @@ export const WorkReportPDF = ({ values }: WorkReportPDFProps) => {
     } = values;
 
     const workersString = trabajadores?.map(formatName).join(', ') || '—';
+    const hasActivities = actividadesRealizadas && actividadesRealizadas.length > 0;
 
     return (
         <Document>
@@ -232,23 +268,43 @@ export const WorkReportPDF = ({ values }: WorkReportPDFProps) => {
                         </View>
                     </View>
 
-                    {/* Activity Section */}
+                    {/* Activities Table */}
                     <View style={styles.section}>
-                        <Text style={styles.sectionHeader}>ACTIVIDAD</Text>
-                        <View style={styles.sectionContent}>
-                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 5 }}>
-                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: primaryColor }}>¿Inspección realizada?</Text>
-                                <Text style={{ fontSize: 9, fontWeight: 'bold', color: primaryColor }}>{inspeccionRealizada ? 'SÍ' : 'NO'}</Text>
-                            </View>
-                            <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#777', marginBottom: 2 }}>OBSERVACIONES</Text>
-                            <View style={{ borderWidth: 1, borderColor: '#d0d5ee', padding: 5, minHeight: 30, borderRadius: 4 }}>
-                                <Text style={{ fontSize: 9, color: primaryColor }}>
-                                    {observacionesActividad && observacionesActividad.trim().length > 0 ? observacionesActividad : '—'}
-                                </Text>
-                            </View>
-                            <Text style={{ fontSize: 8, color: '#555', marginTop: 3 }}>
-                                Evidencias adjuntas: {evidenciasCount ?? 0} / 5
-                            </Text>
+                        {/* Table Header */}
+                        <View style={styles.tableHeader}>
+                            <Text style={[styles.tableHeaderCell, { flex: 2 }]}>ACTIVIDAD</Text>
+                            <Text style={[styles.tableHeaderCell, { width: 40, textAlign: 'center' }]}>SI/NO</Text>
+                            <Text style={[styles.tableHeaderCell, { flex: 1, textAlign: 'center' }]}>OBSERVACIONES</Text>
+                            <Text style={[styles.tableHeaderCell, { width: 50, textAlign: 'center' }]}>EVIDENCIAS</Text>
+                        </View>
+                        {/* Table Body */}
+                        <View style={{ borderWidth: 1, borderTopWidth: 0, borderColor: primaryColor, borderBottomLeftRadius: 6, borderBottomRightRadius: 6, overflow: 'hidden' }}>
+                            {hasActivities ? (
+                                actividadesRealizadas.map((act, idx) => (
+                                    <View key={idx} style={[styles.tableRow, idx === actividadesRealizadas.length - 1 && { borderBottomWidth: 0 }]}>
+                                        <View style={[styles.tableCell, { flex: 2 }]}>
+                                            <Text>{act.nombre}</Text>
+                                        </View>
+                                        <View style={[styles.tableCell, { width: 40, justifyContent: 'center', alignItems: 'center' }]}>
+                                            <Text style={{ fontSize: 7, fontWeight: 'bold', color: act.realizado ? '#15803d' : '#6b7280' }}>
+                                                {act.realizado ? 'SÍ' : 'NO'}
+                                            </Text>
+                                        </View>
+                                        <View style={[styles.tableCell, { flex: 1 }]}>
+                                            <Text style={{ fontSize: 7 }}>
+                                                {act.observaciones && act.observaciones.trim() ? act.observaciones : '—'}
+                                            </Text>
+                                        </View>
+                                        <View style={[styles.tableCell, styles.tableCellLast, { width: 50, justifyContent: 'center', alignItems: 'center' }]}>
+                                            <Text style={{ fontSize: 7 }}>{act.evidenciasCount ?? 0}</Text>
+                                        </View>
+                                    </View>
+                                ))
+                            ) : (
+                                <View style={{ padding: 10 }}>
+                                    <Text style={styles.emptyText}>No hay actividades registradas</Text>
+                                </View>
+                            )}
                         </View>
                     </View>
 
@@ -257,7 +313,7 @@ export const WorkReportPDF = ({ values }: WorkReportPDFProps) => {
                         <View style={styles.row}>
                             <View style={styles.col}>
                                 <Text style={styles.sectionHeader}>HERRAMIENTAS UTILIZADAS</Text>
-                                <View style={[styles.sectionContent, { minHeight: 50 }]}>
+                                <View style={[styles.sectionContent, { minHeight: 40 }]}>
                                     {herramientas && herramientas.length > 0 ? (
                                         herramientas.map((tool, idx) => (
                                             <Text key={idx} style={styles.listItem}>• {formatName(tool)}</Text>
@@ -269,7 +325,7 @@ export const WorkReportPDF = ({ values }: WorkReportPDFProps) => {
                             </View>
                             <View style={styles.col}>
                                 <Text style={styles.sectionHeader}>REFACCIONES UTILIZADAS</Text>
-                                <View style={[styles.sectionContent, { minHeight: 50 }]}>
+                                <View style={[styles.sectionContent, { minHeight: 40 }]}>
                                     {refacciones && refacciones.length > 0 ? (
                                         refacciones.map((part, idx) => (
                                             <Text key={idx} style={styles.listItem}>• {formatName(part)}</Text>
@@ -285,7 +341,7 @@ export const WorkReportPDF = ({ values }: WorkReportPDFProps) => {
                     {/* General Observations */}
                     <View style={styles.section}>
                         <Text style={styles.sectionHeader}>OBSERVACIONES GENERALES</Text>
-                        <View style={[styles.sectionContent, { minHeight: 50 }]}>
+                        <View style={[styles.sectionContent, { minHeight: 40 }]}>
                             <Text style={{ fontSize: 9, color: primaryColor }}>
                                 {observacionesGenerales && observacionesGenerales.trim().length > 0 ? observacionesGenerales : '—'}
                             </Text>
@@ -297,13 +353,13 @@ export const WorkReportPDF = ({ values }: WorkReportPDFProps) => {
                         <View style={styles.row}>
                             <View style={styles.col}>
                                 <Text style={[styles.sectionHeader, { textAlign: 'center' }]}>NOMBRE Y FIRMA DE SUPERVISOR</Text>
-                                <View style={[styles.sectionContent, { minHeight: 60, justifyContent: 'space-between' }]}>
+                                <View style={[styles.sectionContent, { minHeight: 50, justifyContent: 'space-between' }]}>
                                     <Text style={{ fontSize: 9, fontWeight: 'bold', color: primaryColor }}>
                                         {nombreResponsable || '—'}
                                     </Text>
-                                    <View style={{ borderTopWidth: 1, borderTopColor: '#999', borderStyle: 'dashed', height: 30, justifyContent: 'flex-end', alignItems: 'center', marginTop: 5 }}>
+                                    <View style={{ borderTopWidth: 1, borderTopColor: '#999', borderStyle: 'dashed', height: 25, justifyContent: 'flex-end', alignItems: 'center', marginTop: 5 }}>
                                         {firmaResponsable ? (
-                                            <Image src={firmaResponsable} style={{ height: 28, objectFit: 'contain' }} />
+                                            <Image src={firmaResponsable} style={{ height: 22, objectFit: 'contain' }} />
                                         ) : (
                                             <Text style={{ fontSize: 7, color: '#d1d5db' }}>Sin firma</Text>
                                         )}
@@ -312,7 +368,7 @@ export const WorkReportPDF = ({ values }: WorkReportPDFProps) => {
                             </View>
                             <View style={styles.col}>
                                 <Text style={[styles.sectionHeader, { textAlign: 'center' }]}>FECHA Y HORA DE TÉRMINO</Text>
-                                <View style={[styles.sectionContent, { minHeight: 60, justifyContent: 'center', alignItems: 'center' }]}>
+                                <View style={[styles.sectionContent, { minHeight: 50, justifyContent: 'center', alignItems: 'center' }]}>
                                     <Text style={{ fontSize: 10, fontWeight: 'bold', color: primaryColor }}>
                                         {fechaHoraTermino ? formatDate(fechaHoraTermino) : '—'}
                                     </Text>

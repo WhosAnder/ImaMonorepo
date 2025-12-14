@@ -6,6 +6,7 @@ import { Button } from '@/shared/ui/Button';
 import { AppLayout } from '@/shared/layout/AppLayout';
 import { ArrowLeft, DownloadIcon } from 'lucide-react';
 import { WorkReportPreview } from '../components/WorkReportPreview';
+import { EvidenceCarousel } from '../components/EvidenceCarousel';
 import { generateWorkReportPDF } from '../helpers/generate-pdf';
 import { useWorkReportQuery } from '@/hooks/useWorkReports';
 
@@ -50,6 +51,9 @@ export const WorkReportDetailPage: React.FC = () => {
                 <Button variant="secondary" onClick={() => generateWorkReportPDF(report as any)}>
                     Descargar PDF <DownloadIcon className="h-4 w-4 ml-2" />
                 </Button>
+                {report.evidencias && report.evidencias.length > 0 && (
+                    <EvidenceCarousel evidences={report.evidencias} />
+                )}
             </div>
         </AppLayout>
     );

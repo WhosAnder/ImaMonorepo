@@ -2,7 +2,8 @@ import { z } from "zod";
 
 export const activityDetailSchema = z.object({
   templateId: z.string(),
-  realizado: z.boolean(),
+  nombre: z.string(), // Activity name for display
+  realizado: z.boolean().default(true), // Auto-true when selected
   observaciones: z.string().optional(),
   evidencias: z.array(z.any()).optional(),
 });
@@ -42,9 +43,7 @@ export const workReportSchema = z
       .refine((val) => val !== null, {
         message: "La firma es obligatoria",
       }),
-    fechaHoraTermino: z
-      .string()
-      .min(1, "La fecha y hora de término son obligatorias"),
+    fechaHoraTermino: z.string().optional(),
     
     templateIds: z.array(z.string()).optional(),
   });
