@@ -48,7 +48,7 @@ export interface ListEvidencesResult {
 export async function presignUpload(params: PresignUploadParams): Promise<PresignUploadResult> {
   const { file, reportId, reportType } = params;
   
-  const res = await fetch(`${API_URL}/api/evidences/presign-upload`, {
+  const res = await fetch(`${API_URL}/api/storage/presign-upload`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -101,7 +101,7 @@ export async function uploadEvidenceDirect(
  * Server will verify file exists in S3 and mark as uploaded.
  */
 export async function confirmUpload(fileId: string): Promise<{ success: boolean; evidence?: EvidenceInfo }> {
-  const res = await fetch(`${API_URL}/api/evidences/confirm-upload`, {
+  const res = await fetch(`${API_URL}/api/storage/confirm-upload`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ fileId }),
@@ -119,7 +119,7 @@ export async function confirmUpload(fileId: string): Promise<{ success: boolean;
  * Get a presigned download URL for an evidence file.
  */
 export async function presignDownload(params: { fileId?: string; key?: string }): Promise<PresignDownloadResult> {
-  const res = await fetch(`${API_URL}/api/evidences/presign-download`, {
+  const res = await fetch(`${API_URL}/api/storage/presign-download`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
@@ -137,7 +137,7 @@ export async function presignDownload(params: { fileId?: string; key?: string })
  * List all evidences for a report.
  */
 export async function listEvidencesByReport(reportId: string, includePending = false): Promise<ListEvidencesResult> {
-  const url = new URL(`${API_URL}/api/evidences/report/${reportId}`);
+  const url = new URL(`${API_URL}/api/storage/report/${reportId}`);
   if (includePending) {
     url.searchParams.set("includePending", "true");
   }

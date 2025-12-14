@@ -1,6 +1,30 @@
 import { Collection, ObjectId } from "mongodb";
 import { getClient } from "../../db/mongo";
-import { EvidenceRecord, CreateEvidenceRecordInput, EvidenceStatus } from "./evidences.types";
+
+export interface EvidenceRecord {
+  _id?: ObjectId;
+  key: string;
+  bucket: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  reportId: string;
+  reportType: "work" | "warehouse";
+  subsystem?: string;
+  subsystemSlug?: string;
+  date?: Date;
+  year?: number;
+  month?: number;
+  day?: number;
+  datePath?: string;
+  monthKey?: string;
+  dayKey?: string;
+  status: "pending" | "uploaded" | "deleted";
+  createdBy?: string;
+  createdAt: Date;
+}
+
+export type CreateEvidenceRecordInput = Omit<EvidenceRecord, "_id" | "createdAt" | "status">;
 
 const DB_NAME = process.env.MONGODB_DB_NAME || "ima";
 const COLLECTION_NAME = "evidences";
@@ -22,7 +46,7 @@ async function getCollection(): Promise<Collection<EvidenceRecord>> {
   return collection;
 }
 
-export const evidencesRepo = {
+export const storageRepo = {
   /**
    * Create a new evidence record
    */
@@ -72,7 +96,7 @@ export const evidencesRepo = {
   /**
    * Update evidence status
    */
-  async updateStatus(id: string, status: EvidenceStatus): Promise<boolean> {
+  async updateStatus(id: string, status: EvidenceRecord["status"]): Promise<boolean> {
     const col = await getCollection();
     try {
       const result = await col.updateOne(
@@ -92,7 +116,7 @@ export const evidencesRepo = {
     const col = await getCollection();
     const result = await col.updateOne(
       { key },
-      { $set: { status: "uploaded" as EvidenceStatus } }
+      { $set: { status: "uploaded" } }
     );
     return result.modifiedCount > 0;
   },
