@@ -15,6 +15,7 @@
     "@aws-sdk/s3-presigned-post": "^3.883.0",
     "@aws-sdk/s3-request-presigner": "^3.883.0",
     "@hono/node-server": "^1.13.0",
+    "@hono/zod-validator": "^0.7.5",
     "dotenv": "^16.0.0",
     "hono": "^4.0.0",
     "mongodb": "^7.0.0",

@@ -62,3 +62,13 @@ export async function getWarehouseAdjustmentsCollection(): Promise<
   const db = client.db(dbName);
   return db.collection<WarehouseStockAdjustment>("warehouse_stock_adjustments");
 }
+
+import { WorkerRecord } from "../modules/workers/workers.types";
+
+export async function getWorkersCollection(): Promise<
+  Collection<WorkerRecord>
+> {
+  const client = await getClient();
+  const db = client.db(dbName);
+  return db.collection<WorkerRecord>("workers");
+}

@@ -16,6 +16,7 @@ export const navConfig: Record<UserRole, RoleNavConfig> = {
       { label: "Reportes de trabajo", href: "/reports" },
       { label: "Reportes de almacén", href: "/almacen" },
       { label: "Inventario", href: "/inventario" },
+      { label: "Trabajadores", href: "/admin/workers" },
     ],
   },
   supervisor: {

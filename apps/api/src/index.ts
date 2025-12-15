@@ -12,6 +12,8 @@ import { readFileSync, existsSync } from "fs";
 import { join } from "path";
 import { logger } from "hono/logger";
 
+import { workersRoute } from "./modules/workers/workers.route";
+
 const app = new Hono();
 
 app.use("*", logger());
@@ -89,6 +91,7 @@ api.route("/warehouse", warehouseRoute);
 api.route("/templates", templatesRoute);
 api.route("/storage", storageRoute);
 api.route("/reports-explorer", reportsRoute);
+api.route("/workers", workersRoute);
 
 // Mount API routes under /api prefix
 app.route("/api", api);

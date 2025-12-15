@@ -1,5 +1,5 @@
 import { AppLayout } from "@/shared/layout/AppLayout";
-import { Users, FileText, Package } from "lucide-react";
+import { Users, FileText, Package, Briefcase } from "lucide-react";
 import Link from "next/link";
 
 export default function AdminDashboardPage() {
@@ -48,6 +48,21 @@ export default function AdminDashboardPage() {
               Reportes de Almacén
             </h3>
             <p className="text-sm text-gray-500">Gestionar inventario</p>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/workers"
+          className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow flex flex-col items-center justify-center text-center space-y-4"
+        >
+          <div className="p-4 bg-purple-100 rounded-full text-purple-600">
+            <Briefcase className="w-8 h-8" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Trabajadores</h3>
+            <p className="text-sm text-gray-500">
+              Gestionar catálogo de trabajadores
+            </p>
           </div>
         </Link>
       </div>
