@@ -56,7 +56,8 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
     });
   };
 
-  const hasActivities = actividadesRealizadas && actividadesRealizadas.length > 0;
+  const hasActivities =
+    actividadesRealizadas && actividadesRealizadas.length > 0;
 
   return (
     <div className="rounded-xl border bg-white shadow-sm p-4 sticky top-6">
@@ -85,7 +86,9 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                   className="h-10 w-auto object-contain"
                   onError={(e) => {
                     e.currentTarget.style.display = "none";
-                    e.currentTarget.nextElementSibling?.classList.remove("hidden");
+                    e.currentTarget.nextElementSibling?.classList.remove(
+                      "hidden",
+                    );
                   }}
                 />
                 <div className="hidden h-10 w-28 bg-[#153A7A] text-white text-xs font-semibold rounded-md items-center justify-center">
@@ -106,7 +109,10 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
               <div className="mt-4 space-y-2 px-6">
                 <div className="grid grid-cols-2 gap-4">
                   <LabeledPill label="SUBSISTEMA" value={subsistema} />
-                  <LabeledPill label="FECHA Y HORA" value={formatDate(fechaHoraInicio)} />
+                  <LabeledPill
+                    label="FECHA Y HORA"
+                    value={formatDate(fechaHoraInicio)}
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <LabeledPill label="UBICACIÓN" value={ubicacion} />
@@ -116,7 +122,11 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                   <LabeledPill label="FRECUENCIA" value={frecuencia} />
                   <LabeledPill
                     label="TRABAJADORES INVOLUCRADOS"
-                    value={trabajadores && trabajadores.length > 0 ? workersToString(trabajadores) : undefined}
+                    value={
+                      trabajadores && trabajadores.length > 0
+                        ? workersToString(trabajadores)
+                        : undefined
+                    }
                   />
                 </div>
               </div>
@@ -138,23 +148,33 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                           idx > 0 ? "border-t border-[#d0d5ee]" : ""
                         }`}
                       >
-                        <div className="flex-1 px-2 py-2 font-medium">{act.nombre}</div>
+                        <div className="flex-1 px-2 py-2 font-medium">
+                          {act.nombre}
+                        </div>
                         <div className="w-12 px-1 py-2 flex items-center justify-center border-l border-[#d0d5ee]">
-                          <span className={`px-1 py-0.5 rounded text-[8px] font-bold ${
-                            act.realizado ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
-                          }`}>
+                          <span
+                            className={`px-1 py-0.5 rounded text-[8px] font-bold ${
+                              act.realizado
+                                ? "bg-green-100 text-green-700"
+                                : "bg-gray-100 text-gray-500"
+                            }`}
+                          >
                             {act.realizado ? "SÍ" : "NO"}
                           </span>
                         </div>
                         <div className="w-24 px-1 py-1 border-l border-[#d0d5ee] text-[8px] overflow-hidden">
                           {act.observaciones && act.observaciones.trim() ? (
-                            <span className="line-clamp-2">{act.observaciones}</span>
+                            <span className="line-clamp-2">
+                              {act.observaciones}
+                            </span>
                           ) : (
                             <span className="text-gray-400 italic">—</span>
                           )}
                         </div>
                         <div className="w-16 px-1 py-2 flex items-center justify-center border-l border-[#d0d5ee]">
-                          <span className="text-[8px]">{act.evidenciasCount ?? 0}</span>
+                          <span className="text-[8px]">
+                            {act.evidenciasCount ?? 0}
+                          </span>
                         </div>
                       </div>
                     ))
@@ -213,9 +233,12 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                   OBSERVACIONES GENERALES
                 </div>
                 <div className="min-h-[50px] rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A] whitespace-pre-wrap">
-                  {observacionesGenerales && observacionesGenerales.trim().length > 0
-                    ? observacionesGenerales
-                    : <span className="text-gray-400 italic">—</span>}
+                  {observacionesGenerales &&
+                  observacionesGenerales.trim().length > 0 ? (
+                    observacionesGenerales
+                  ) : (
+                    <span className="text-gray-400 italic">—</span>
+                  )}
                 </div>
               </section>
 
@@ -228,10 +251,16 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                       NOMBRE Y FIRMA DE SUPERVISOR
                     </div>
                     <div className="rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A] flex flex-col justify-between min-h-[50px]">
-                      <div className="font-medium">{nombreResponsable || "—"}</div>
+                      <div className="font-medium">
+                        {nombreResponsable || "—"}
+                      </div>
                       <div className="mt-2 h-[20px] border-t border-dashed border-[#999] flex items-end justify-center">
                         {firmaResponsable && (
-                          <img src={firmaResponsable} alt="Firma" className="h-5 object-contain" />
+                          <img
+                            src={firmaResponsable}
+                            alt="Firma"
+                            className="h-5 object-contain"
+                          />
                         )}
                       </div>
                     </div>

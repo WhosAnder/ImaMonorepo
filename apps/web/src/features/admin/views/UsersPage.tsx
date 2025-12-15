@@ -2,7 +2,17 @@
 
 import React, { useState } from "react";
 import { Button } from "@/shared/ui/Button";
-import { Plus, Pencil, Trash2, X, Ban, CheckCircle, UserCheck, RefreshCcw, Copy } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  X,
+  Ban,
+  CheckCircle,
+  UserCheck,
+  RefreshCcw,
+  Copy,
+} from "lucide-react";
 import type { UserRole } from "@/features/auth/types/roles";
 import { ROLE_LABELS } from "@/features/auth/types/roles";
 import {
@@ -41,7 +51,10 @@ export const UsersPage: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<BetterAuthUser | null>(null);
-  const [resetResult, setResetResult] = useState<{ user: BetterAuthUser; tempPassword: string } | null>(null);
+  const [resetResult, setResetResult] = useState<{
+    user: BetterAuthUser;
+    tempPassword: string;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
 
   // Form state
@@ -109,7 +122,10 @@ export const UsersPage: React.FC = () => {
     if (user.banned) {
       await unbanMutation.mutateAsync(user.id);
     } else {
-      await banMutation.mutateAsync({ userId: user.id, banReason: "Desactivado por admin" });
+      await banMutation.mutateAsync({
+        userId: user.id,
+        banReason: "Desactivado por admin",
+      });
     }
   };
 
@@ -125,7 +141,11 @@ export const UsersPage: React.FC = () => {
       setResetResult({ user, tempPassword: result.tempPassword });
       setCopied(false);
     } catch (err) {
-      alert(err instanceof Error ? err.message : "No se pudo reiniciar la contraseña");
+      alert(
+        err instanceof Error
+          ? err.message
+          : "No se pudo reiniciar la contraseña",
+      );
     }
   };
 
@@ -141,7 +161,9 @@ export const UsersPage: React.FC = () => {
   };
 
   if (isLoading) {
-    return <div className="p-8 text-center text-gray-500">Cargando usuarios...</div>;
+    return (
+      <div className="p-8 text-center text-gray-500">Cargando usuarios...</div>
+    );
   }
 
   if (error) {
@@ -235,7 +257,11 @@ export const UsersPage: React.FC = () => {
                     className={`mr-3 ${user.banned ? "text-green-600 hover:text-green-900" : "text-yellow-600 hover:text-yellow-900"}`}
                     title={user.banned ? "Desbanear" : "Banear"}
                   >
-                    {user.banned ? <CheckCircle className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                    {user.banned ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : (
+                      <Ban className="w-4 h-4" />
+                    )}
                   </button>
                   <button
                     onClick={() => handleDelete(user.id)}
@@ -346,7 +372,12 @@ export const UsersPage: React.FC = () => {
               )}
 
               <div className="flex justify-end pt-4">
-                <Button type="button" variant="secondary" onClick={handleCloseModal} className="mr-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleCloseModal}
+                  className="mr-3"
+                >
                   Cancelar
                 </Button>
                 <Button
@@ -369,7 +400,9 @@ export const UsersPage: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
             <div className="flex justify-between items-center p-6 border-b">
-              <h3 className="text-lg font-medium text-gray-900">Contraseña temporal generada</h3>
+              <h3 className="text-lg font-medium text-gray-900">
+                Contraseña temporal generada
+              </h3>
               <button
                 onClick={() => setResetResult(null)}
                 className="text-gray-400 hover:text-gray-500"
@@ -379,11 +412,15 @@ export const UsersPage: React.FC = () => {
             </div>
             <div className="p-6 space-y-4">
               <p className="text-sm text-gray-600">
-                Comparte esta contraseña temporal con <span className="font-semibold">{resetResult.user.name}</span> ({resetResult.user.email}). 
-                El usuario deberá cambiarla al iniciar sesión.
+                Comparte esta contraseña temporal con{" "}
+                <span className="font-semibold">{resetResult.user.name}</span> (
+                {resetResult.user.email}). El usuario deberá cambiarla al
+                iniciar sesión.
               </p>
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex items-center justify-between">
-                <code className="text-lg font-mono tracking-wide">{resetResult.tempPassword}</code>
+                <code className="text-lg font-mono tracking-wide">
+                  {resetResult.tempPassword}
+                </code>
                 <button
                   className="ml-4 inline-flex items-center gap-1 text-blue-600 hover:text-blue-800"
                   onClick={handleCopyPassword}

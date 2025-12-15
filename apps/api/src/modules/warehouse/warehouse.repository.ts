@@ -1,26 +1,31 @@
-import { ObjectId } from 'mongodb';
+import { ObjectId } from "mongodb";
 import {
   getWarehouseAdjustmentsCollection,
   getWarehouseStockCollection,
-} from '../../db/mongo';
+} from "../../db/mongo";
 import {
   WarehouseStockItem,
   WarehouseStockAdjustment,
   WarehouseStockFilters,
   WarehouseAdjustmentReason,
   WarehouseItemStatus,
-} from './warehouse.types';
-import { UserRole } from '../../types/auth';
+} from "./warehouse.types";
+import { UserRole } from "../../types/auth";
 
 export type NewWarehouseItem = Omit<
   WarehouseStockItem,
-  '_id' | 'createdAt' | 'updatedAt' | 'lastAdjustmentAt' | 'lastAdjustmentBy'
+  "_id" | "createdAt" | "updatedAt" | "lastAdjustmentAt" | "lastAdjustmentBy"
 >;
 
 export type UpdateWarehouseItemInput = Partial<
   Omit<
     WarehouseStockItem,
-    '_id' | 'createdAt' | 'updatedAt' | 'lastAdjustmentAt' | 'lastAdjustmentBy' | 'quantityOnHand'
+    | "_id"
+    | "createdAt"
+    | "updatedAt"
+    | "lastAdjustmentAt"
+    | "lastAdjustmentBy"
+    | "quantityOnHand"
   >
 >;
 
@@ -34,7 +39,7 @@ export interface AdjustmentInput {
 }
 
 export async function findWarehouseItems(
-  filters: WarehouseStockFilters = {}
+  filters: WarehouseStockFilters = {},
 ): Promise<WarehouseStockItem[]> {
   const collection = await getWarehouseStockCollection();
   const query: Record<string, unknown> = {};
@@ -45,9 +50,9 @@ export async function findWarehouseItems(
   if (filters.lowStock) {
     query.$expr = {
       $and: [
-        { $ne: ['$minQuantity', null] },
+        { $ne: ["$minQuantity", null] },
         {
-          $lt: ['$quantityOnHand', '$minQuantity'],
+          $lt: ["$quantityOnHand", "$minQuantity"],
         },
       ],
     };
@@ -55,9 +60,9 @@ export async function findWarehouseItems(
 
   if (filters.search) {
     query.$or = [
-      { name: { $regex: filters.search, $options: 'i' } },
-      { sku: { $regex: filters.search, $options: 'i' } },
-      { description: { $regex: filters.search, $options: 'i' } },
+      { name: { $regex: filters.search, $options: "i" } },
+      { sku: { $regex: filters.search, $options: "i" } },
+      { description: { $regex: filters.search, $options: "i" } },
     ];
   }
 
@@ -65,27 +70,27 @@ export async function findWarehouseItems(
 }
 
 export async function findWarehouseItemById(
-  id: string
+  id: string,
 ): Promise<WarehouseStockItem | null> {
   const collection = await getWarehouseStockCollection();
   return collection.findOne({ _id: new ObjectId(id) });
 }
 
 export async function findWarehouseItemBySku(
-  sku: string
+  sku: string,
 ): Promise<WarehouseStockItem | null> {
   const collection = await getWarehouseStockCollection();
   return collection.findOne({ sku });
 }
 
 export async function insertWarehouseItem(
-  data: NewWarehouseItem
+  data: NewWarehouseItem,
 ): Promise<WarehouseStockItem> {
   const collection = await getWarehouseStockCollection();
   const now = new Date();
   const doc: WarehouseStockItem = {
     ...data,
-    status: data.status ?? 'active',
+    status: data.status ?? "active",
     createdAt: now,
     updatedAt: now,
   };
@@ -96,7 +101,7 @@ export async function insertWarehouseItem(
 
 export async function updateWarehouseItem(
   id: string,
-  updates: UpdateWarehouseItemInput
+  updates: UpdateWarehouseItemInput,
 ): Promise<WarehouseStockItem | null> {
   const collection = await getWarehouseStockCollection();
   const updateDoc: Record<string, unknown> = {
@@ -106,14 +111,14 @@ export async function updateWarehouseItem(
   const result = await collection.findOneAndUpdate(
     { _id: new ObjectId(id) },
     { $set: updateDoc },
-    { returnDocument: 'after' }
+    { returnDocument: "after" },
   );
   return result.value;
 }
 
 export async function applyStockAdjustment(
   id: string,
-  adjustment: AdjustmentInput
+  adjustment: AdjustmentInput,
 ): Promise<{ item: WarehouseStockItem; adjustment: WarehouseStockAdjustment }> {
   const collection = await getWarehouseStockCollection();
   const adjustmentsCollection = await getWarehouseAdjustmentsCollection();
@@ -121,12 +126,12 @@ export async function applyStockAdjustment(
   const item = await collection.findOne({ _id: objectId });
 
   if (!item) {
-    throw new Error('ITEM_NOT_FOUND');
+    throw new Error("ITEM_NOT_FOUND");
   }
 
   const newQuantity = item.quantityOnHand + adjustment.delta;
   if (newQuantity < 0 && !item.allowNegative) {
-    throw new Error('NEGATIVE_QUANTITY');
+    throw new Error("NEGATIVE_QUANTITY");
   }
 
   const now = new Date();
@@ -144,11 +149,11 @@ export async function applyStockAdjustment(
         updatedAt: now,
       },
     },
-    { returnDocument: 'after' }
+    { returnDocument: "after" },
   );
 
   if (!updateResult.value) {
-    throw new Error('ITEM_NOT_FOUND');
+    throw new Error("ITEM_NOT_FOUND");
   }
 
   const newAdjustment: WarehouseStockAdjustment = {
@@ -173,7 +178,7 @@ export async function applyStockAdjustment(
 
 export async function listAdjustmentsForItem(
   id: string,
-  limit = 50
+  limit = 50,
 ): Promise<WarehouseStockAdjustment[]> {
   const collection = await getWarehouseAdjustmentsCollection();
   return collection
@@ -185,7 +190,7 @@ export async function listAdjustmentsForItem(
 
 export async function setWarehouseItemStatus(
   id: string,
-  status: WarehouseItemStatus
+  status: WarehouseItemStatus,
 ): Promise<WarehouseStockItem | null> {
   return updateWarehouseItem(id, { status });
 }

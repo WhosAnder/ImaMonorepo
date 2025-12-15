@@ -7,7 +7,13 @@ import * as XLSX from "xlsx";
 import { getTemplateCollection } from "../db/mongo";
 import type { Template } from "../modules/templates/templates.types";
 
-const filePath = path.resolve(__dirname, "..", "..", "data", "PROGRAMA_DE_MANTENIMIENTO_PREVENTIVO.xlsx");
+const filePath = path.resolve(
+  __dirname,
+  "..",
+  "..",
+  "data",
+  "PROGRAMA_DE_MANTENIMIENTO_PREVENTIVO.xlsx",
+);
 
 // Sheet name normalization map
 const SHEET_NORMALIZATION: Record<string, string> = {
@@ -17,14 +23,26 @@ const SHEET_NORMALIZATION: Record<string, string> = {
   "MANTENIMIENTO 3 MESES": "3MES",
   "MANTENIMIENTO 6 MESES": "6MES",
   "MANTENIMIENTO 1 AÑO": "1AÑO",
-  "MANTENIMIENTO MAS DE 1AÑO": "MAS_DE_1AÑO"
+  "MANTENIMIENTO MAS DE 1AÑO": "MAS_DE_1AÑO",
 };
 
 const DEFAULT_SECCIONES = {
   actividad: { enabled: true, required: true, label: "Actividades realizadas" },
-  herramientas: { enabled: true, required: false, label: "Herramientas utilizadas" },
-  refacciones: { enabled: true, required: false, label: "Refacciones utilizadas" },
-  observacionesGenerales: { enabled: true, required: false, label: "Observaciones generales" },
+  herramientas: {
+    enabled: true,
+    required: false,
+    label: "Herramientas utilizadas",
+  },
+  refacciones: {
+    enabled: true,
+    required: false,
+    label: "Refacciones utilizadas",
+  },
+  observacionesGenerales: {
+    enabled: true,
+    required: false,
+    label: "Observaciones generales",
+  },
   fechas: { enabled: true, required: true, label: "Fechas y Horas" },
   firmas: { enabled: true, required: true, label: "Firmas" },
 };
@@ -48,7 +66,9 @@ async function main() {
     let skipped = 0;
 
     // Iterate over known sheets
-    for (const [sheetName, normalizedType] of Object.entries(SHEET_NORMALIZATION)) {
+    for (const [sheetName, normalizedType] of Object.entries(
+      SHEET_NORMALIZATION,
+    )) {
       const sheet = workbook.Sheets[sheetName];
       if (!sheet) {
         console.warn(`Sheet "${sheetName}" not found, skipping.`);
@@ -58,7 +78,10 @@ async function main() {
       console.log(`Processing sheet: ${sheetName} -> ${normalizedType}`);
 
       // Read sheet with header: "A" to get raw columns A, B, C, D...
-      const rows: any[] = XLSX.utils.sheet_to_json(sheet, { header: "A", range: 1 });
+      const rows: any[] = XLSX.utils.sheet_to_json(sheet, {
+        header: "A",
+        range: 1,
+      });
 
       let currentSubsistema = "";
 
@@ -70,14 +93,16 @@ async function main() {
         // D: Frecuencia
 
         const rawSubsistema = row["A"]; // Subsistema
-const codigoMantenimiento = row["B"]; // Código de mantenimiento (optional)
-const activity = row["C"]; // Actividad / Nombre corto
-const frecuencia = row["D"]; // Frecuencia
-
-
+        const codigoMantenimiento = row["B"]; // Código de mantenimiento (optional)
+        const activity = row["C"]; // Actividad / Nombre corto
+        const frecuencia = row["D"]; // Frecuencia
 
         // Propagate subsistema
-        if (rawSubsistema && typeof rawSubsistema === 'string' && rawSubsistema.trim() !== "") {
+        if (
+          rawSubsistema &&
+          typeof rawSubsistema === "string" &&
+          rawSubsistema.trim() !== ""
+        ) {
           currentSubsistema = rawSubsistema.trim();
         }
 
@@ -102,20 +127,21 @@ const frecuencia = row["D"]; // Frecuencia
           "6M": "Semestral",
           "1Y": "Anual",
           ">1Y": "Mayor a un año",
-          "1W": "Semanal"
+          "1W": "Semanal",
         };
-        
+
         // Infer frequency from sheet type if column D is empty or not standard
         let rawFrecuencia = row["D"] ? String(row["D"]).trim() : "";
-        
+
         // If raw frequency is empty or not in map, try to infer from sheet type
         if (!rawFrecuencia || !FREQUENCY_MAP[rawFrecuencia]) {
-            if (normalizedType === "DIARIO") rawFrecuencia = "1D";
-            else if (normalizedType === "SEMANAL") rawFrecuencia = "1W"; 
+          if (normalizedType === "DIARIO") rawFrecuencia = "1D";
+          else if (normalizedType === "SEMANAL") rawFrecuencia = "1W";
         }
 
         const frecuenciaCodigo = rawFrecuencia;
-        const frecuenciaLabel = FREQUENCY_MAP[rawFrecuencia] || rawFrecuencia || "N/A";
+        const frecuenciaLabel =
+          FREQUENCY_MAP[rawFrecuencia] || rawFrecuencia || "N/A";
 
         const template: Template = {
           tipoReporte: "work",
@@ -123,24 +149,28 @@ const frecuencia = row["D"]; // Frecuencia
           tipoMantenimiento: normalizedType,
           frecuencia: frecuenciaLabel,
           frecuenciaCodigo: frecuenciaCodigo,
-          numeroActividad: codigoMantenimiento ? Number(codigoMantenimiento) : undefined,
+          numeroActividad: codigoMantenimiento
+            ? Number(codigoMantenimiento)
+            : undefined,
           nombreCorto: String(activity).trim(),
           descripcion: String(activity).trim(),
-          codigoMantenimiento: codigoMantenimiento ? String(codigoMantenimiento).trim() : undefined,
+          codigoMantenimiento: codigoMantenimiento
+            ? String(codigoMantenimiento).trim()
+            : undefined,
           secciones: DEFAULT_SECCIONES,
           activo: true,
           createdAt: new Date(),
-          updatedAt: new Date()
+          updatedAt: new Date(),
         };
 
         // Upsert logic - use numeroActividad to differentiate activities with same name
         const uniqueFilter = {
-            tipoReporte: template.tipoReporte,
-            subsistema: template.subsistema,
-            tipoMantenimiento: template.tipoMantenimiento,
-            frecuenciaCodigo: template.frecuenciaCodigo,
-            numeroActividad: template.numeroActividad,
-            nombreCorto: template.nombreCorto
+          tipoReporte: template.tipoReporte,
+          subsistema: template.subsistema,
+          tipoMantenimiento: template.tipoMantenimiento,
+          frecuenciaCodigo: template.frecuenciaCodigo,
+          numeroActividad: template.numeroActividad,
+          nombreCorto: template.nombreCorto,
         };
 
         const { createdAt, updatedAt, ...templateFields } = template;
@@ -156,7 +186,9 @@ const frecuencia = row["D"]; // Frecuencia
         };
 
         // @ts-ignore
-        const result = await collection.updateOne(uniqueFilter, update, { upsert: true });
+        const result = await collection.updateOne(uniqueFilter, update, {
+          upsert: true,
+        });
 
         if (result.upsertedCount > 0) inserted++;
         else if (result.matchedCount > 0) updated++;
@@ -164,7 +196,9 @@ const frecuencia = row["D"]; // Frecuencia
       }
     }
 
-    console.log(`Import finished: Inserted=${inserted}, Updated=${updated}, Skipped=${skipped}`);
+    console.log(
+      `Import finished: Inserted=${inserted}, Updated=${updated}, Skipped=${skipped}`,
+    );
     process.exit(0);
   } catch (error) {
     console.error("Error importing templates:", error);

@@ -34,7 +34,13 @@ export interface WarehouseAdjustment {
   _id: string;
   itemId: string;
   delta: number;
-  reason: "initial" | "increase" | "decrease" | "correction" | "damage" | "audit";
+  reason:
+    | "initial"
+    | "increase"
+    | "decrease"
+    | "correction"
+    | "damage"
+    | "audit";
   note?: string;
   actorId?: string;
   actorName?: string;
@@ -83,14 +89,20 @@ export interface UpdateWarehouseItemInput {
 
 export interface AdjustmentInput {
   delta: number;
-  reason: "initial" | "increase" | "decrease" | "correction" | "damage" | "audit";
+  reason:
+    | "initial"
+    | "increase"
+    | "decrease"
+    | "correction"
+    | "damage"
+    | "audit";
   note?: string;
 }
 
 // API Functions
 
 export async function fetchWarehouseItems(
-  filters: WarehouseFilters = {}
+  filters: WarehouseFilters = {},
 ): Promise<WarehouseItem[]> {
   const params = new URLSearchParams();
   if (filters.category) params.append("category", filters.category);
@@ -107,7 +119,9 @@ export async function fetchWarehouseItems(
   return response.json();
 }
 
-export async function fetchWarehouseItemById(id: string): Promise<WarehouseItem> {
+export async function fetchWarehouseItemById(
+  id: string,
+): Promise<WarehouseItem> {
   const response = await fetch(`${API_URL}/api/warehouse/${id}`);
   if (!response.ok) {
     throw new Error("Failed to fetch warehouse item");
@@ -116,7 +130,7 @@ export async function fetchWarehouseItemById(id: string): Promise<WarehouseItem>
 }
 
 export async function createWarehouseItem(
-  data: CreateWarehouseItemInput
+  data: CreateWarehouseItemInput,
 ): Promise<WarehouseItem> {
   const response = await fetch(`${API_URL}/api/warehouse`, {
     method: "POST",
@@ -135,7 +149,7 @@ export async function createWarehouseItem(
 
 export async function updateWarehouseItem(
   id: string,
-  data: UpdateWarehouseItemInput
+  data: UpdateWarehouseItemInput,
 ): Promise<WarehouseItem> {
   const response = await fetch(`${API_URL}/api/warehouse/${id}`, {
     method: "PATCH",
@@ -150,7 +164,7 @@ export async function updateWarehouseItem(
 
 export async function adjustWarehouseStock(
   id: string,
-  adjustment: AdjustmentInput
+  adjustment: AdjustmentInput,
 ): Promise<{ item: WarehouseItem; adjustment: WarehouseAdjustment }> {
   const response = await fetch(`${API_URL}/api/warehouse/${id}/adjustments`, {
     method: "POST",
@@ -166,13 +180,13 @@ export async function adjustWarehouseStock(
 
 export async function fetchWarehouseAdjustments(
   id: string,
-  limit?: number
+  limit?: number,
 ): Promise<WarehouseAdjustment[]> {
   const params = new URLSearchParams();
   if (limit) params.append("limit", String(limit));
 
   const response = await fetch(
-    `${API_URL}/api/warehouse/${id}/adjustments?${params.toString()}`
+    `${API_URL}/api/warehouse/${id}/adjustments?${params.toString()}`,
   );
   if (!response.ok) {
     throw new Error("Failed to fetch adjustments");

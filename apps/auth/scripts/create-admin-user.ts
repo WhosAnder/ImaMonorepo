@@ -13,10 +13,15 @@ async function createAdminUser() {
 
   try {
     // Ensure password hash column exists for login flow
-    await db.execute(sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "password_hash" text;`);
+    await db.execute(
+      sql`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "password_hash" text;`,
+    );
 
     // Check if user already exists
-    const existingUsers = await db.select().from(users).where(eq(users.email, email));
+    const existingUsers = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email));
     const existingUser = existingUsers[0];
 
     const hashedPassword = await hashPassword(password);
@@ -57,7 +62,9 @@ async function createAdminUser() {
           .where(eq(accounts.userId, existingUser.id));
       }
 
-      console.log(`User with email ${email} already existed; password and role updated.`);
+      console.log(
+        `User with email ${email} already existed; password and role updated.`,
+      );
       process.exit(0);
     }
 

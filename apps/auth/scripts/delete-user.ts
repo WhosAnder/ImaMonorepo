@@ -8,8 +8,12 @@ async function deleteUser() {
 
   try {
     // Find the user
-    const user = await db.select().from(users).where(eq(users.email, email)).limit(1);
-    
+    const user = await db
+      .select()
+      .from(users)
+      .where(eq(users.email, email))
+      .limit(1);
+
     if (user.length === 0) {
       console.log(`User with email ${email} does not exist.`);
       return;
@@ -26,7 +30,9 @@ async function deleteUser() {
     await db.delete(users).where(eq(users.id, userId));
     console.log("Deleted user");
 
-    console.log(`✅ User ${email} deleted successfully. You can now recreate it using curl.`);
+    console.log(
+      `✅ User ${email} deleted successfully. You can now recreate it using curl.`,
+    );
   } catch (error) {
     console.error("❌ Error deleting user:", error);
     process.exit(1);
@@ -34,4 +40,3 @@ async function deleteUser() {
 }
 
 deleteUser();
-

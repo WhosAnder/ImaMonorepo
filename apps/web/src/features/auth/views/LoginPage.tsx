@@ -11,9 +11,11 @@ export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>(
-    {},
-  );
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+    general?: string;
+  }>({});
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -45,7 +47,9 @@ export const LoginPage: React.FC = () => {
         router.push("/dashboard");
       }
     } catch (err) {
-      setErrors({ general: err instanceof Error ? err.message : "Error al iniciar sesión" });
+      setErrors({
+        general: err instanceof Error ? err.message : "Error al iniciar sesión",
+      });
       setIsLoading(false);
     }
   };

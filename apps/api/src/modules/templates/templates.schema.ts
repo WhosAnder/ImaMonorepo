@@ -1,12 +1,12 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const TemplateSectionKeySchema = z.enum([
-  'actividad',
-  'herramientas',
-  'refacciones',
-  'observacionesGenerales',
-  'fechas',
-  'firmas',
+  "actividad",
+  "herramientas",
+  "refacciones",
+  "observacionesGenerales",
+  "fechas",
+  "firmas",
 ]);
 
 export const TemplateSectionConfigSchema = z.object({
@@ -17,7 +17,7 @@ export const TemplateSectionConfigSchema = z.object({
 
 export const TemplateSchema = z.object({
   codigoMantenimiento: z.string().optional().nullable(),
-  tipoReporte: z.enum(['work', 'warehouse']),
+  tipoReporte: z.enum(["work", "warehouse"]),
   subsistema: z.string().min(1),
   tipoMantenimiento: z.string().min(1),
   frecuencia: z.string().min(1),

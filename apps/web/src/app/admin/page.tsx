@@ -30,7 +30,9 @@ export default function AdminDashboardPage() {
             <h3 className="text-lg font-semibold text-gray-900">
               Reportes de Trabajo
             </h3>
-            <p className="text-sm text-gray-500">Ver reportes de mantenimiento</p>
+            <p className="text-sm text-gray-500">
+              Ver reportes de mantenimiento
+            </p>
           </div>
         </Link>
 

@@ -1,11 +1,11 @@
 import { Hono } from "hono";
-import { 
-  uploadEvidenceController, 
+import {
+  uploadEvidenceController,
   getEvidenceController,
   presignUploadController,
   confirmUploadController,
   presignDownloadController,
-  listEvidencesController
+  listEvidencesController,
 } from "./storage.controller";
 
 export const storageRoute = new Hono();
@@ -19,4 +19,3 @@ storageRoute.post("/presign-upload", presignUploadController);
 storageRoute.post("/confirm-upload", confirmUploadController);
 storageRoute.post("/presign-download", presignDownloadController);
 storageRoute.get("/report/:reportId", listEvidencesController);
-

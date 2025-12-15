@@ -44,8 +44,13 @@ export function useUpdateWarehouseItem() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: UpdateWarehouseItemInput }) =>
-      updateWarehouseItem(id, data),
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateWarehouseItemInput;
+    }) => updateWarehouseItem(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEY });
     },
@@ -56,15 +61,23 @@ export function useAdjustWarehouseStock() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ id, adjustment }: { id: string; adjustment: AdjustmentInput }) =>
-      adjustWarehouseStock(id, adjustment),
+    mutationFn: ({
+      id,
+      adjustment,
+    }: {
+      id: string;
+      adjustment: AdjustmentInput;
+    }) => adjustWarehouseStock(id, adjustment),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEY });
     },
   });
 }
 
-export function useWarehouseAdjustments(id: string | undefined, limit?: number) {
+export function useWarehouseAdjustments(
+  id: string | undefined,
+  limit?: number,
+) {
   return useQuery({
     queryKey: [...WAREHOUSE_KEY, "adjustments", id, limit],
     queryFn: () => fetchWarehouseAdjustments(id!, limit),

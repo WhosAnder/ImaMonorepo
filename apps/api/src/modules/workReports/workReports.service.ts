@@ -4,7 +4,7 @@ import {
   findWorkReportById,
   findWorkReports,
   insertWorkReport,
-} from './workReports.repository';
+} from "./workReports.repository";
 
 export async function listWorkReports(filters: WorkReportFilters = {}) {
   return findWorkReports(filters);

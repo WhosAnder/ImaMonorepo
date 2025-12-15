@@ -1,4 +1,4 @@
-import { Hono } from 'hono';
+import { Hono } from "hono";
 import {
   createWarehouseAdjustmentController,
   createWarehouseItemController,
@@ -6,26 +6,26 @@ import {
   listWarehouseAdjustmentsController,
   listWarehouseItemsController,
   updateWarehouseItemController,
-} from './warehouse.controller';
-import { requireRole } from '../../middleware/roleGuard';
+} from "./warehouse.controller";
+import { requireRole } from "../../middleware/roleGuard";
 
 export const warehouseRoute = new Hono();
 
-warehouseRoute.get('/', listWarehouseItemsController);
-warehouseRoute.get('/:id', getWarehouseItemController);
-warehouseRoute.get('/:id/adjustments', listWarehouseAdjustmentsController);
+warehouseRoute.get("/", listWarehouseItemsController);
+warehouseRoute.get("/:id", getWarehouseItemController);
+warehouseRoute.get("/:id/adjustments", listWarehouseAdjustmentsController);
 warehouseRoute.post(
-  '/',
-  requireRole(['admin', 'warehouse_admin']),
-  createWarehouseItemController
+  "/",
+  requireRole(["admin", "warehouse_admin"]),
+  createWarehouseItemController,
 );
 warehouseRoute.patch(
-  '/:id',
-  requireRole(['admin', 'warehouse_admin']),
-  updateWarehouseItemController
+  "/:id",
+  requireRole(["admin", "warehouse_admin"]),
+  updateWarehouseItemController,
 );
 warehouseRoute.post(
-  '/:id/adjustments',
-  requireRole(['admin', 'warehouse_admin']),
-  createWarehouseAdjustmentController
+  "/:id/adjustments",
+  requireRole(["admin", "warehouse_admin"]),
+  createWarehouseAdjustmentController,
 );

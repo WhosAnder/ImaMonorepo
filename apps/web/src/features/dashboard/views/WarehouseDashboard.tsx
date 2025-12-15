@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/shared/lib/api";
 import { themes } from "@/shared/theme/colors";
 import { Plus, Package, Clock, TrendingUp } from "lucide-react";
-import { WarehouseReportListItem } from '@/features/almacen/types/warehouseReportList';
+import { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
 
 export function WarehouseDashboard() {
   const themeColor = themes.warehouse.primary;

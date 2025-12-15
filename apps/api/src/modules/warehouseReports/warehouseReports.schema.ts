@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 const WarehouseItemSchema = z.object({
   id: z.string(),

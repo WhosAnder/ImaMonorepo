@@ -3,10 +3,14 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { resolveEvidenceUrl } from "../utils/evidence";
 
 interface EvidenceCarouselProps {
-  evidences: Array<{ id?: string; url?: string; previewUrl?: string; key?: string } | string>;
+  evidences: Array<
+    { id?: string; url?: string; previewUrl?: string; key?: string } | string
+  >;
 }
 
-export const EvidenceCarousel: React.FC<EvidenceCarouselProps> = ({ evidences }) => {
+export const EvidenceCarousel: React.FC<EvidenceCarouselProps> = ({
+  evidences,
+}) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenIndex, setFullscreenIndex] = useState(0);
@@ -27,11 +31,15 @@ export const EvidenceCarousel: React.FC<EvidenceCarouselProps> = ({ evidences })
   }
 
   const goToPrevious = () => {
-    setCurrentIndex((prev) => (prev === 0 ? validEvidences.length - 1 : prev - 1));
+    setCurrentIndex((prev) =>
+      prev === 0 ? validEvidences.length - 1 : prev - 1,
+    );
   };
 
   const goToNext = () => {
-    setCurrentIndex((prev) => (prev === validEvidences.length - 1 ? 0 : prev + 1));
+    setCurrentIndex((prev) =>
+      prev === validEvidences.length - 1 ? 0 : prev + 1,
+    );
   };
 
   const openFullscreen = (index: number) => {
@@ -44,11 +52,15 @@ export const EvidenceCarousel: React.FC<EvidenceCarouselProps> = ({ evidences })
   };
 
   const goToPreviousFullscreen = () => {
-    setFullscreenIndex((prev) => (prev === 0 ? validEvidences.length - 1 : prev - 1));
+    setFullscreenIndex((prev) =>
+      prev === 0 ? validEvidences.length - 1 : prev - 1,
+    );
   };
 
   const goToNextFullscreen = () => {
-    setFullscreenIndex((prev) => (prev === validEvidences.length - 1 ? 0 : prev + 1));
+    setFullscreenIndex((prev) =>
+      prev === validEvidences.length - 1 ? 0 : prev + 1,
+    );
   };
 
   return (

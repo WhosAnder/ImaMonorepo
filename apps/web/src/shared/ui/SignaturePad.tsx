@@ -27,7 +27,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
 
   const save = () => {
     if (sigCanvas.current && !sigCanvas.current.isEmpty()) {
-      const dataUrl = sigCanvas.current.getCanvas().toDataURL('image/png');
+      const dataUrl = sigCanvas.current.getCanvas().toDataURL("image/png");
       onChange(dataUrl);
       setSaved(true);
     }
@@ -41,9 +41,7 @@ export const SignaturePad: React.FC<SignaturePadProps> = ({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-xs text-gray-500 mb-1">
-          {label}
-        </label>
+        <label className="block text-xs text-gray-500 mb-1">{label}</label>
       )}
 
       <div

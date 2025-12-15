@@ -1,7 +1,7 @@
 import { WorkReport } from "@/features/reports/types/workReport";
 import { WorkReportListItem } from "@/features/reports/types/workReportList";
 import { WarehouseReport } from "@/features/almacen/types/warehouseReport";
-import { WarehouseReportListItem } from '@/features/almacen/types/warehouseReportList';
+import { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
 import { API_URL } from "../config/env";
 
 // Work reports
@@ -22,13 +22,13 @@ export async function fetchWorkReportById(id: string): Promise<WorkReport> {
 
 export async function createWorkReport(data: any): Promise<WorkReport> {
   const res = await fetch(`${API_URL}/api/reports`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(data),
   });
-  
+
   if (!res.ok) {
     const errorText = await res.text();
     console.error("API Error:", res.status, res.statusText, errorText);
@@ -44,13 +44,17 @@ export async function createWorkReport(data: any): Promise<WorkReport> {
 }
 
 // Warehouse reports
-export async function fetchWarehouseReports(): Promise<WarehouseReportListItem[]> {
+export async function fetchWarehouseReports(): Promise<
+  WarehouseReportListItem[]
+> {
   const res = await fetch(`${API_URL}/api/warehouse-reports`);
   if (!res.ok) throw new Error("Error fetching warehouse reports");
   return res.json();
 }
 
-export async function fetchWarehouseReportById(id: string): Promise<WarehouseReport> {
+export async function fetchWarehouseReportById(
+  id: string,
+): Promise<WarehouseReport> {
   const res = await fetch(`${API_URL}/api/warehouse-reports/${id}`);
   if (!res.ok) {
     if (res.status === 404) throw new Error("NOT_FOUND");
@@ -59,15 +63,17 @@ export async function fetchWarehouseReportById(id: string): Promise<WarehouseRep
   return res.json();
 }
 
-export async function createWarehouseReport(data: any): Promise<WarehouseReport> {
+export async function createWarehouseReport(
+  data: any,
+): Promise<WarehouseReport> {
   const res = await fetch(`${API_URL}/api/warehouse-reports`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(data),
   });
-  
+
   if (!res.ok) {
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.error || "Error creating warehouse report");

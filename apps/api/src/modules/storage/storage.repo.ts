@@ -24,7 +24,10 @@ export interface EvidenceRecord {
   createdAt: Date;
 }
 
-export type CreateEvidenceRecordInput = Omit<EvidenceRecord, "_id" | "createdAt" | "status">;
+export type CreateEvidenceRecordInput = Omit<
+  EvidenceRecord,
+  "_id" | "createdAt" | "status"
+>;
 
 const DB_NAME = process.env.MONGODB_DB_NAME || "ima";
 const COLLECTION_NAME = "evidences";
@@ -36,7 +39,7 @@ async function getCollection(): Promise<Collection<EvidenceRecord>> {
     const client = await getClient();
     const db = client.db(DB_NAME);
     collection = db.collection<EvidenceRecord>(COLLECTION_NAME);
-    
+
     // Create indexes for common queries
     await collection.createIndex({ key: 1 }, { unique: true });
     await collection.createIndex({ reportId: 1, status: 1 });
@@ -85,7 +88,10 @@ export const storageRepo = {
    * List evidences for a report
    * @param includePending - if true, include pending evidences (for admin/debug)
    */
-  async listByReport(reportId: string, includePending = false): Promise<EvidenceRecord[]> {
+  async listByReport(
+    reportId: string,
+    includePending = false,
+  ): Promise<EvidenceRecord[]> {
     const col = await getCollection();
     const filter = includePending
       ? { reportId, status: { $ne: "deleted" as const } }
@@ -96,12 +102,15 @@ export const storageRepo = {
   /**
    * Update evidence status
    */
-  async updateStatus(id: string, status: EvidenceRecord["status"]): Promise<boolean> {
+  async updateStatus(
+    id: string,
+    status: EvidenceRecord["status"],
+  ): Promise<boolean> {
     const col = await getCollection();
     try {
       const result = await col.updateOne(
         { _id: new ObjectId(id) },
-        { $set: { status } }
+        { $set: { status } },
       );
       return result.modifiedCount > 0;
     } catch {
@@ -116,7 +125,7 @@ export const storageRepo = {
     const col = await getCollection();
     const result = await col.updateOne(
       { key },
-      { $set: { status: "uploaded" } }
+      { $set: { status: "uploaded" } },
     );
     return result.modifiedCount > 0;
   },

@@ -10,7 +10,9 @@ export function ImpersonationBanner() {
   const { data: session } = authClient.useSession();
 
   // Check if current session is impersonated
-  const isImpersonating = (session?.session as { impersonatedBy?: string } | null)?.impersonatedBy;
+  const isImpersonating = (
+    session?.session as { impersonatedBy?: string } | null
+  )?.impersonatedBy;
 
   if (!isImpersonating) {
     return null;
@@ -20,7 +22,8 @@ export function ImpersonationBanner() {
     <div className="fixed top-0 left-0 right-0 z-[100] bg-gradient-to-r from-purple-600 to-purple-800 text-white py-2 px-4 flex items-center justify-center gap-4 shadow-lg">
       <AlertTriangle className="w-5 h-5 animate-pulse" />
       <span className="font-medium">
-        Estás impersonando a otro usuario. Las acciones se realizarán en su nombre.
+        Estás impersonando a otro usuario. Las acciones se realizarán en su
+        nombre.
       </span>
       <Button
         variant="ghost"

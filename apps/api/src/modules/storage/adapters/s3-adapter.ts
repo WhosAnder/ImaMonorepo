@@ -1,10 +1,16 @@
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { URL } from "node:url";
 import { getS3Client } from "../../../config/s3";
-import type { StorageAdapter, UploadResult, CreateStorageAdapter } from "./storage-interface";
+import type {
+  StorageAdapter,
+  UploadResult,
+  CreateStorageAdapter,
+} from "./storage-interface";
 
 const getS3Endpoint = () =>
-  process.env.AWS_S3_ENDPOINT ?? process.env.S3_ENDPOINT ?? process.env.AWS_ENDPOINT;
+  process.env.AWS_S3_ENDPOINT ??
+  process.env.S3_ENDPOINT ??
+  process.env.AWS_ENDPOINT;
 
 const validateS3Config = () => {
   const bucket = process.env.S3_BUCKET;
@@ -29,7 +35,7 @@ const uploadFileToS3 = async (
   fileName: string,
   contentType: string,
   bucket: string,
-  endpoint: string
+  endpoint: string,
 ): Promise<UploadResult> => {
   try {
     const s3Client = getS3Client();
@@ -47,7 +53,8 @@ const uploadFileToS3 = async (
 
     const objectUrl = new URL(endpoint);
     objectUrl.hostname = `${bucket}.${objectUrl.hostname}`;
-    const basePath = objectUrl.pathname === "/" ? "" : objectUrl.pathname.replace(/\/$/, "");
+    const basePath =
+      objectUrl.pathname === "/" ? "" : objectUrl.pathname.replace(/\/$/, "");
     objectUrl.pathname = `${basePath}/${fileName}`.replace(/\/{2,}/g, "/");
     const url = objectUrl.toString();
 
@@ -58,7 +65,9 @@ const uploadFileToS3 = async (
     };
   } catch (error) {
     console.error("S3 upload failed:", error);
-    throw new Error(`S3 upload failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    throw new Error(
+      `S3 upload failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
   }
 };
 

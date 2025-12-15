@@ -6,7 +6,7 @@ import { apiGet } from "@/shared/lib/api";
 import { themes } from "@/shared/theme/colors";
 import { Plus, FileText, Package, TrendingUp } from "lucide-react";
 import type { WorkReportListItem } from "@/features/reports/types/workReportList";
-import { WarehouseReportListItem } from '@/features/almacen/types/warehouseReportList';
+import { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
 
 export function AdminDashboard() {
   const themeColor = themes.admin.primary;
@@ -31,21 +31,17 @@ export function AdminDashboard() {
 
   // Merge recent reports from both modules
   const recentActivity = [
-    ...workReports
-      .slice(0, 3)
-      .map((r) => ({
-        ...r,
-        type: "Trabajo" as const,
-        href: `/reports/${r.id}`,
-      })),
-    ...warehouseReports
-      .slice(0, 3)
-      .map((r) => ({
-        ...r,
-        type: "Almacén" as const,
-        href: `/warehouse/${r.id}`,
-        fecha: r.fechaEntrega,
-      })),
+    ...workReports.slice(0, 3).map((r) => ({
+      ...r,
+      type: "Trabajo" as const,
+      href: `/reports/${r.id}`,
+    })),
+    ...warehouseReports.slice(0, 3).map((r) => ({
+      ...r,
+      type: "Almacén" as const,
+      href: `/warehouse/${r.id}`,
+      fecha: r.fechaEntrega,
+    })),
   ].slice(0, 6);
 
   return (

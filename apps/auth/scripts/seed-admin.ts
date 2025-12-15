@@ -43,7 +43,11 @@ async function seedAdmin() {
   }
 
   // Update role to admin
-  const [createdUser] = await db.select().from(user).where(eq(user.email, adminEmail)).limit(1);
+  const [createdUser] = await db
+    .select()
+    .from(user)
+    .where(eq(user.email, adminEmail))
+    .limit(1);
   if (createdUser) {
     await db
       .update(user)

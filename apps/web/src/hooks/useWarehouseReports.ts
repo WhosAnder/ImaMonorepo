@@ -1,5 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchWarehouseReports, fetchWarehouseReportById } from "../api/reportsClient";
+import {
+  fetchWarehouseReports,
+  fetchWarehouseReportById,
+} from "../api/reportsClient";
 
 export function useWarehouseReportsQuery() {
   return useQuery({

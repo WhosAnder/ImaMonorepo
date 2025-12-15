@@ -5,8 +5,8 @@ export interface WarehouseItem {
   units: number;
   observations: string;
   evidences: {
-      id: string;
-      previewUrl: string;
+    id: string;
+    previewUrl: string;
   }[];
 }
 

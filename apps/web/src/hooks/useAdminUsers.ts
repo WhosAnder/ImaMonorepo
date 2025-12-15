@@ -72,7 +72,13 @@ export function useUpdateUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, payload }: { id: string; payload: UpdateUserPayload }) => {
+    mutationFn: async ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: UpdateUserPayload;
+    }) => {
       const response = await authClient.admin.updateUser({
         userId: id,
         data: payload,
@@ -112,7 +118,13 @@ export function useBanUser() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ userId, banReason }: { userId: string; banReason?: string }) => {
+    mutationFn: async ({
+      userId,
+      banReason,
+    }: {
+      userId: string;
+      banReason?: string;
+    }) => {
       const response = await authClient.admin.banUser({
         userId,
         banReason,
@@ -183,7 +195,9 @@ export function useStopImpersonating() {
     mutationFn: async () => {
       const response = await authClient.admin.stopImpersonating();
       if (response.error) {
-        throw new Error(response.error.message || "Error stopping impersonation");
+        throw new Error(
+          response.error.message || "Error stopping impersonation",
+        );
       }
       return response.data;
     },
@@ -214,7 +228,10 @@ export function useResetUserPassword() {
         );
       }
 
-      return response.json() as Promise<{ success: boolean; tempPassword: string }>;
+      return response.json() as Promise<{
+        success: boolean;
+        tempPassword: string;
+      }>;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ADMIN_USERS_KEY });

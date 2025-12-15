@@ -1,5 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchReportsExplorer, ReportExplorerParams } from "@/api/reportsExplorerClient";
+import {
+  fetchReportsExplorer,
+  ReportExplorerParams,
+} from "@/api/reportsExplorerClient";
 
 export const useReportsExplorer = (params: ReportExplorerParams) => {
   return useQuery({

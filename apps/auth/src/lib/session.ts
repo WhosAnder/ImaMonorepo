@@ -18,7 +18,9 @@ export type SessionResult = {
 
 export function collectSetCookies(response?: Response | null): string[] {
   if (!response) return [];
-  const headerCookies = (response.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie?.();
+  const headerCookies = (
+    response.headers as unknown as { getSetCookie?: () => string[] }
+  ).getSetCookie?.();
   if (Array.isArray(headerCookies)) return headerCookies;
 
   const raw = headerCookies || response.headers.get("set-cookie");
@@ -41,7 +43,9 @@ export function hasAdminRole(role?: string | null) {
     .includes("admin");
 }
 
-export async function getSessionFromRequest(c: Context): Promise<SessionResult> {
+export async function getSessionFromRequest(
+  c: Context,
+): Promise<SessionResult> {
   const response = await auth.api
     .getSession({
       request: c.req.raw,
@@ -69,5 +73,3 @@ export async function getSessionFromRequest(c: Context): Promise<SessionResult> 
     cookies,
   };
 }
-
-

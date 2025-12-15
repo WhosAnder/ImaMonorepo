@@ -6,7 +6,7 @@ export interface TemplateSectionConfig {
 
 export interface Template {
   _id: string;
-  tipoReporte: 'work' | 'warehouse';
+  tipoReporte: "work" | "warehouse";
   subsistema: string;
   tipoMantenimiento: string;
   frecuencia: string;
@@ -28,7 +28,7 @@ export interface Template {
 }
 
 export interface TemplateFilters {
-  tipoReporte?: 'work' | 'warehouse';
+  tipoReporte?: "work" | "warehouse";
   subsistema?: string;
   tipoMantenimiento?: string;
   frecuencia?: string;

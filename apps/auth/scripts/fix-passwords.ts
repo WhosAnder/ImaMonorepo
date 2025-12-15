@@ -15,8 +15,12 @@ async function fixPasswords() {
 
     for (const account of accountsWithIssues) {
       if (!account.password || account.password.trim() === "") {
-        console.log(`⚠️  Account ${account.id} (user: ${account.userId}) has null/empty password`);
-        console.log(`   This account needs to be deleted or the password reset`);
+        console.log(
+          `⚠️  Account ${account.id} (user: ${account.userId}) has null/empty password`,
+        );
+        console.log(
+          `   This account needs to be deleted or the password reset`,
+        );
       } else {
         // Check if password format looks correct (should be hex.hex format)
         const parts = account.password.split(".");
@@ -28,7 +32,9 @@ async function fixPasswords() {
 
     console.log("\nTo fix:");
     console.log("1. Delete accounts with invalid passwords:");
-    console.log("   DELETE FROM accounts WHERE password IS NULL OR password = '';");
+    console.log(
+      "   DELETE FROM accounts WHERE password IS NULL OR password = '';",
+    );
     console.log("2. Or recreate users through Better Auth's sign-up endpoint");
   } catch (error) {
     console.error("❌ Error checking passwords:", error);
@@ -37,4 +43,3 @@ async function fixPasswords() {
 }
 
 fixPasswords();
-

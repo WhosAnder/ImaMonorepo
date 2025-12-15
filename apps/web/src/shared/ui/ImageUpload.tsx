@@ -2,7 +2,10 @@ import React, { useMemo, useState } from "react";
 import { Camera, X, Image as ImageIcon, Loader2 } from "lucide-react";
 
 const generateLocalId = () => {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
   return `evidence-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -40,7 +43,12 @@ const normalizeEvidence = (input: IncomingEvidence): LocalEvidence => {
     };
   }
 
-  if (input && typeof input === "object" && "previewUrl" in input && "base64" in input) {
+  if (
+    input &&
+    typeof input === "object" &&
+    "previewUrl" in input &&
+    "base64" in input
+  ) {
     const candidate = input as LocalEvidence;
     return {
       id: candidate.id || generateLocalId(),
@@ -65,10 +73,7 @@ const normalizeEvidence = (input: IncomingEvidence): LocalEvidence => {
     };
 
     const preview =
-      candidate.previewUrl ||
-      candidate.base64 ||
-      candidate.url ||
-      "";
+      candidate.previewUrl || candidate.base64 || candidate.url || "";
 
     return {
       id: candidate.id || generateLocalId(),
@@ -101,7 +106,8 @@ const fileToEvidence = (file: File): Promise<LocalEvidence> => {
         size: file.size,
       });
     };
-    reader.onerror = () => reject(reader.error || new Error("No se pudo leer el archivo"));
+    reader.onerror = () =>
+      reject(reader.error || new Error("No se pudo leer el archivo"));
     reader.readAsDataURL(file);
   });
 };
@@ -160,11 +166,14 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     setProcessingError(null);
 
     try {
-      const converted = await Promise.all(selectedFiles.map((file) => fileToEvidence(file)));
+      const converted = await Promise.all(
+        selectedFiles.map((file) => fileToEvidence(file)),
+      );
       const nextValue = [...files, ...converted].slice(0, effectiveMaxFiles);
       updateFiles(nextValue);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "No se pudo preparar la evidencia";
+      const message =
+        err instanceof Error ? err.message : "No se pudo preparar la evidencia";
       setProcessingError(message);
     } finally {
       setIsProcessing(false);
@@ -207,9 +216,13 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
             `}
           >
             {isProcessing ? (
-              <Loader2 className={`animate-spin ${compact ? "w-3 h-3" : "w-4 h-4"}`} />
+              <Loader2
+                className={`animate-spin ${compact ? "w-3 h-3" : "w-4 h-4"}`}
+              />
             ) : (
-              <Camera className={`${compact ? "w-3 h-3 mr-1" : "w-4 h-4 mr-2"}`} />
+              <Camera
+                className={`${compact ? "w-3 h-3 mr-1" : "w-4 h-4 mr-2"}`}
+              />
             )}
             {isProcessing ? "Procesando..." : compact ? "Foto" : "Tomar foto"}
           </label>
@@ -219,7 +232,9 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
         </div>
 
         {files.length > 0 && (
-          <div className={`grid gap-2 ${compact ? "grid-cols-4" : "grid-cols-2 sm:grid-cols-3"}`}>
+          <div
+            className={`grid gap-2 ${compact ? "grid-cols-4" : "grid-cols-2 sm:grid-cols-3"}`}
+          >
             {files.map((file, index) => (
               <div
                 key={file.id || index}
@@ -246,16 +261,16 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
           <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 flex flex-col items-center justify-center text-gray-400">
             <ImageIcon className="w-8 h-8 mb-2" />
             <span className="text-sm">
-              {isProcessing ? "Procesando evidencias..." : "No hay evidencias seleccionadas"}
+              {isProcessing
+                ? "Procesando evidencias..."
+                : "No hay evidencias seleccionadas"}
             </span>
           </div>
         )}
       </div>
 
       {(error || processingError) && (
-        <p className="mt-1 text-sm text-red-600">
-          {error || processingError}
-        </p>
+        <p className="mt-1 text-sm text-red-600">{error || processingError}</p>
       )}
     </div>
   );
