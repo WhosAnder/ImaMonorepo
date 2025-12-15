@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCreateWarehouseReportMutation } from "@/hooks/useWarehouseReports";
 import { useWarehouseItems } from "@/hooks/useWarehouse";
@@ -15,10 +15,10 @@ import {
   WarehouseReportFormValues,
 } from "../schemas/warehouseReportSchema";
 import { Save, Plus, Trash2, Package, Wrench } from "lucide-react";
-import { AppLayout } from "@/shared/layout/AppLayout";
 import { createReport } from "../helpers/create-report";
 import { generatePDFReport } from "../helpers/generate-pdf";
 import { uploadEvidence as uploadEvidencePresigned } from "@/api/evidencesClient";
+import { useAuth } from "@/auth/AuthContext";
 
 const SUBSYSTEMS = [
   "EQUIPO DE GUIA/ TRABAJO DE GUIA",
@@ -34,6 +34,7 @@ const SUBSYSTEMS = [
 
 export const NewWarehouseReportPage: React.FC = () => {
   const router = useRouter();
+  const { user } = useAuth();
   const createMutation = useCreateWarehouseReportMutation();
 
   // Fetch inventory
@@ -59,10 +60,10 @@ export const NewWarehouseReportPage: React.FC = () => {
     resolver: zodResolver(warehouseReportSchema) as any,
     defaultValues: {
       subsistema: "",
-      fechaHoraEntrega: new Date().toISOString().slice(0, 16),
+      fechaHoraEntrega: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
       turno: "",
       nombreQuienRecibe: "",
-      nombreAlmacenista: "",
+      nombreAlmacenista: user?.name || "",
       herramientas: [],
       refacciones: [],
       observacionesGenerales: "",
@@ -87,7 +88,7 @@ export const NewWarehouseReportPage: React.FC = () => {
     name: "refacciones",
   });
 
-  // Auto-calculate shift
+  // Auto-calculate shift (Hidden logic)
   const fechaHoraEntrega = watch("fechaHoraEntrega");
   useEffect(() => {
     if (fechaHoraEntrega) {
@@ -98,6 +99,13 @@ export const NewWarehouseReportPage: React.FC = () => {
       setValue("turno", shift);
     }
   }, [fechaHoraEntrega, setValue]);
+
+  // Set Almacenista name from user
+  useEffect(() => {
+    if (user?.name) {
+      setValue("nombreAlmacenista", user.name);
+    }
+  }, [user, setValue]);
 
   /**
    * Upload evidences from tools/parts to S3 bucket
@@ -161,6 +169,12 @@ export const NewWarehouseReportPage: React.FC = () => {
   };
 
   const onSubmit = async (data: WarehouseReportFormValues) => {
+    // Ensure timezone is correct (local)
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
+    data.fechaHoraEntrega = localISOTime;
+
     const { data: report, error } = await createReport(data);
 
     if (report) {
@@ -197,7 +211,7 @@ export const NewWarehouseReportPage: React.FC = () => {
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Header Section */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>Subsistema</label>
                   <select {...register("subsistema")} className={inputClass}>
@@ -214,26 +228,12 @@ export const NewWarehouseReportPage: React.FC = () => {
                     </p>
                   )}
                 </div>
-                <div>
-                  <label className={labelClass}>Fecha y hora de entrega</label>
-                  <input
-                    type="datetime-local"
-                    {...register("fechaHoraEntrega")}
-                    className={inputClass}
-                  />
-                </div>
-                <div>
-                  <label className={labelClass}>Turno</label>
-                  <input
-                    type="text"
-                    {...register("turno")}
-                    readOnly
-                    className={`${inputClass} bg-gray-50`}
-                  />
-                </div>
-              </div>
+                {/* Hidden Date Field (Auto-set on submit) */}
+                <input type="hidden" {...register("fechaHoraEntrega")} />
+                
+                {/* Hidden Turno Field (Auto-calculated) */}
+                <input type="hidden" {...register("turno")} />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
                 <div>
                   <label className={labelClass}>
                     Nombre y firma de quien recibe
@@ -250,22 +250,6 @@ export const NewWarehouseReportPage: React.FC = () => {
                     </p>
                   )}
                 </div>
-                <div>
-                  <label className={labelClass}>
-                    Nombre y firma de almacenista
-                  </label>
-                  <input
-                    type="text"
-                    {...register("nombreAlmacenista")}
-                    className={inputClass}
-                    placeholder="Nombre completo"
-                  />
-                  {errors.nombreAlmacenista && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.nombreAlmacenista.message}
-                    </p>
-                  )}
-                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
@@ -279,7 +263,8 @@ export const NewWarehouseReportPage: React.FC = () => {
                     />
                   )}
                 />
-                <Controller
+                {/* Almacenista Signature Only (Name is auto from user) */}
+                 <Controller
                   name="firmaAlmacenista"
                   control={control}
                   render={({ field }) => (

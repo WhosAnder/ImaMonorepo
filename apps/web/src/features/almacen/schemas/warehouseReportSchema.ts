@@ -15,6 +15,7 @@ export const warehouseReportSchema = z.object({
   subsistema: z.string().min(1, "Selecciona el subsistema"),
   fechaHoraEntrega: z.string().min(1, "Fecha de entrega requerida"),
   turno: z.string(),
+  trabajadores: z.array(z.string()).optional(),
 
   // Firmas de apertura
   nombreQuienRecibe: z.string().min(1, "Nombre requerido"),

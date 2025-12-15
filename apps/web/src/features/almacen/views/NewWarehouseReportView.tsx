@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useWarehouseItems } from "@/hooks/useWarehouse";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Button } from "@/shared/ui/Button";
+import { Button } from "@/components/ui/button";
 import { SignaturePad } from "@/shared/ui/SignaturePad";
 import { ImageUpload } from "@/shared/ui/ImageUpload";
 import { WarehouseReportPreview } from "../components/WarehouseReportPreview";
@@ -16,6 +16,8 @@ import {
 import { createWarehouseReport } from "@/api/reportsClient";
 import { Save, Plus, Trash2, Check, ChevronsUpDown } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
+import { useWorkers } from "@/hooks/useWorkers";
+import { MultiSelect } from "@/shared/ui/MultiSelect";
 
 const SUBSYSTEMS = [
   "EQUIPO DE GUIA/ TRABAJO DE GUIA",
@@ -28,6 +30,50 @@ const SUBSYSTEMS = [
   "EQUIPO DE ESTACION",
   "EQUIPO DE MANTENIMIENTO",
 ];
+
+const WAREHOUSE_REPORT_DRAFT_KEY = 'warehouse_report_draft';
+
+const convertSignatureToBase64 = async (signatureUrl: string | null): Promise<string | null> => {
+  if (!signatureUrl) return null;
+  if (signatureUrl.startsWith('data:image')) return signatureUrl;
+  
+  try {
+    const response = await fetch(signatureUrl);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+  } catch (error) {
+    console.error('Error converting signature:', error);
+    return null;
+  }
+};
+
+const prepareWarehouseItemsEvidence = async (items: any[]) => {
+  return Promise.all(items.map(async (item) => {
+    const evidences = await Promise.all((item.evidences || []).map(async (file: any) => {
+      if (typeof file === 'string') return file;
+      // If it's already a base64 object from image upload
+      if (file.base64) return file;
+      
+      return new Promise<any>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve({
+            base64: reader.result as string,
+            name: file.name,
+            type: file.type
+        });
+        reader.readAsDataURL(file);
+      });
+    }));
+    return {
+      ...item,
+      evidences
+    };
+  }));
+};
 
 // Shadcn-like components (internal for now as we don't have the full library)
 const Card = ({
@@ -106,6 +152,8 @@ Textarea.displayName = "Textarea";
 export const NewWarehouseReportPage: React.FC = () => {
   const router = useRouter();
   const { user } = useAuth();
+  const [draftStatus, setDraftStatus] = useState<'empty' | 'loaded'>('empty');
+  const draftRestorationGuardRef = useRef(false);
 
   // Fetch inventory - all active items are available for both sections
   const { data: inventoryItems, isLoading: isLoadingInventory } =
@@ -114,25 +162,38 @@ export const NewWarehouseReportPage: React.FC = () => {
   // you can filter here: inventoryItems?.filter(i => i.category?.toLowerCase() === 'herramientas')
   const inventoryOptions = inventoryItems || [];
 
+  // Fetch workers
+  const { data: workers = [] } = useWorkers();
+  const workerOptions = React.useMemo(() => 
+    workers
+      .filter(w => w.active)
+      .map(w => ({ value: w.name, label: w.name })),
+    [workers]
+  );
+
   const {
     register,
     control,
     handleSubmit,
     setValue,
     watch,
+    getValues,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<WarehouseReportFormValues>({
     resolver: zodResolver(warehouseReportSchema) as any,
     defaultValues: {
       subsistema: "",
-      fechaHoraEntrega: new Date().toISOString().slice(0, 16),
+      fechaHoraEntrega: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
       turno: "",
       nombreQuienRecibe: "",
       nombreAlmacenista: "",
       nombreQuienEntrega: "",
       herramientas: [],
       refacciones: [],
+      refacciones: [],
       observacionesGenerales: "",
+      trabajadores: [],
     },
   });
 
@@ -176,6 +237,67 @@ export const NewWarehouseReportPage: React.FC = () => {
     }
   }, [user?.name, setValue]);
 
+  // Load draft on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const savedDraft = localStorage.getItem(WAREHOUSE_REPORT_DRAFT_KEY);
+    if (savedDraft) {
+      const shouldLoad = window.confirm('Se encontró un borrador guardado. ¿Deseas cargarlo?');
+      if (shouldLoad) {
+        try {
+          const parsed = JSON.parse(savedDraft);
+          if (parsed.formValues) {
+            draftRestorationGuardRef.current = true;
+            reset(parsed.formValues);
+            setDraftStatus('loaded');
+            setTimeout(() => {
+                draftRestorationGuardRef.current = false;
+            }, 500);
+          }
+        } catch (e) {
+          console.error('Error loading draft', e);
+        }
+      } else {
+        localStorage.removeItem(WAREHOUSE_REPORT_DRAFT_KEY);
+      }
+    }
+  }, [reset]);
+
+  const handleSaveDraft = async () => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const currentValues = getValues();
+      
+      // Process evidences
+      const herramientas = await prepareWarehouseItemsEvidence(currentValues.herramientas || []);
+      const refacciones = await prepareWarehouseItemsEvidence(currentValues.refacciones || []);
+      
+      // Process signatures
+      const firmaQuienRecibe = await convertSignatureToBase64(currentValues.firmaQuienRecibe || null);
+      const firmaAlmacenista = await convertSignatureToBase64(currentValues.firmaAlmacenista || null);
+      const firmaQuienEntrega = await convertSignatureToBase64(currentValues.firmaQuienEntrega || null);
+      
+      const draftPayload = {
+        formValues: {
+          ...currentValues,
+          herramientas,
+          refacciones,
+          firmaQuienRecibe,
+          firmaAlmacenista,
+          firmaQuienEntrega,
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      localStorage.setItem(WAREHOUSE_REPORT_DRAFT_KEY, JSON.stringify(draftPayload));
+      alert('Borrador guardado correctamente');
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      alert('No se pudo guardar el borrador');
+    }
+  };
+
   const onSubmit = async (data: WarehouseReportFormValues) => {
     try {
       const almacenistaName = user?.name ?? data.nombreAlmacenista ?? "";
@@ -191,6 +313,11 @@ export const NewWarehouseReportPage: React.FC = () => {
 
       const result = await createWarehouseReport(payload);
       console.log("Warehouse report created:", result);
+
+      // Clear draft on success
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(WAREHOUSE_REPORT_DRAFT_KEY);
+      }
 
       // Redirect to reports list on success
       router.push("/almacen");
@@ -254,22 +381,10 @@ export const NewWarehouseReportPage: React.FC = () => {
                     )}
                   </div>
 
-                  <div>
-                    <Label className="mb-2 block">Fecha y hora de inicio</Label>
-                    <Input
-                      type="datetime-local"
-                      {...register("fechaHoraEntrega")}
-                    />
-                  </div>
-                  <div>
-                    <Label className="mb-2 block">Turno</Label>
-                    <Input
-                      type="text"
-                      {...register("turno")}
-                      readOnly
-                      className="bg-gray-50 text-gray-500"
-                    />
-                  </div>
+                  {/* Hidden Fields */}
+                  <input type="hidden" {...register("fechaHoraEntrega")} />
+                  <input type="hidden" {...register("turno")} />
+                  <input type="hidden" {...register("nombreAlmacenista")} />
 
                   <div>
                     <Label className="mb-2 block">Nombre quien recibe</Label>
@@ -284,21 +399,21 @@ export const NewWarehouseReportPage: React.FC = () => {
                       </p>
                     )}
                   </div>
-                  <div>
-                    <Label className="mb-2 block">Nombre almacenista</Label>
-                    <Input
-                      type="text"
-                      {...register("nombreAlmacenista")}
-                      placeholder="Nombre completo"
-                      disabled
-                      readOnly
-                      className="bg-gray-50 text-gray-500"
+
+                  <div className="md:col-span-2">
+                    <Label className="mb-2 block">Trabajadores Involucrados</Label>
+                    <Controller
+                      name="trabajadores"
+                      control={control}
+                      render={({ field }) => (
+                        <MultiSelect
+                          options={workerOptions}
+                          value={field.value || []}
+                          onChange={field.onChange}
+                          placeholder="Seleccionar..."
+                        />
+                      )}
                     />
-                    {errors.nombreAlmacenista && (
-                      <p className="text-red-500 text-xs mt-1">
-                        {errors.nombreAlmacenista.message}
-                      </p>
-                    )}
                   </div>
                 </div>
               </Card>
@@ -701,10 +816,19 @@ export const NewWarehouseReportPage: React.FC = () => {
 
               {/* Submit */}
               <div className="flex justify-end pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleSaveDraft}
+                  className="mr-4 border-[#153A7A] text-[#153A7A] hover:bg-[#153A7A]/10"
+                >
+                  <Save className="w-5 h-5 mr-2" />
+                  Guardar Borrador
+                </Button>
                 <Button
                   type="submit"
-                  isLoading={isSubmitting}
-                  className="px-8 py-2.5 h-11 text-base shadow-lg hover:shadow-xl transition-all bg-gray-900 hover:bg-gray-800 text-white rounded-md"
+                  disabled={isSubmitting}
+                  className="px-8 bg-[#153A7A] hover:bg-[#153A7A]/90 text-white"
                 >
                   <Save className="w-5 h-5 mr-2" />
                   Generar Reporte
