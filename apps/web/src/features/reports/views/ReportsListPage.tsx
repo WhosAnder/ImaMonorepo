@@ -18,11 +18,10 @@ import { useWorkReportsPaginatedQuery } from "@/hooks/useWorkReports";
 import { AppLayout } from "@/shared/layout/AppLayout";
 
 // Lazy load the ReportExplorer component for code splitting
-const ReportExplorer = lazy(
-  () =>
-    import("../components/ReportExplorer").then((mod) => ({
-      default: mod.ReportExplorer,
-    })),
+const ReportExplorer = lazy(() =>
+  import("../components/ReportExplorer").then((mod) => ({
+    default: mod.ReportExplorer,
+  })),
 );
 
 const ExplorerLoadingFallback = () => (

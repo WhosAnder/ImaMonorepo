@@ -22,7 +22,8 @@ export async function fetchWorkReports(
   pagination?: PaginationParams,
 ): Promise<WorkReportListItem[]> {
   const url = new URL(`${API_URL}/api/reports`);
-  if (pagination?.limit) url.searchParams.set("limit", String(pagination.limit));
+  if (pagination?.limit)
+    url.searchParams.set("limit", String(pagination.limit));
   if (pagination?.offset)
     url.searchParams.set("offset", String(pagination.offset));
 
@@ -37,7 +38,8 @@ export async function fetchWorkReportsPaginated(
   pagination?: PaginationParams,
 ): Promise<PaginatedResponse<WorkReportListItem>> {
   const url = new URL(`${API_URL}/api/reports`);
-  if (pagination?.limit) url.searchParams.set("limit", String(pagination.limit));
+  if (pagination?.limit)
+    url.searchParams.set("limit", String(pagination.limit));
   if (pagination?.offset)
     url.searchParams.set("offset", String(pagination.offset));
 
@@ -84,7 +86,8 @@ export async function fetchWarehouseReports(
   pagination?: PaginationParams,
 ): Promise<WarehouseReportListItem[]> {
   const url = new URL(`${API_URL}/api/warehouse-reports`);
-  if (pagination?.limit) url.searchParams.set("limit", String(pagination.limit));
+  if (pagination?.limit)
+    url.searchParams.set("limit", String(pagination.limit));
   if (pagination?.offset)
     url.searchParams.set("offset", String(pagination.offset));
 
@@ -99,7 +102,8 @@ export async function fetchWarehouseReportsPaginated(
   pagination?: PaginationParams,
 ): Promise<PaginatedResponse<WarehouseReportListItem>> {
   const url = new URL(`${API_URL}/api/warehouse-reports`);
-  if (pagination?.limit) url.searchParams.set("limit", String(pagination.limit));
+  if (pagination?.limit)
+    url.searchParams.set("limit", String(pagination.limit));
   if (pagination?.offset)
     url.searchParams.set("offset", String(pagination.offset));
 

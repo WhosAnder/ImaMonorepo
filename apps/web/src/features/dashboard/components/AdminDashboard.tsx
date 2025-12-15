@@ -27,21 +27,17 @@ export function AdminDashboard() {
 
   // Merge recent reports from both modules
   const recentActivity = [
-    ...workReports
-      .slice(0, 3)
-      .map((r) => ({
-        ...r,
-        type: "Trabajo" as const,
-        href: `/reports/${r.id}`,
-      })),
-    ...warehouseReports
-      .slice(0, 3)
-      .map((r) => ({
-        ...r,
-        type: "Almacén" as const,
-        href: `/almacen/${r.id}`,
-        fecha: r.fechaEntrega,
-      })),
+    ...workReports.slice(0, 3).map((r) => ({
+      ...r,
+      type: "Trabajo" as const,
+      href: `/reports/${r.id}`,
+    })),
+    ...warehouseReports.slice(0, 3).map((r) => ({
+      ...r,
+      type: "Almacén" as const,
+      href: `/almacen/${r.id}`,
+      fecha: r.fechaEntrega,
+    })),
   ].slice(0, 6);
 
   return (
