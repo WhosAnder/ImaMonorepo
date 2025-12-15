@@ -69,18 +69,41 @@ function getSafeSlug(text: string): string {
     .toString()
     .toLowerCase()
     .trim()
+    .normalize("NFD") // Decompose accented characters
+    .replace(/[\u0300-\u036f]/g, "") // Remove diacritics
     .replace(/\s+/g, "-") // Replace spaces with -
     .replace(/[^\w\-]+/g, "") // Remove all non-word chars
     .replace(/\-\-+/g, "-"); // Replace multiple - with single -
+}
+
+/**
+ * MongoDB aggregation expression to generate a slug matching getSafeSlug
+ * Note: MongoDB doesn't have full regex support for diacritics removal,
+ * so we normalize on the JS side when comparing
+ */
+function buildSubsystemSlugField() {
+  return {
+    $toLower: {
+      $trim: {
+        input: {
+          $replaceAll: {
+            input: { $ifNull: ["$subsistema", "sin-subsistema"] },
+            find: " ",
+            replacement: "-",
+          },
+        },
+      },
+    },
+  };
 }
 
 async function getCollection(
   type: "work" | "warehouse",
 ): Promise<Collection<Document>> {
   if (type === "work") {
-    return getWorkReportCollection();
+    return getWorkReportCollection() as unknown as Collection<Document>;
   }
-  return getWarehouseReportCollection();
+  return getWarehouseReportCollection() as unknown as Collection<Document>;
 }
 
 // ============================================================================
@@ -121,34 +144,39 @@ async function getSubsystemFolders(
 }
 
 /**
+ * Helper to resolve original subsystem name from slug
+ */
+async function resolveSubsystemFromSlug(
+  collection: Collection<Document>,
+  slug: string,
+): Promise<string | null> {
+  const subsystems = await getSubsystemFolders(collection);
+  const match = subsystems.find((s) => s.subsystemSlug === slug);
+  return match ? match.label : null;
+}
+
+/**
  * Level 2: Get years with counts for a subsystem using aggregation
  */
 async function getYearFolders(
   collection: Collection<Document>,
   subsystemSlug: string,
 ): Promise<ReportExplorerNode[]> {
+  // Resolve slug to original subsystem name
+  const subsystemName = await resolveSubsystemFromSlug(collection, subsystemSlug);
+  if (!subsystemName) {
+    return [];
+  }
+
   const pipeline = [
     {
       $addFields: {
-        _subsystemSlug: {
-          $toLower: {
-            $trim: {
-              input: {
-                $replaceAll: {
-                  input: { $ifNull: ["$subsistema", "sin-subsistema"] },
-                  find: " ",
-                  replacement: "-",
-                },
-              },
-            },
-          },
-        },
         _dateField: { $ifNull: ["$createdAt", "$fecha"] },
       },
     },
     {
       $match: {
-        _subsystemSlug: subsystemSlug,
+        subsistema: subsystemName,
       },
     },
     {
@@ -185,28 +213,21 @@ async function getMonthFolders(
   subsystemSlug: string,
   year: number,
 ): Promise<ReportExplorerNode[]> {
+  // Resolve slug to original subsystem name
+  const subsystemName = await resolveSubsystemFromSlug(collection, subsystemSlug);
+  if (!subsystemName) {
+    return [];
+  }
+
   const pipeline = [
     {
       $addFields: {
-        _subsystemSlug: {
-          $toLower: {
-            $trim: {
-              input: {
-                $replaceAll: {
-                  input: { $ifNull: ["$subsistema", "sin-subsistema"] },
-                  find: " ",
-                  replacement: "-",
-                },
-              },
-            },
-          },
-        },
         _dateField: { $ifNull: ["$createdAt", "$fecha"] },
       },
     },
     {
       $match: {
-        _subsystemSlug: subsystemSlug,
+        subsistema: subsystemName,
         $expr: { $eq: [{ $year: "$_dateField" }, year] },
       },
     },
@@ -246,28 +267,21 @@ async function getDayFolders(
   year: number,
   month: number,
 ): Promise<ReportExplorerNode[]> {
+  // Resolve slug to original subsystem name
+  const subsystemName = await resolveSubsystemFromSlug(collection, subsystemSlug);
+  if (!subsystemName) {
+    return [];
+  }
+
   const pipeline = [
     {
       $addFields: {
-        _subsystemSlug: {
-          $toLower: {
-            $trim: {
-              input: {
-                $replaceAll: {
-                  input: { $ifNull: ["$subsistema", "sin-subsistema"] },
-                  find: " ",
-                  replacement: "-",
-                },
-              },
-            },
-          },
-        },
         _dateField: { $ifNull: ["$createdAt", "$fecha"] },
       },
     },
     {
       $match: {
-        _subsystemSlug: subsystemSlug,
+        subsistema: subsystemName,
         $expr: {
           $and: [
             { $eq: [{ $year: "$_dateField" }, year] },
@@ -316,28 +330,21 @@ async function getReportsForDay(
   day: number,
   reportType: "work" | "warehouse",
 ): Promise<ReportItem[]> {
+  // Resolve slug to original subsystem name
+  const subsystemName = await resolveSubsystemFromSlug(collection, subsystemSlug);
+  if (!subsystemName) {
+    return [];
+  }
+
   const pipeline = [
     {
       $addFields: {
-        _subsystemSlug: {
-          $toLower: {
-            $trim: {
-              input: {
-                $replaceAll: {
-                  input: { $ifNull: ["$subsistema", "sin-subsistema"] },
-                  find: " ",
-                  replacement: "-",
-                },
-              },
-            },
-          },
-        },
         _dateField: { $ifNull: ["$createdAt", "$fecha"] },
       },
     },
     {
       $match: {
-        _subsystemSlug: subsystemSlug,
+        subsistema: subsystemName,
         $expr: {
           $and: [
             { $eq: [{ $year: "$_dateField" }, year] },

@@ -213,6 +213,24 @@ const formatName = (name: string) => {
   return name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
 };
 
+const formatFrecuencia = (code?: string) => {
+  if (!code) return "—";
+  const map: Record<string, string> = {
+    "1D": "Diario",
+    "1W": "Semanal",
+    "1M": "Mensual",
+    "3M": "Trimestral (3 meses)",
+    "6M": "Semestral (6 meses)",
+    "1A": "Anual (1 año)",
+    "2A": "2 años",
+    "3A": "3 años",
+    "4A": "4 años",
+    "5A": "5 años",
+    "6A": "6 años",
+  };
+  return map[code] || code;
+};
+
 const LabeledPill = ({ label, value }: { label: string; value?: string }) => (
   <View style={styles.col}>
     <Text style={styles.pillLabel}>{label}</Text>
@@ -278,7 +296,7 @@ export const WorkReportPDF = ({ values }: WorkReportPDFProps) => {
               <LabeledPill label="TURNO" value={turno} />
             </View>
             <View style={styles.row}>
-              <LabeledPill label="FRECUENCIA" value={frecuencia} />
+              <LabeledPill label="FRECUENCIA" value={formatFrecuencia(frecuencia)} />
               <LabeledPill
                 label="TRABAJADORES INVOLUCRADOS"
                 value={workersString}

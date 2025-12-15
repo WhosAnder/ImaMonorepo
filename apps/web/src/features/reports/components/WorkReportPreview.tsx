@@ -56,6 +56,24 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
     });
   };
 
+  const formatFrecuencia = (code?: string) => {
+    if (!code) return "—";
+    const map: Record<string, string> = {
+      "1D": "Diario",
+      "1W": "Semanal",
+      "1M": "Mensual",
+      "3M": "Trimestral (3 meses)",
+      "6M": "Semestral (6 meses)",
+      "1A": "Anual (1 año)",
+      "2A": "2 años",
+      "3A": "3 años",
+      "4A": "4 años",
+      "5A": "5 años",
+      "6A": "6 años",
+    };
+    return map[code] || code;
+  };
+
   const hasActivities =
     actividadesRealizadas && actividadesRealizadas.length > 0;
 
@@ -119,7 +137,7 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                   <LabeledPill label="TURNO" value={turno} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <LabeledPill label="FRECUENCIA" value={frecuencia} />
+                  <LabeledPill label="FRECUENCIA" value={formatFrecuencia(frecuencia)} />
                   <LabeledPill
                     label="TRABAJADORES INVOLUCRADOS"
                     value={
@@ -134,9 +152,9 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
               {/* Activities Table */}
               <section className="mt-5 px-6">
                 <div className="rounded-t-md bg-[#153A7A] px-3 py-1 text-[9px] font-semibold uppercase tracking-wide text-white flex">
-                  <span className="flex-1">ACTIVIDAD</span>
+                  <span className="flex-[2]">ACTIVIDAD</span>
                   <span className="w-12 text-center">SI/NO</span>
-                  <span className="w-24 text-center">OBSERVACIONES</span>
+                  <span className="flex-1 text-center">OBSERVACIONES</span>
                   <span className="w-16 text-center">EVIDENCIAS</span>
                 </div>
                 <div className="rounded-b-md border border-[#153A7A] bg-white">
@@ -144,11 +162,11 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                     actividadesRealizadas.map((act, idx) => (
                       <div
                         key={idx}
-                        className={`flex items-stretch text-[9px] text-[#153A7A] ${
+                        className={`flex text-[9px] text-[#153A7A] ${
                           idx > 0 ? "border-t border-[#d0d5ee]" : ""
                         }`}
                       >
-                        <div className="flex-1 px-2 py-2 font-medium">
+                        <div className="flex-[2] px-2 py-2 font-medium">
                           {act.nombre}
                         </div>
                         <div className="w-12 px-1 py-2 flex items-center justify-center border-l border-[#d0d5ee]">
@@ -162,11 +180,9 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                             {act.realizado ? "SÍ" : "NO"}
                           </span>
                         </div>
-                        <div className="w-24 px-1 py-1 border-l border-[#d0d5ee] text-[8px] overflow-hidden">
+                        <div className="flex-1 px-2 py-2 border-l border-[#d0d5ee] text-[8px] break-words whitespace-pre-wrap">
                           {act.observaciones && act.observaciones.trim() ? (
-                            <span className="line-clamp-2">
-                              {act.observaciones}
-                            </span>
+                            <span>{act.observaciones}</span>
                           ) : (
                             <span className="text-gray-400 italic">—</span>
                           )}
