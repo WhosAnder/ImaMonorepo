@@ -7,6 +7,7 @@ import {
 import {
   NewWarehouseReport,
   WarehouseReportFilters,
+  PaginationOptions,
   UpdateWarehouseReportInput,
   findWarehouseReportById,
   findWarehouseReports,
@@ -22,8 +23,9 @@ import {
 
 export async function listWarehouseReports(
   filters: WarehouseReportFilters = {},
+  pagination?: PaginationOptions,
 ) {
-  return findWarehouseReports(filters);
+  return findWarehouseReports(filters, pagination);
 }
 
 export async function getWarehouseReportById(id: string) {

@@ -1,13 +1,17 @@
 import {
   NewWorkReport,
   WorkReportFilters,
+  PaginationOptions,
   findWorkReportById,
   findWorkReports,
   insertWorkReport,
 } from "./workReports.repository";
 
-export async function listWorkReports(filters: WorkReportFilters = {}) {
-  return findWorkReports(filters);
+export async function listWorkReports(
+  filters: WorkReportFilters = {},
+  pagination?: PaginationOptions,
+) {
+  return findWorkReports(filters, pagination);
 }
 
 export async function getWorkReportById(id: string) {

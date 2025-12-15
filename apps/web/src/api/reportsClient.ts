@@ -4,10 +4,46 @@ import { WarehouseReport } from "@/features/almacen/types/warehouseReport";
 import { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
 import { API_URL } from "../config/env";
 
+// Pagination types
+export interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface PaginationParams {
+  limit?: number;
+  offset?: number;
+}
+
 // Work reports
-export async function fetchWorkReports(): Promise<WorkReportListItem[]> {
-  const res = await fetch(`${API_URL}/api/reports`);
+export async function fetchWorkReports(
+  pagination?: PaginationParams,
+): Promise<WorkReportListItem[]> {
+  const url = new URL(`${API_URL}/api/reports`);
+  if (pagination?.limit) url.searchParams.set("limit", String(pagination.limit));
+  if (pagination?.offset)
+    url.searchParams.set("offset", String(pagination.offset));
+
+  const res = await fetch(url.toString());
   if (!res.ok) throw new Error("Error fetching work reports");
+
+  const result: PaginatedResponse<WorkReportListItem> = await res.json();
+  return result.data;
+}
+
+export async function fetchWorkReportsPaginated(
+  pagination?: PaginationParams,
+): Promise<PaginatedResponse<WorkReportListItem>> {
+  const url = new URL(`${API_URL}/api/reports`);
+  if (pagination?.limit) url.searchParams.set("limit", String(pagination.limit));
+  if (pagination?.offset)
+    url.searchParams.set("offset", String(pagination.offset));
+
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error("Error fetching work reports");
+
   return res.json();
 }
 
@@ -44,11 +80,32 @@ export async function createWorkReport(data: any): Promise<WorkReport> {
 }
 
 // Warehouse reports
-export async function fetchWarehouseReports(): Promise<
-  WarehouseReportListItem[]
-> {
-  const res = await fetch(`${API_URL}/api/warehouse-reports`);
+export async function fetchWarehouseReports(
+  pagination?: PaginationParams,
+): Promise<WarehouseReportListItem[]> {
+  const url = new URL(`${API_URL}/api/warehouse-reports`);
+  if (pagination?.limit) url.searchParams.set("limit", String(pagination.limit));
+  if (pagination?.offset)
+    url.searchParams.set("offset", String(pagination.offset));
+
+  const res = await fetch(url.toString());
   if (!res.ok) throw new Error("Error fetching warehouse reports");
+
+  const result: PaginatedResponse<WarehouseReportListItem> = await res.json();
+  return result.data;
+}
+
+export async function fetchWarehouseReportsPaginated(
+  pagination?: PaginationParams,
+): Promise<PaginatedResponse<WarehouseReportListItem>> {
+  const url = new URL(`${API_URL}/api/warehouse-reports`);
+  if (pagination?.limit) url.searchParams.set("limit", String(pagination.limit));
+  if (pagination?.offset)
+    url.searchParams.set("offset", String(pagination.offset));
+
+  const res = await fetch(url.toString());
+  if (!res.ok) throw new Error("Error fetching warehouse reports");
+
   return res.json();
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useMemo } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useReportsExplorer } from "@/hooks/useReportsExplorer";
 import {
   ReportExplorerParams,
@@ -9,15 +9,10 @@ import {
   ReportItem,
 } from "@/api/reportsExplorerClient";
 import {
-  Folder,
   ChevronRight,
   Home,
   Loader2,
-  HardDrive,
-  Calendar,
   FileText,
-  AlertCircle,
-  CheckCircle,
   Clock,
   User,
 } from "lucide-react";
@@ -39,13 +34,59 @@ const MONTH_LABELS = [
 ];
 
 // ============================================================================
+// URL HELPERS
+// ============================================================================
+
+function buildExplorerUrl(
+  pathname: string,
+  params: ReportExplorerParams,
+): string {
+  const searchParams = new URLSearchParams();
+
+  if (params.subsystemSlug) {
+    searchParams.set("subsystem", params.subsystemSlug);
+  }
+  if (params.year !== undefined) {
+    searchParams.set("year", String(params.year));
+  }
+  if (params.month !== undefined) {
+    searchParams.set("month", String(params.month));
+  }
+  if (params.day !== undefined) {
+    searchParams.set("day", String(params.day));
+  }
+
+  const queryString = searchParams.toString();
+  return queryString ? `${pathname}?${queryString}` : pathname;
+}
+
+function parseExplorerParams(
+  searchParams: URLSearchParams,
+  type: "work" | "warehouse",
+): ReportExplorerParams {
+  const subsystemSlug = searchParams.get("subsystem") || undefined;
+  const yearStr = searchParams.get("year");
+  const monthStr = searchParams.get("month");
+  const dayStr = searchParams.get("day");
+
+  return {
+    type,
+    subsystemSlug,
+    year: yearStr ? parseInt(yearStr, 10) : undefined,
+    month: monthStr ? parseInt(monthStr, 10) : undefined,
+    day: dayStr ? parseInt(dayStr, 10) : undefined,
+  };
+}
+
+// ============================================================================
 // BREADCRUMBS
 // ============================================================================
 
 const Breadcrumbs: React.FC<{
   path: ReportExplorerParams;
-  onNavigate: (path: ReportExplorerParams) => void;
-}> = ({ path, onNavigate }) => {
+  pathname: string;
+  onNavigate: (url: string) => void;
+}> = ({ path, pathname, onNavigate }) => {
   const items: { label: string; path: ReportExplorerParams }[] = [
     { label: "Inicio", path: { type: path.type } },
   ];
@@ -96,7 +137,7 @@ const Breadcrumbs: React.FC<{
         <React.Fragment key={index}>
           {index > 0 && <ChevronRight className="w-4 h-4 mx-2 text-gray-400" />}
           <button
-            onClick={() => onNavigate(item.path)}
+            onClick={() => onNavigate(buildExplorerUrl(pathname, item.path))}
             className={`hover:text-blue-600 transition-colors px-2 py-1 rounded-md hover:bg-white ${
               index === items.length - 1
                 ? "font-semibold text-gray-900 bg-white shadow-sm border border-gray-100"
@@ -148,7 +189,7 @@ const FolderRow: React.FC<{
       onClick={onClick}
       className="group flex items-center w-full p-3 bg-white rounded-xl border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 text-left"
     >
-      <div className="flex-shrink-0 mr-3">
+      <div className="shrink-0 mr-3">
         <CustomFolderIcon className="w-9 h-9" />
       </div>
 
@@ -161,7 +202,7 @@ const FolderRow: React.FC<{
         </p>
       </div>
 
-      <div className="flex-shrink-0 ml-4 text-gray-300 group-hover:text-blue-400">
+      <div className="shrink-0 ml-4 text-gray-300 group-hover:text-blue-400">
         <ChevronRight className="w-4 h-4" />
       </div>
     </button>
@@ -256,14 +297,19 @@ interface ReportExplorerProps {
 
 export const ReportExplorer: React.FC<ReportExplorerProps> = ({ type }) => {
   const router = useRouter();
-  const [currentPath, setCurrentPath] = useState<ReportExplorerParams>({
-    type,
-  });
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Parse current path from URL search params
+  const currentPath = useMemo(
+    () => parseExplorerParams(searchParams, type),
+    [searchParams, type],
+  );
 
   const { data, isLoading, error } = useReportsExplorer(currentPath);
 
-  const handleNavigate = (path: ReportExplorerParams) => {
-    setCurrentPath(path);
+  const handleNavigate = (url: string) => {
+    router.push(url);
   };
 
   const handleFolderClick = (node: ReportExplorerNode) => {
@@ -274,7 +320,8 @@ export const ReportExplorer: React.FC<ReportExplorerProps> = ({ type }) => {
       month: node.month,
       day: node.day,
     };
-    setCurrentPath(newPath);
+    const url = buildExplorerUrl(pathname, newPath);
+    router.push(url);
   };
 
   const handleReportClick = (report: ReportItem) => {
@@ -303,7 +350,11 @@ export const ReportExplorer: React.FC<ReportExplorerProps> = ({ type }) => {
 
   return (
     <div className="space-y-6">
-      <Breadcrumbs path={currentPath} onNavigate={handleNavigate} />
+      <Breadcrumbs
+        path={currentPath}
+        pathname={pathname}
+        onNavigate={handleNavigate}
+      />
 
       {/* Folders List */}
       {data?.folders && data.folders.length > 0 && (

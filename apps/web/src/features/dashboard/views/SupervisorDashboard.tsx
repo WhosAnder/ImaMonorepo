@@ -7,17 +7,27 @@ import { themes } from "@/shared/theme/colors";
 import { Plus, FileText, Clock, TrendingUp } from "lucide-react";
 import type { WorkReportListItem } from "@/features/reports/types/workReportList";
 
+interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export function SupervisorDashboard() {
   const themeColor = themes.work.primary;
 
-  const { data: workReports = [] } = useQuery<WorkReportListItem[]>({
+  const { data: workReportsResponse } = useQuery<
+    PaginatedResponse<WorkReportListItem>
+  >({
     queryKey: ["workReports"],
     queryFn: () => apiGet("/api/reports"),
     enabled: true,
     refetchOnMount: true,
   });
 
-  const totalWorkReports = workReports.length;
+  const workReports = workReportsResponse?.data ?? [];
+  const totalWorkReports = workReportsResponse?.total ?? 0;
   const recentReports = workReports.slice(0, 5);
 
   return (

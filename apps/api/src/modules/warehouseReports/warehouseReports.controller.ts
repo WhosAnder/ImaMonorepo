@@ -44,14 +44,27 @@ export async function listWarehouseReportsController(c: Context) {
   const subsistema = c.req.query("subsistema");
   const frecuencia = c.req.query("frecuencia");
   const tipoMantenimiento = c.req.query("tipoMantenimiento");
+  const limitStr = c.req.query("limit");
+  const offsetStr = c.req.query("offset");
 
   const filters: WarehouseReportFilters = {};
   if (subsistema) filters.subsistema = subsistema;
   if (frecuencia) filters.frecuencia = frecuencia;
   if (tipoMantenimiento) filters.tipoMantenimiento = tipoMantenimiento;
 
-  const reports = await listWarehouseReports(filters);
-  return c.json(reports.map(mapReportToResponse));
+  const pagination = {
+    limit: limitStr ? parseInt(limitStr, 10) : undefined,
+    offset: offsetStr ? parseInt(offsetStr, 10) : undefined,
+  };
+
+  const result = await listWarehouseReports(filters, pagination);
+
+  return c.json({
+    data: result.data.map(mapReportToResponse),
+    total: result.total,
+    limit: result.limit,
+    offset: result.offset,
+  });
 }
 
 export async function getWarehouseReportByIdController(c: Context) {

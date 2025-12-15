@@ -1,7 +1,5 @@
 "use client";
-import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import React, { useState } from "react";
+import React, { useState, lazy, Suspense } from "react";
 import {
   Search,
   Filter,
@@ -10,25 +8,53 @@ import {
   Calendar,
   User,
   ArrowRight,
+  Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/shared/ui/Button";
 import { useRouter } from "next/navigation";
-import { useWarehouseReportsQuery } from "@/hooks/useWarehouseReports";
+import { useWarehouseReportsPaginatedQuery } from "@/hooks/useWarehouseReports";
 import { AppLayout } from "@/shared/layout/AppLayout";
-import { ReportExplorer } from "../../reports/components/ReportExplorer";
+
+// Lazy load the ReportExplorer component for code splitting
+const ReportExplorer = lazy(
+  () =>
+    import("../../reports/components/ReportExplorer").then((mod) => ({
+      default: mod.ReportExplorer,
+    })),
+);
+
+const ExplorerLoadingFallback = () => (
+  <div className="flex items-center justify-center py-12">
+    <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+  </div>
+);
+
+const PAGE_SIZE = 50;
 
 export const WarehouseReportsListPage: React.FC = () => {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [currentPage, setCurrentPage] = useState(0);
 
+  // Only fetch reports when user is actively searching
+  const isSearching = searchTerm.length > 0;
   const {
-    data: warehouseReports,
-    isLoading,
+    data: paginatedResult,
+    isLoading: isSearchLoading,
     error,
-  } = useWarehouseReportsQuery();
+  } = useWarehouseReportsPaginatedQuery(
+    { limit: PAGE_SIZE, offset: currentPage * PAGE_SIZE },
+    { enabled: isSearching },
+  );
 
-  const filteredReports = warehouseReports?.filter((report) => {
+  const warehouseReports = paginatedResult?.data ?? [];
+  const totalReports = paginatedResult?.total ?? 0;
+  const totalPages = Math.ceil(totalReports / PAGE_SIZE);
+
+  const filteredReports = warehouseReports.filter((report) => {
     const matchesSearch =
       report.folio.toLowerCase().includes(searchTerm.toLowerCase()) ||
       report.subsistema.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -39,19 +65,19 @@ export const WarehouseReportsListPage: React.FC = () => {
     return matchesSearch;
   });
 
-  if (isLoading) {
-    return (
-      <div className="p-8 text-center">Cargando reportes de almacén...</div>
-    );
-  }
+  const handlePrevPage = () => {
+    setCurrentPage((prev) => Math.max(0, prev - 1));
+  };
 
-  if (error) {
-    return (
-      <div className="p-8 text-center text-red-600">
-        Error al cargar reportes de almacén
-      </div>
-    );
-  }
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(totalPages - 1, prev + 1));
+  };
+
+  // Reset pagination when search term changes
+  const handleSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setCurrentPage(0);
+  };
 
   return (
     <AppLayout title="Reportes de Almacén">
@@ -80,7 +106,7 @@ export const WarehouseReportsListPage: React.FC = () => {
                 placeholder="Buscar por folio, subsistema o responsable..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => handleSearchChange(e.target.value)}
               />
             </div>
             <div className="flex gap-2">
@@ -100,9 +126,19 @@ export const WarehouseReportsListPage: React.FC = () => {
             </div>
           </div>
 
-          {!searchTerm ? (
+          {!isSearching ? (
             <div className="p-6">
-              <ReportExplorer type="warehouse" />
+              <Suspense fallback={<ExplorerLoadingFallback />}>
+                <ReportExplorer type="warehouse" />
+              </Suspense>
+            </div>
+          ) : isSearchLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+            </div>
+          ) : error ? (
+            <div className="p-8 text-center text-red-600">
+              Error al cargar reportes de almacén
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -130,7 +166,7 @@ export const WarehouseReportsListPage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {filteredReports?.length === 0 ? (
+                  {filteredReports.length === 0 ? (
                     <tr>
                       <td
                         colSpan={6}
@@ -140,7 +176,7 @@ export const WarehouseReportsListPage: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredReports?.map((report) => (
+                    filteredReports.map((report) => (
                       <tr
                         key={report.id}
                         className="bg-white hover:bg-gray-50 transition-colors"
@@ -150,7 +186,7 @@ export const WarehouseReportsListPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-gray-900">
                           <div className="flex items-center">
-                            <Package className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
+                            <Package className="h-4 w-4 mr-2 text-gray-400 shrink-0" />
                             <span
                               className="block truncate max-w-[200px]"
                               title={report.subsistema}
@@ -161,13 +197,13 @@ export const WarehouseReportsListPage: React.FC = () => {
                         </td>
                         <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
                           <div className="flex items-center">
-                            <Calendar className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
+                            <Calendar className="h-4 w-4 mr-2 text-gray-400 shrink-0" />
                             {report.fechaEntrega}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-gray-900 whitespace-nowrap">
                           <div className="flex items-center">
-                            <User className="h-4 w-4 mr-2 text-gray-400 flex-shrink-0" />
+                            <User className="h-4 w-4 mr-2 text-gray-400 shrink-0" />
                             {report.responsableAlmacen}
                           </div>
                         </td>
@@ -193,15 +229,34 @@ export const WarehouseReportsListPage: React.FC = () => {
           )}
 
           <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 text-xs text-gray-500 flex justify-between items-center">
-            <span>Mostrando {filteredReports?.length || 0} reportes</span>
-            <div className="flex gap-2">
-              <Button variant="secondary" disabled>
-                Anterior
-              </Button>
-              <Button variant="secondary" disabled>
-                Siguiente
-              </Button>
-            </div>
+            <span>
+              {isSearching
+                ? `Mostrando ${filteredReports.length} de ${totalReports} reportes`
+                : "Navegando por carpetas"}
+            </span>
+            {isSearching && totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 0}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Anterior
+                </Button>
+                <span className="px-3 py-1 text-sm text-gray-600">
+                  Página {currentPage + 1} de {totalPages}
+                </span>
+                <Button
+                  variant="secondary"
+                  onClick={handleNextPage}
+                  disabled={currentPage >= totalPages - 1}
+                >
+                  Siguiente
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>

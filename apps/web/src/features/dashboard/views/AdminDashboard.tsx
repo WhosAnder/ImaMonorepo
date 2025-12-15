@@ -8,25 +8,38 @@ import { Plus, FileText, Package, TrendingUp } from "lucide-react";
 import type { WorkReportListItem } from "@/features/reports/types/workReportList";
 import { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
 
+interface PaginatedResponse<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export function AdminDashboard() {
   const themeColor = themes.admin.primary;
 
-  const { data: workReports = [] } = useQuery<WorkReportListItem[]>({
+  const { data: workReportsResponse } = useQuery<
+    PaginatedResponse<WorkReportListItem>
+  >({
     queryKey: ["workReports"],
     queryFn: () => apiGet("/api/reports"),
     enabled: true,
     refetchOnMount: true,
   });
 
-  const { data: warehouseReports = [] } = useQuery<WarehouseReportListItem[]>({
+  const { data: warehouseReportsResponse } = useQuery<
+    PaginatedResponse<WarehouseReportListItem>
+  >({
     queryKey: ["warehouseReports"],
     queryFn: () => apiGet("/api/warehouse-reports"),
     enabled: true,
     refetchOnMount: true,
   });
 
-  const totalWorkReports = workReports.length;
-  const totalWarehouseReports = warehouseReports.length;
+  const workReports = workReportsResponse?.data ?? [];
+  const warehouseReports = warehouseReportsResponse?.data ?? [];
+  const totalWorkReports = workReportsResponse?.total ?? 0;
+  const totalWarehouseReports = warehouseReportsResponse?.total ?? 0;
   const totalReports = totalWorkReports + totalWarehouseReports;
 
   // Merge recent reports from both modules
