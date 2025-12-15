@@ -15,7 +15,7 @@ interface UploadEvidenceOptions {
 
 export async function uploadEvidence(
   file: File,
-  options: UploadEvidenceOptions = {}
+  options: UploadEvidenceOptions = {},
 ): Promise<UploadedEvidence> {
   const formData = new FormData();
   formData.append("file", file);

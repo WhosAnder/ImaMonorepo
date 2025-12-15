@@ -1,14 +1,29 @@
-import { ObjectId } from 'mongodb';
-import { getWarehouseReportCollection } from '../../db/mongo';
-import { WarehouseReport } from './warehouseReports.types';
+import { ObjectId } from "mongodb";
+import { getWarehouseReportCollection } from "../../db/mongo";
+import { WarehouseReport } from "./warehouseReports.types";
 
 export type WarehouseReportFilters = Partial<
-  Pick<WarehouseReport, 'subsistema' | 'frecuencia' | 'tipoMantenimiento'>
+  Pick<WarehouseReport, "subsistema" | "frecuencia" | "tipoMantenimiento">
 >;
 
+export interface PaginationOptions {
+  limit?: number;
+  offset?: number;
+}
+
+export interface PaginatedResult<T> {
+  data: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+const DEFAULT_LIMIT = 100;
+
 export async function findWarehouseReports(
-  filters: WarehouseReportFilters = {}
-): Promise<WarehouseReport[]> {
+  filters: WarehouseReportFilters = {},
+  pagination?: PaginationOptions,
+): Promise<PaginatedResult<WarehouseReport>> {
   const collection = await getWarehouseReportCollection();
   const query: Record<string, string> = {};
 
@@ -18,11 +33,30 @@ export async function findWarehouseReports(
     query.tipoMantenimiento = filters.tipoMantenimiento;
   }
 
-  return collection.find(query).sort({ createdAt: -1 }).toArray();
+  const limit = pagination?.limit ?? DEFAULT_LIMIT;
+  const offset = pagination?.offset ?? 0;
+
+  // Run count and data queries in parallel for better performance
+  const [total, data] = await Promise.all([
+    collection.countDocuments(query),
+    collection
+      .find(query)
+      .sort({ createdAt: -1 })
+      .skip(offset)
+      .limit(limit)
+      .toArray(),
+  ]);
+
+  return {
+    data,
+    total,
+    limit,
+    offset,
+  };
 }
 
 export async function findWarehouseReportById(
-  id: string
+  id: string,
 ): Promise<WarehouseReport | null> {
   const collection = await getWarehouseReportCollection();
   return collection.findOne({ _id: new ObjectId(id) });
@@ -33,8 +67,8 @@ async function generateFolio(): Promise<string> {
   const lastReport = await collection.findOne({}, { sort: { createdAt: -1 } });
 
   let nextNum = 1;
-  if (lastReport?.folio?.startsWith('FA-')) {
-    const parts = lastReport.folio.split('-');
+  if (lastReport?.folio?.startsWith("FA-")) {
+    const parts = lastReport.folio.split("-");
     if (parts.length === 2 && parts[1]) {
       const num = parseInt(parts[1], 10);
       if (!Number.isNaN(num)) {
@@ -43,20 +77,20 @@ async function generateFolio(): Promise<string> {
     }
   }
 
-  return `FA-${nextNum.toString().padStart(4, '0')}`;
+  return `FA-${nextNum.toString().padStart(4, "0")}`;
 }
 
 export type NewWarehouseReport = Omit<
   WarehouseReport,
-  '_id' | 'folio' | 'createdAt' | 'updatedAt'
+  "_id" | "folio" | "createdAt" | "updatedAt"
 >;
 
 export type UpdateWarehouseReportInput = Partial<
-  Omit<WarehouseReport, '_id' | 'folio' | 'createdAt'>
+  Omit<WarehouseReport, "_id" | "folio" | "createdAt">
 >;
 
 export async function insertWarehouseReport(
-  data: NewWarehouseReport
+  data: NewWarehouseReport,
 ): Promise<WarehouseReport> {
   const collection = await getWarehouseReportCollection();
 
@@ -78,7 +112,7 @@ export async function insertWarehouseReport(
 
 export async function updateWarehouseReportById(
   id: string,
-  updates: UpdateWarehouseReportInput
+  updates: UpdateWarehouseReportInput,
 ): Promise<WarehouseReport | null> {
   const collection = await getWarehouseReportCollection();
   const result = await collection.findOneAndUpdate(
@@ -89,7 +123,7 @@ export async function updateWarehouseReportById(
         updatedAt: new Date(),
       },
     },
-    { returnDocument: 'after' }
+    { returnDocument: "after" },
   );
 
   return result.value;

@@ -3,9 +3,16 @@ import { createPresignedPost } from "@aws-sdk/s3-presigned-post";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { GetObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { randomUUID } from "crypto";
-import { getS3Client, getS3Bucket, getMaxEvidenceSizeBytes } from "../../config/s3";
+import {
+  getS3Client,
+  getS3Bucket,
+  getMaxEvidenceSizeBytes,
+} from "../../config/s3";
 import { storageRepo } from "./storage.repo";
-import { getWorkReportCollection, getWarehouseReportCollection } from "../../db/mongo";
+import {
+  getWorkReportCollection,
+  getWarehouseReportCollection,
+} from "../../db/mongo";
 
 export type ReportType = "work" | "warehouse";
 
@@ -52,7 +59,7 @@ const generateFileName = (
   relationId: string,
   index: number,
   storeType: string,
-  fileExtension: string
+  fileExtension: string,
 ): string => {
   return `${relationId}-${index}-${storeType}.${fileExtension}`;
 };
@@ -92,7 +99,7 @@ const getDateParts = (isoString?: string) => {
   const monthKey = `${year}-${String(month).padStart(2, "0")}`;
   const dayKey = String(day).padStart(2, "0");
   const datePath = `${year}/${String(month).padStart(2, "0")}/${dayKey}`;
-  
+
   return { date, year, month, day, monthKey, dayKey, datePath };
 };
 
@@ -100,7 +107,9 @@ const getDateParts = (isoString?: string) => {
 // REPORT LOOKUP
 // ============================================================================
 
-export const lookupWorkReport = async (reportId: string): Promise<ReportInfo | null> => {
+export const lookupWorkReport = async (
+  reportId: string,
+): Promise<ReportInfo | null> => {
   try {
     const { ObjectId } = await import("mongodb");
     const collection = await getWorkReportCollection();
@@ -116,7 +125,9 @@ export const lookupWorkReport = async (reportId: string): Promise<ReportInfo | n
   }
 };
 
-export const lookupWarehouseReport = async (reportId: string): Promise<ReportInfo | null> => {
+export const lookupWarehouseReport = async (
+  reportId: string,
+): Promise<ReportInfo | null> => {
   try {
     const { ObjectId } = await import("mongodb");
     const collection = await getWarehouseReportCollection();
@@ -132,7 +143,10 @@ export const lookupWarehouseReport = async (reportId: string): Promise<ReportInf
   }
 };
 
-export const lookupReport = async (reportId: string, reportType: ReportType): Promise<ReportInfo | null> => {
+export const lookupReport = async (
+  reportId: string,
+  reportType: ReportType,
+): Promise<ReportInfo | null> => {
   if (reportType === "work") {
     return lookupWorkReport(reportId);
   } else {
@@ -153,15 +167,17 @@ export interface BuildObjectKeyParams {
 }
 
 export const buildObjectKey = (params: BuildObjectKeyParams) => {
-  const { reportId, reportType, subsystem, fechaHoraInicio, originalName } = params;
-  
+  const { reportId, reportType, subsystem, fechaHoraInicio, originalName } =
+    params;
+
   const subsystemSlug = slugify(subsystem);
-  const { date, year, month, day, monthKey, dayKey, datePath } = getDateParts(fechaHoraInicio);
+  const { date, year, month, day, monthKey, dayKey, datePath } =
+    getDateParts(fechaHoraInicio);
   const uuid = randomUUID().slice(0, 8);
   const safeFilename = sanitizeFilename(originalName);
-  
+
   const key = `evidences/${subsystemSlug}/${datePath}/${reportType}/${reportId}/${uuid}-${safeFilename}`;
-  
+
   return {
     key,
     subsystemSlug,
@@ -186,12 +202,18 @@ const uploadEvidence =
     file: File,
     relationId: string,
     storeType: string,
-    index?: number
+    index?: number,
   ): Promise<{ url: string; fileName: string }> => {
     const type = file.type || "application/octet-stream";
     const fileExtension = getFileExtension(type);
-    const normalizedIndex = typeof index === "number" && Number.isFinite(index) ? index : Date.now();
-    const fileName = generateFileName(relationId, normalizedIndex, storeType, fileExtension);
+    const normalizedIndex =
+      typeof index === "number" && Number.isFinite(index) ? index : Date.now();
+    const fileName = generateFileName(
+      relationId,
+      normalizedIndex,
+      storeType,
+      fileExtension,
+    );
 
     const result = await storageAdapter.uploadFile(file, fileName, type);
 
@@ -211,7 +233,7 @@ export interface CreatePresignedUploadParams {
 }
 
 export const createPresignedUpload = async (
-  params: CreatePresignedUploadParams
+  params: CreatePresignedUploadParams,
 ): Promise<PresignedUploadResult> => {
   const bucket = getS3Bucket();
   if (!bucket) {
@@ -275,7 +297,9 @@ export const createPresignedUpload = async (
   };
 };
 
-export const confirmUploadWithVerification = async (fileId: string): Promise<boolean> => {
+export const confirmUploadWithVerification = async (
+  fileId: string,
+): Promise<boolean> => {
   const evidenceRecord = await storageRepo.findById(fileId);
   if (!evidenceRecord) {
     throw new Error("Evidence record not found");
@@ -287,12 +311,14 @@ export const confirmUploadWithVerification = async (fileId: string): Promise<boo
 
   const bucket = getS3Bucket();
   const client = getS3Client();
-  
+
   try {
-    await client.send(new HeadObjectCommand({
-      Bucket: bucket,
-      Key: evidenceRecord.key,
-    }));
+    await client.send(
+      new HeadObjectCommand({
+        Bucket: bucket,
+        Key: evidenceRecord.key,
+      }),
+    );
   } catch (error: any) {
     if (error.$metadata?.httpStatusCode === 404) {
       throw new Error("Evidence not found in storage. Upload may have failed.");
@@ -309,7 +335,7 @@ export interface CreatePresignedDownloadParams {
 }
 
 export const createPresignedDownload = async (
-  params: CreatePresignedDownloadParams
+  params: CreatePresignedDownloadParams,
 ): Promise<PresignedDownloadResult> => {
   const bucket = getS3Bucket();
   if (!bucket) {
@@ -333,24 +359,33 @@ export const createPresignedDownload = async (
 
   const client = getS3Client();
   const expiresInSeconds = 300;
-  
+
   const command = new GetObjectCommand({
     Bucket: bucket,
     Key: evidenceRecord.key,
   });
 
-  const url = await getSignedUrl(client, command, { expiresIn: expiresInSeconds });
+  const url = await getSignedUrl(client, command, {
+    expiresIn: expiresInSeconds,
+  });
 
   return { url, expiresInSeconds };
 };
 
-export const listEvidencesByReport = async (reportId: string, includePending = false) => {
+export const listEvidencesByReport = async (
+  reportId: string,
+  includePending = false,
+) => {
   return storageRepo.listByReport(reportId, includePending);
 };
 
 export const createStorageService = (storageAdapter: StorageAdapter) => ({
-  uploadEvidence: (file: File, relationId: string, storeType: string, index?: number) =>
-    uploadEvidence(storageAdapter)(file, relationId, storeType, index),
+  uploadEvidence: (
+    file: File,
+    relationId: string,
+    storeType: string,
+    index?: number,
+  ) => uploadEvidence(storageAdapter)(file, relationId, storeType, index),
 });
 
 export type StorageService = ReturnType<typeof createStorageService>;

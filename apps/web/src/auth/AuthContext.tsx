@@ -74,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         {
           method: "POST",
           credentials: "include",
-        }
+        },
       );
     } catch (e) {
       console.error("Error signing out", e);

@@ -14,22 +14,16 @@ const getS3Endpoint = () =>
  * Get S3 region from various env var names
  */
 const getS3Region = () =>
-  process.env.S3_REGION ??
-  process.env.AWS_REGION ??
-  "auto";
+  process.env.S3_REGION ?? process.env.AWS_REGION ?? "auto";
 
 /**
  * Get S3 credentials from env vars (supports both AWS_* and S3_* naming)
  */
 const getS3Credentials = () => ({
   accessKeyId:
-    process.env.S3_ACCESS_KEY_ID ??
-    process.env.AWS_ACCESS_KEY_ID ??
-    "",
+    process.env.S3_ACCESS_KEY_ID ?? process.env.AWS_ACCESS_KEY_ID ?? "",
   secretAccessKey:
-    process.env.S3_SECRET_ACCESS_KEY ??
-    process.env.AWS_SECRET_ACCESS_KEY ??
-    "",
+    process.env.S3_SECRET_ACCESS_KEY ?? process.env.AWS_SECRET_ACCESS_KEY ?? "",
 });
 
 /**
@@ -44,7 +38,9 @@ export const isS3Configured = () => {
   const endpoint = getS3Endpoint();
   const bucket = getS3Bucket();
   const creds = getS3Credentials();
-  return Boolean(endpoint && bucket && creds.accessKeyId && creds.secretAccessKey);
+  return Boolean(
+    endpoint && bucket && creds.accessKeyId && creds.secretAccessKey,
+  );
 };
 
 /**
@@ -57,9 +53,11 @@ export const getS3Client = (): S3Client => {
 
   const region = getS3Region();
   const endpoint = getS3Endpoint();
-  
+
   if (!endpoint) {
-    throw new Error("S3 endpoint not configured. Set S3_ENDPOINT or AWS_S3_ENDPOINT env var.");
+    throw new Error(
+      "S3 endpoint not configured. Set S3_ENDPOINT or AWS_S3_ENDPOINT env var.",
+    );
   }
 
   const credentials = getS3Credentials();
@@ -86,10 +84,8 @@ export const getS3Client = (): S3Client => {
  */
 export const getMaxEvidenceSizeBytes = () => {
   const mb = parseInt(
-    process.env.EVIDENCES_MAX_SIZE_MB ?? 
-    process.env.FILES_MAX_SIZE_MB ?? 
-    "20", 
-    10
+    process.env.EVIDENCES_MAX_SIZE_MB ?? process.env.FILES_MAX_SIZE_MB ?? "20",
+    10,
   );
   return mb * 1024 * 1024;
 };
@@ -99,11 +95,14 @@ export const getMaxEvidenceSizeBytes = () => {
  * Uses EVIDENCES_ALLOWED_MIME, falls back to FILES_ALLOWED_MIME
  */
 export const getAllowedEvidenceMimeTypes = (): string[] => {
-  const mimes = 
-    process.env.EVIDENCES_ALLOWED_MIME ?? 
-    process.env.FILES_ALLOWED_MIME ?? 
+  const mimes =
+    process.env.EVIDENCES_ALLOWED_MIME ??
+    process.env.FILES_ALLOWED_MIME ??
     "image/png,image/jpeg,image/webp";
-  return mimes.split(",").map(m => m.trim()).filter(Boolean);
+  return mimes
+    .split(",")
+    .map((m) => m.trim())
+    .filter(Boolean);
 };
 
 // Legacy aliases for backward compatibility

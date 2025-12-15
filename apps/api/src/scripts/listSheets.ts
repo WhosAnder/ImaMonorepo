@@ -2,7 +2,13 @@ import "dotenv/config";
 import path from "node:path";
 import * as XLSX from "xlsx";
 
-const filePath = path.resolve(__dirname, "..", "..", "data", "PROGRAMA_DE_MANTENIMIENTO_PREVENTIVO.xlsx");
+const filePath = path.resolve(
+  __dirname,
+  "..",
+  "..",
+  "data",
+  "PROGRAMA_DE_MANTENIMIENTO_PREVENTIVO.xlsx",
+);
 
 function main() {
   try {

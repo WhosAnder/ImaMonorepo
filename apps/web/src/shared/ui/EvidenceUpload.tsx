@@ -1,5 +1,12 @@
 import React, { useState, useCallback } from "react";
-import { Camera, X, Image as ImageIcon, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  Camera,
+  X,
+  Image as ImageIcon,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
 import { uploadEvidence, EvidenceInfo } from "@/api/evidencesClient";
 
 export interface EvidenceFile {
@@ -27,7 +34,10 @@ interface EvidenceUploadProps {
 }
 
 const generateLocalId = () => {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
   return `evidence-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -46,17 +56,22 @@ export const EvidenceUpload: React.FC<EvidenceUploadProps> = ({
 }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const effectiveMaxFiles = Math.min(Math.max(maxFiles, 1), 10);
-  
+
   const files = value;
 
-  const updateFiles = useCallback((next: EvidenceFile[]) => {
-    onChange(next);
-  }, [onChange]);
+  const updateFiles = useCallback(
+    (next: EvidenceFile[]) => {
+      onChange(next);
+    },
+    [onChange],
+  );
 
   /**
    * Upload a single file using presigned URL flow
    */
-  const uploadSingleFile = async (evidenceFile: EvidenceFile): Promise<EvidenceFile> => {
+  const uploadSingleFile = async (
+    evidenceFile: EvidenceFile,
+  ): Promise<EvidenceFile> => {
     if (!evidenceFile.file) {
       return { ...evidenceFile, status: "error", error: "No file" };
     }
@@ -111,7 +126,7 @@ export const EvidenceUpload: React.FC<EvidenceUploadProps> = ({
           status: "pending" as const,
           originalName: file.name,
         };
-      })
+      }),
     );
 
     const updatedFiles = [...files, ...newFiles];
@@ -143,10 +158,10 @@ export const EvidenceUpload: React.FC<EvidenceUploadProps> = ({
     setIsProcessing(true);
 
     const pendingFiles = files.filter((f) => f.status === "pending" && f.file);
-    
+
     // Mark as uploading
     const uploadingFiles = files.map((f) =>
-      f.status === "pending" ? { ...f, status: "uploading" as const } : f
+      f.status === "pending" ? { ...f, status: "uploading" as const } : f,
     );
     updateFiles(uploadingFiles);
 
@@ -214,13 +229,17 @@ export const EvidenceUpload: React.FC<EvidenceUploadProps> = ({
             `}
           >
             {isProcessing ? (
-              <Loader2 className={`animate-spin ${compact ? "w-3 h-3" : "w-4 h-4"}`} />
+              <Loader2
+                className={`animate-spin ${compact ? "w-3 h-3" : "w-4 h-4"}`}
+              />
             ) : (
-              <Camera className={`${compact ? "w-3 h-3 mr-1" : "w-4 h-4 mr-2"}`} />
+              <Camera
+                className={`${compact ? "w-3 h-3 mr-1" : "w-4 h-4 mr-2"}`}
+              />
             )}
             {isProcessing ? "Subiendo..." : compact ? "Foto" : "Tomar foto"}
           </label>
-          
+
           <span className="text-xs text-gray-500">
             {files.length} / {effectiveMaxFiles}
           </span>
@@ -238,7 +257,9 @@ export const EvidenceUpload: React.FC<EvidenceUploadProps> = ({
         </div>
 
         {files.length > 0 && (
-          <div className={`grid gap-2 ${compact ? "grid-cols-4" : "grid-cols-2 sm:grid-cols-3"}`}>
+          <div
+            className={`grid gap-2 ${compact ? "grid-cols-4" : "grid-cols-2 sm:grid-cols-3"}`}
+          >
             {files.map((file) => (
               <div
                 key={file.localId}
@@ -249,19 +270,19 @@ export const EvidenceUpload: React.FC<EvidenceUploadProps> = ({
                   alt={file.originalName || "Evidencia"}
                   className="w-full h-full object-cover"
                 />
-                
+
                 {/* Status indicator */}
                 <div className="absolute top-1 left-1">
                   {getStatusIcon(file.status)}
                 </div>
-                
+
                 {/* Error message */}
                 {file.status === "error" && file.error && (
                   <div className="absolute bottom-0 left-0 right-0 bg-red-500/90 text-white text-xs p-1 truncate">
                     {file.error}
                   </div>
                 )}
-                
+
                 <button
                   type="button"
                   onClick={() => removeFile(file.localId)}
@@ -278,7 +299,9 @@ export const EvidenceUpload: React.FC<EvidenceUploadProps> = ({
           <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 flex flex-col items-center justify-center text-gray-400">
             <ImageIcon className="w-8 h-8 mb-2" />
             <span className="text-sm">
-              {isProcessing ? "Subiendo evidencias..." : "No hay evidencias seleccionadas"}
+              {isProcessing
+                ? "Subiendo evidencias..."
+                : "No hay evidencias seleccionadas"}
             </span>
           </div>
         )}
@@ -305,7 +328,9 @@ export const getUploadedEvidenceKeys = (files: EvidenceFile[]): string[] => {
 /**
  * Get uploaded evidence info from EvidenceFile array
  */
-export const getUploadedEvidences = (files: EvidenceFile[]): { id: string; key: string; originalName: string }[] => {
+export const getUploadedEvidences = (
+  files: EvidenceFile[],
+): { id: string; key: string; originalName: string }[] => {
   return files
     .filter((f) => f.status === "uploaded" && f.id && f.key)
     .map((f) => ({

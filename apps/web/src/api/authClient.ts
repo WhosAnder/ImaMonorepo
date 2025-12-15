@@ -40,7 +40,9 @@ export async function login(payload: LoginRequest): Promise<LoginResponse> {
   return response.json();
 }
 
-export async function register(payload: RegisterRequest): Promise<{ success: boolean }> {
+export async function register(
+  payload: RegisterRequest,
+): Promise<{ success: boolean }> {
   const response = await fetch(`${AUTH_URL}/auth/register`, {
     method: "POST",
     headers: {

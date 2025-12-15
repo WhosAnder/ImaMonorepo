@@ -62,7 +62,7 @@ The API uses header-based authentication and role-based authorization.
 Some endpoints require specific roles. The `requireRole` middleware enforces this:
 
 ```typescript
-requireRole(['admin', 'warehouse_admin'])
+requireRole(["admin", "warehouse_admin"]);
 ```
 
 If a user doesn't have the required role, the API returns `403 Forbidden`.
@@ -78,6 +78,7 @@ If a user doesn't have the required role, the API returns `403 Forbidden`.
 Check API server status.
 
 **Response** (200 OK):
+
 ```json
 {
   "status": "ok",
@@ -91,6 +92,7 @@ Check API server status.
 Simple ping endpoint for testing.
 
 **Response** (200 OK):
+
 ```json
 {
   "message": "pong"
@@ -110,10 +112,12 @@ Templates define the structure and configuration for maintenance reports.
 Get available filter options for templates.
 
 **Query Parameters:**
+
 - `tipoReporte` (optional): Filter by report type (`'work'` | `'warehouse'`)
 - `subsistema` (optional): Filter by subsystem
 
 **Response** (200 OK):
+
 ```json
 {
   "subsistemas": ["Subsystem 1", "Subsystem 2"],
@@ -125,6 +129,7 @@ Get available filter options for templates.
 ```
 
 **Error Responses:**
+
 - `500`: Internal server error
 
 ---
@@ -134,6 +139,7 @@ Get available filter options for templates.
 List all templates with optional filters.
 
 **Query Parameters:**
+
 - `tipo` (optional): Alias for `tipoReporte`
 - `tipoReporte` (optional): Filter by report type (`'work'` | `'warehouse'`)
 - `subsistema` (optional): Filter by subsystem
@@ -143,6 +149,7 @@ List all templates with optional filters.
 - `activo` (optional): Filter by active status (`'true'` | `'false'` | `'all'`, default: `'true'`)
 
 **Response** (200 OK):
+
 ```json
 [
   {
@@ -159,7 +166,11 @@ List all templates with optional filters.
       "actividad": { "enabled": true, "label": "Activity", "required": true },
       "herramientas": { "enabled": true, "label": "Tools", "required": false },
       "refacciones": { "enabled": true, "label": "Parts", "required": false },
-      "observacionesGenerales": { "enabled": true, "label": "General Observations", "required": false },
+      "observacionesGenerales": {
+        "enabled": true,
+        "label": "General Observations",
+        "required": false
+      },
       "fechas": { "enabled": true, "label": "Dates", "required": true },
       "firmas": { "enabled": true, "label": "Signatures", "required": true }
     },
@@ -171,6 +182,7 @@ List all templates with optional filters.
 ```
 
 **Error Responses:**
+
 - `500`: Internal server error
 
 ---
@@ -180,9 +192,11 @@ List all templates with optional filters.
 Get a template by ID.
 
 **Path Parameters:**
+
 - `id`: MongoDB ObjectId
 
 **Response** (200 OK):
+
 ```json
 {
   "_id": "507f1f77bcf86cd799439011",
@@ -198,7 +212,11 @@ Get a template by ID.
     "actividad": { "enabled": true, "label": "Activity", "required": true },
     "herramientas": { "enabled": true, "label": "Tools", "required": false },
     "refacciones": { "enabled": true, "label": "Parts", "required": false },
-    "observacionesGenerales": { "enabled": true, "label": "General Observations", "required": false },
+    "observacionesGenerales": {
+      "enabled": true,
+      "label": "General Observations",
+      "required": false
+    },
     "fechas": { "enabled": true, "label": "Dates", "required": true },
     "firmas": { "enabled": true, "label": "Signatures", "required": true }
   },
@@ -209,6 +227,7 @@ Get a template by ID.
 ```
 
 **Error Responses:**
+
 - `400`: Invalid ID format
 - `404`: Template not found
 - `500`: Internal server error
@@ -220,6 +239,7 @@ Get a template by ID.
 Create a new template.
 
 **Request Body:**
+
 ```json
 {
   "codigoMantenimiento": "MNT-001",
@@ -234,7 +254,11 @@ Create a new template.
     "actividad": { "enabled": true, "label": "Activity", "required": true },
     "herramientas": { "enabled": true, "label": "Tools", "required": false },
     "refacciones": { "enabled": true, "label": "Parts", "required": false },
-    "observacionesGenerales": { "enabled": true, "label": "General Observations", "required": false },
+    "observacionesGenerales": {
+      "enabled": true,
+      "label": "General Observations",
+      "required": false
+    },
     "fechas": { "enabled": true, "label": "Dates", "required": true },
     "firmas": { "enabled": true, "label": "Signatures", "required": true }
   },
@@ -243,6 +267,7 @@ Create a new template.
 ```
 
 **Response** (201 Created):
+
 ```json
 {
   "id": "507f1f77bcf86cd799439011"
@@ -250,6 +275,7 @@ Create a new template.
 ```
 
 **Error Responses:**
+
 - `400`: Validation error (Zod schema validation failed)
 - `500`: Internal server error
 
@@ -266,11 +292,13 @@ Work reports document maintenance work performed.
 List all work reports with optional filters.
 
 **Query Parameters:**
+
 - `subsistema` (optional): Filter by subsystem
 - `frecuencia` (optional): Filter by frequency
 - `tipoMantenimiento` (optional): Filter by maintenance type
 
 **Response** (200 OK):
+
 ```json
 [
   {
@@ -315,9 +343,11 @@ List all work reports with optional filters.
 Get a work report by ID.
 
 **Path Parameters:**
+
 - `id`: MongoDB ObjectId
 
 **Response** (200 OK):
+
 ```json
 {
   "_id": "507f1f77bcf86cd799439011",
@@ -354,6 +384,7 @@ Get a work report by ID.
 ```
 
 **Error Responses:**
+
 - `400`: Invalid ID format
 - `404`: Report not found
 
@@ -364,6 +395,7 @@ Get a work report by ID.
 Create a new work report.
 
 **Request Body:**
+
 ```json
 {
   "subsistema": "Electrical",
@@ -387,6 +419,7 @@ Create a new work report.
 ```
 
 **Response** (201 Created):
+
 ```json
 {
   "_id": "507f1f77bcf86cd799439011",
@@ -416,6 +449,7 @@ Create a new work report.
 **Note:** The `folio` is automatically generated in the format `FT-XXXX` (e.g., `FT-0001`).
 
 **Error Responses:**
+
 - `400`: Validation error (Zod schema validation failed)
 - `500`: Internal server error
 
@@ -435,11 +469,13 @@ returning a summary in the response.
 List all warehouse reports with optional filters.
 
 **Query Parameters:**
+
 - `subsistema` (optional): Filter by subsystem
 - `frecuencia` (optional): Filter by frequency
 - `tipoMantenimiento` (optional): Filter by maintenance type
 
 **Response** (200 OK):
+
 ```json
 [
   {
@@ -498,9 +534,11 @@ List all warehouse reports with optional filters.
 Get a warehouse report by ID.
 
 **Path Parameters:**
+
 - `id`: MongoDB ObjectId
 
 **Response** (200 OK):
+
 ```json
 {
   "_id": "507f1f77bcf86cd799439011",
@@ -551,6 +589,7 @@ Get a warehouse report by ID.
 ```
 
 **Error Responses:**
+
 - `400`: Invalid ID format
 - `404`: Report not found
 
@@ -561,6 +600,7 @@ Get a warehouse report by ID.
 Create a new warehouse report.
 
 **Request Body:**
+
 ```json
 {
   "subsistema": "Electrical",
@@ -607,6 +647,7 @@ Create a new warehouse report.
 ```
 
 **Response** (201 Created):
+
 ```json
 {
   "_id": "507f1f77bcf86cd799439011",
@@ -659,9 +700,7 @@ Create a new warehouse report.
         "reason": "Stock item not found"
       }
     ],
-    "warnings": [
-      "Failed to adjust SKU SP-001: Stock item not found"
-    ]
+    "warnings": ["Failed to adjust SKU SP-001: Stock item not found"]
   },
   "createdAt": "2024-01-01T08:00:00.000Z",
   "updatedAt": "2024-01-01T16:00:00.000Z"
@@ -677,18 +716,22 @@ set `fechaHoraRecepcion` (if it was not provided) and automatically increase
 stock for items that reference a SKU and have not been processed previously.
 
 **Path Parameters:**
+
 - `id`: MongoDB ObjectId of the warehouse report
 
 **Request Body (optional):**
+
 ```json
 {
   "fechaHoraRecepcion": "2024-01-02T10:00:00.000Z"
 }
 ```
+
 If omitted, the current timestamp is used when the return is processed for the
 first time.
 
 **Response** (200 OK):
+
 ```json
 {
   "_id": "507f1f77bcf86cd799439011",
@@ -715,12 +758,14 @@ first time.
 ```
 
 **Error Responses:**
+
 - `404`: Report not found
 - `500`: Unable to process the return due to an internal error
 
 **Note:** The `folio` is automatically generated in the format `FA-XXXX` (e.g., `FA-0001`).
 
 **Error Responses:**
+
 - `400`: Validation error (Zod schema validation failed)
 - `500`: Internal server error
 
@@ -737,6 +782,7 @@ Manage warehouse inventory items and stock adjustments.
 List all warehouse items with optional filters.
 
 **Query Parameters:**
+
 - `category` (optional): Filter by category
 - `location` (optional): Filter by location
 - `status` (optional): Filter by status (`'active'` | `'inactive'`)
@@ -744,6 +790,7 @@ List all warehouse items with optional filters.
 - `lowStock` (optional): Filter items below minimum quantity (`'true'` | `'false'`)
 
 **Response** (200 OK):
+
 ```json
 [
   {
@@ -784,9 +831,11 @@ List all warehouse items with optional filters.
 Get a warehouse item by ID.
 
 **Path Parameters:**
+
 - `id`: MongoDB ObjectId
 
 **Response** (200 OK):
+
 ```json
 {
   "_id": "507f1f77bcf86cd799439011",
@@ -819,6 +868,7 @@ Get a warehouse item by ID.
 ```
 
 **Error Responses:**
+
 - `400`: Invalid ID format
 - `404`: Item not found
 
@@ -831,6 +881,7 @@ Create a new warehouse item.
 **Required Role:** `admin` or `warehouse_admin`
 
 **Request Body:**
+
 ```json
 {
   "sku": "TOOL-001",
@@ -850,6 +901,7 @@ Create a new warehouse item.
 ```
 
 **Response** (201 Created):
+
 ```json
 {
   "_id": "507f1f77bcf86cd799439011",
@@ -876,6 +928,7 @@ Create a new warehouse item.
 ```
 
 **Error Responses:**
+
 - `400`: Validation error (Zod schema validation failed)
 - `403`: Forbidden (insufficient permissions)
 - `409`: SKU already exists
@@ -890,9 +943,11 @@ Update a warehouse item (excluding quantity).
 **Required Role:** `admin` or `warehouse_admin`
 
 **Path Parameters:**
+
 - `id`: MongoDB ObjectId
 
 **Request Body** (all fields optional):
+
 ```json
 {
   "name": "Updated Multimeter",
@@ -910,6 +965,7 @@ Update a warehouse item (excluding quantity).
 ```
 
 **Response** (200 OK):
+
 ```json
 {
   "_id": "507f1f77bcf86cd799439011",
@@ -936,6 +992,7 @@ Update a warehouse item (excluding quantity).
 ```
 
 **Error Responses:**
+
 - `400`: Validation error (Zod schema validation failed)
 - `403`: Forbidden (insufficient permissions)
 - `404`: Item not found
@@ -948,12 +1005,15 @@ Update a warehouse item (excluding quantity).
 Get stock adjustment history for an item.
 
 **Path Parameters:**
+
 - `id`: MongoDB ObjectId
 
 **Query Parameters:**
+
 - `limit` (optional): Maximum number of adjustments to return (default: 50)
 
 **Response** (200 OK):
+
 ```json
 [
   {
@@ -984,6 +1044,7 @@ Get stock adjustment history for an item.
 ```
 
 **Error Responses:**
+
 - `400`: Invalid ID format
 
 ---
@@ -995,9 +1056,11 @@ Adjust stock quantity for an item.
 **Required Role:** `admin` or `warehouse_admin`
 
 **Path Parameters:**
+
 - `id`: MongoDB ObjectId
 
 **Request Body:**
+
 ```json
 {
   "delta": -2,
@@ -1007,6 +1070,7 @@ Adjust stock quantity for an item.
 ```
 
 **Valid `reason` values:**
+
 - `"initial"`: Initial stock entry
 - `"increase"`: Stock increase
 - `"decrease"`: Stock decrease
@@ -1015,6 +1079,7 @@ Adjust stock quantity for an item.
 - `"audit"`: Audit adjustment
 
 **Response** (200 OK):
+
 ```json
 {
   "item": {
@@ -1061,7 +1126,8 @@ Adjust stock quantity for an item.
 ```
 
 **Error Responses:**
-- `400`: 
+
+- `400`:
   - Validation error (Zod schema validation failed)
   - `delta` must not be zero
   - Quantity cannot go below zero (if `allowNegative` is false)
@@ -1079,7 +1145,7 @@ Adjust stock quantity for an item.
 interface Template {
   _id?: ObjectId;
   codigoMantenimiento?: string | null;
-  tipoReporte: 'work' | 'warehouse';
+  tipoReporte: "work" | "warehouse";
   subsistema: string;
   tipoMantenimiento: string;
   frecuencia: string;
@@ -1218,7 +1284,7 @@ interface WarehouseStockItem {
   reorderPoint?: number;
   allowNegative?: boolean;
   tags?: string[];
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   lastAdjustmentAt?: Date;
   lastAdjustmentBy?: {
     id?: string;
@@ -1233,7 +1299,13 @@ interface WarehouseStockAdjustment {
   _id?: ObjectId;
   itemId: ObjectId;
   delta: number; // Can be positive or negative
-  reason: 'initial' | 'increase' | 'decrease' | 'correction' | 'damage' | 'audit';
+  reason:
+    | "initial"
+    | "increase"
+    | "decrease"
+    | "correction"
+    | "damage"
+    | "audit";
   note?: string;
   actorId?: string;
   actorName?: string;
@@ -1354,7 +1426,7 @@ curl "http://localhost:4000/api/templates/filters?tipoReporte=work&subsistema=El
    - Prevent negative quantities (unless `allowNegative` is true)
    - Track the actor who made the adjustment
 
-3. **Date Formats**: 
+3. **Date Formats**:
    - ISO 8601 strings for date-time fields
    - `YYYY-MM-DD` format for date-only fields
 

@@ -45,7 +45,11 @@ const storage = multer.diskStorage({
   },
 });
 
-const fileFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const fileFilter = (
+  req: any,
+  file: Express.Multer.File,
+  cb: multer.FileFilterCallback,
+) => {
   if (isValidFileType(file.mimetype)) {
     cb(null, true);
   } else {

@@ -10,11 +10,14 @@ export type WorkReport = {
   trabajadores: string[];
   inspeccionRealizada: boolean;
   observacionesActividad?: string;
-  evidencias?: Array<{
-    id?: string;
-    url?: string;
-    previewUrl?: string;
-  } | string>;
+  evidencias?: Array<
+    | {
+        id?: string;
+        url?: string;
+        previewUrl?: string;
+      }
+    | string
+  >;
   herramientas?: string[];
   refacciones?: string[];
   observacionesGenerales?: string;

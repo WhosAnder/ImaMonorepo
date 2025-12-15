@@ -11,7 +11,7 @@ export const ChangePasswordPage: React.FC = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
-  
+
   const { mutate: changePassword, isPending } = useChangePassword();
   const { setUser, user, isReady } = useAuth();
   const router = useRouter();
@@ -59,7 +59,9 @@ export const ChangePasswordPage: React.FC = () => {
           router.push("/dashboard");
         },
         onError: () => {
-          setError("Error al cambiar la contraseña. Verifica tu contraseña actual.");
+          setError(
+            "Error al cambiar la contraseña. Verifica tu contraseña actual.",
+          );
         },
       },
     );

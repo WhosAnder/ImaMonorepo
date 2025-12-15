@@ -1,0 +1,100 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+.turbo/
+
+# Lock files
+package-lock.json
+bun.lock
+yarn.lock
+pnpm-lock.yaml
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+
+# Testing
+coverage/
+.nyc_output/
+*.test.js.snap
+
+# Database migrations (generated files)
+**/drizzle/
+**/migrations/
+
+# Upload directories
+**/upload/
+**/uploads/
+**/public/uploads/
+
+# Generated files
+.next/
+.vercel/
+.turbo/
+
+# IDE and Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+*.pem
+
+# Binary files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico
+*.webp
+*.pdf
+*.woff
+*.woff2
+*.ttf
+*.eot
+
+# Excel and data files
+*.xlsx
+*.xls
+*.csv
+
+# Documentation (optional - uncomment if you don't want to format markdown)
+# *.md
+
+# Package manager files
+.pnpm-store/
+.yarn/
+.cache/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/

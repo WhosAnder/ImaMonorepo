@@ -1,14 +1,14 @@
-import { ObjectId } from 'mongodb';
-import { UserRole } from '../../types/auth';
+import { ObjectId } from "mongodb";
+import { UserRole } from "../../types/auth";
 
-export type WarehouseItemStatus = 'active' | 'inactive';
+export type WarehouseItemStatus = "active" | "inactive";
 export type WarehouseAdjustmentReason =
-  | 'initial'
-  | 'increase'
-  | 'decrease'
-  | 'correction'
-  | 'damage'
-  | 'audit';
+  | "initial"
+  | "increase"
+  | "decrease"
+  | "correction"
+  | "damage"
+  | "audit";
 
 export interface WarehouseStockItem {
   _id?: ObjectId;

@@ -5,7 +5,11 @@ export interface UploadResult {
 }
 
 export type StorageAdapter = {
-  uploadFile: (file: File, fileName: string, contentType: string) => Promise<UploadResult>;
+  uploadFile: (
+    file: File,
+    fileName: string,
+    contentType: string,
+  ) => Promise<UploadResult>;
 };
 
 export type CreateStorageAdapter = () => StorageAdapter;

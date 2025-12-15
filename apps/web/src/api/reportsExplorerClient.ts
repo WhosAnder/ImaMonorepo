@@ -47,13 +47,18 @@ export interface ReportExplorerResponse {
 /**
  * Fetch reports explorer folder contents
  */
-export async function fetchReportsExplorer(params: ReportExplorerParams): Promise<ReportExplorerResponse> {
+export async function fetchReportsExplorer(
+  params: ReportExplorerParams,
+): Promise<ReportExplorerResponse> {
   const url = new URL(`${API_URL}/api/reports-explorer/list`);
-  
+
   url.searchParams.set("type", params.type);
-  if (params.subsystemSlug) url.searchParams.set("subsystemSlug", params.subsystemSlug);
-  if (params.year !== undefined) url.searchParams.set("year", String(params.year));
-  if (params.month !== undefined) url.searchParams.set("month", String(params.month));
+  if (params.subsystemSlug)
+    url.searchParams.set("subsystemSlug", params.subsystemSlug);
+  if (params.year !== undefined)
+    url.searchParams.set("year", String(params.year));
+  if (params.month !== undefined)
+    url.searchParams.set("month", String(params.month));
   if (params.day !== undefined) url.searchParams.set("day", String(params.day));
 
   const res = await fetch(url.toString());

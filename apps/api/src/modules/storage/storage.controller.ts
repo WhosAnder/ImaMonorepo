@@ -22,26 +22,35 @@ const initializeStorageAdapter = () => {
   const env = process.env.NODE_ENV || "development";
   const hasAwsRegion = Boolean(process.env.AWS_REGION);
   const hasS3Bucket = Boolean(process.env.S3_BUCKET);
-  
+
   console.log(`📦 Storage Module Configuration:`);
   console.log(`   Environment: ${env}`);
-  console.log(`   AWS_REGION: ${hasAwsRegion ? process.env.AWS_REGION : "not set"}`);
-  console.log(`   S3_BUCKET: ${hasS3Bucket ? process.env.S3_BUCKET : "not set"}`);
-  
+  console.log(
+    `   AWS_REGION: ${hasAwsRegion ? process.env.AWS_REGION : "not set"}`,
+  );
+  console.log(
+    `   S3_BUCKET: ${hasS3Bucket ? process.env.S3_BUCKET : "not set"}`,
+  );
+
   if (shouldUseS3()) {
     try {
       const adapter = createS3Adapter();
       console.log(`   ✅ Using: S3 Storage Adapter`);
       return adapter;
     } catch (error) {
-      console.warn("   ⚠️  S3 adapter initialization failed, falling back to local storage.", error);
+      console.warn(
+        "   ⚠️  S3 adapter initialization failed, falling back to local storage.",
+        error,
+      );
       console.log(`   ✅ Using: Multer (Local) Storage Adapter`);
       return createMulterAdapter();
     }
   } else if (env === "production") {
-    console.warn("   ⚠️  AWS credentials missing; using local storage adapter instead of S3.");
+    console.warn(
+      "   ⚠️  AWS credentials missing; using local storage adapter instead of S3.",
+    );
   }
-  
+
   console.log(`   ✅ Using: Multer (Local) Storage Adapter`);
   return createMulterAdapter();
 };
@@ -59,7 +68,8 @@ type UploadEvidenceBody = {
 
 export async function uploadEvidenceController(c: Context) {
   try {
-    const { file, entityId, category, order } = await c.req.parseBody<UploadEvidenceBody>();
+    const { file, entityId, category, order } =
+      await c.req.parseBody<UploadEvidenceBody>();
 
     if (!file) {
       return c.json({ error: "File is required" }, 400);
@@ -70,20 +80,37 @@ export async function uploadEvidenceController(c: Context) {
 
     if (file.size > policy.maxSize) {
       return c.json(
-        { error: `File is too large. Max allowed size is ${Math.round(policy.maxSize / (1024 * 1024))}MB.` },
-        400
+        {
+          error: `File is too large. Max allowed size is ${Math.round(policy.maxSize / (1024 * 1024))}MB.`,
+        },
+        400,
       );
     }
 
-    if (policy.allowedTypes.length && !policy.allowedTypes.includes(file.type)) {
+    if (
+      policy.allowedTypes.length &&
+      !policy.allowedTypes.includes(file.type)
+    ) {
       return c.json({ error: "Unsupported file type" }, 400);
     }
 
-    const relationId = typeof entityId === "string" && entityId.trim().length > 0 ? entityId.trim() : randomUUID();
-    const storeType = typeof category === "string" && category.trim().length > 0 ? category.trim() : "evidence";
-    const index = typeof order === "string" ? Number.parseInt(order, 10) : undefined;
+    const relationId =
+      typeof entityId === "string" && entityId.trim().length > 0
+        ? entityId.trim()
+        : randomUUID();
+    const storeType =
+      typeof category === "string" && category.trim().length > 0
+        ? category.trim()
+        : "evidence";
+    const index =
+      typeof order === "string" ? Number.parseInt(order, 10) : undefined;
 
-    const { url, fileName } = await storageService.uploadEvidence(file, relationId, storeType, index);
+    const { url, fileName } = await storageService.uploadEvidence(
+      file,
+      relationId,
+      storeType,
+      index,
+    );
 
     return c.json({
       key: fileName,
@@ -98,17 +125,17 @@ export async function uploadEvidenceController(c: Context) {
 }
 
 // ... (existing imports)
-import { 
-  createPresignedUpload, 
-  confirmUploadWithVerification, 
+import {
+  createPresignedUpload,
+  confirmUploadWithVerification,
   createPresignedDownload,
-  listEvidencesByReport
+  listEvidencesByReport,
 } from "./storage.service";
-import { 
-  presignUploadRequestSchema, 
-  confirmUploadRequestSchema, 
+import {
+  presignUploadRequestSchema,
+  confirmUploadRequestSchema,
   presignDownloadRequestSchema,
-  validateUploadRequest 
+  validateUploadRequest,
 } from "./storage.schema";
 import { storageRepo } from "./storage.repo";
 import { isS3Configured } from "../../config/s3";
@@ -118,24 +145,24 @@ import { isS3Configured } from "../../config/s3";
 export async function presignUploadController(c: Context) {
   try {
     const body = await c.req.json();
-    
+
     const parseResult = presignUploadRequestSchema.safeParse(body);
     if (!parseResult.success) {
       const firstError = parseResult.error.errors[0];
       return c.json({ error: firstError?.message || "Invalid request" }, 400);
     }
-    
+
     const data = parseResult.data;
-    
+
     const validation = validateUploadRequest(data);
     if (!validation.success) {
       return c.json({ error: validation.error }, 400);
     }
-    
+
     if (!isS3Configured()) {
       return c.json({ error: "Storage not configured" }, 503);
     }
-    
+
     const result = await createPresignedUpload({
       reportId: data.reportId,
       reportType: data.reportType,
@@ -143,11 +170,12 @@ export async function presignUploadController(c: Context) {
       mimeType: data.mimeType,
       size: data.size,
     });
-    
+
     return c.json(result);
   } catch (error) {
     console.error("Error creating presigned upload:", error);
-    const message = error instanceof Error ? error.message : "Failed to create upload URL";
+    const message =
+      error instanceof Error ? error.message : "Failed to create upload URL";
     const status = message.includes("not found") ? 404 : 500;
     return c.json({ error: message }, status);
   }
@@ -156,34 +184,37 @@ export async function presignUploadController(c: Context) {
 export async function confirmUploadController(c: Context) {
   try {
     const body = await c.req.json();
-    
+
     const parseResult = confirmUploadRequestSchema.safeParse(body);
     if (!parseResult.success) {
       const firstError = parseResult.error.errors[0];
       return c.json({ error: firstError?.message || "Invalid request" }, 400);
     }
-    
+
     const { fileId } = parseResult.data;
-    
+
     const success = await confirmUploadWithVerification(fileId);
-    
+
     if (success) {
       const evidence = await storageRepo.findById(fileId);
-      return c.json({ 
+      return c.json({
         success: true,
-        evidence: evidence ? {
-          id: evidence._id?.toString(),
-          key: evidence.key,
-          originalName: evidence.originalName,
-          status: evidence.status,
-        } : null,
+        evidence: evidence
+          ? {
+              id: evidence._id?.toString(),
+              key: evidence.key,
+              originalName: evidence.originalName,
+              status: evidence.status,
+            }
+          : null,
       });
     } else {
       return c.json({ error: "Failed to confirm upload" }, 500);
     }
   } catch (error) {
     console.error("Error confirming upload:", error);
-    const message = error instanceof Error ? error.message : "Failed to confirm upload";
+    const message =
+      error instanceof Error ? error.message : "Failed to confirm upload";
     return c.json({ error: message }, 500);
   }
 }
@@ -191,28 +222,29 @@ export async function confirmUploadController(c: Context) {
 export async function presignDownloadController(c: Context) {
   try {
     const body = await c.req.json();
-    
+
     const parseResult = presignDownloadRequestSchema.safeParse(body);
     if (!parseResult.success) {
       const firstError = parseResult.error.errors[0];
       return c.json({ error: firstError?.message || "Invalid request" }, 400);
     }
-    
+
     const data = parseResult.data;
-    
+
     if (!isS3Configured()) {
       return c.json({ error: "Storage not configured" }, 503);
     }
-    
+
     const result = await createPresignedDownload({
       fileId: data.fileId,
       key: data.key,
     });
-    
+
     return c.json(result);
   } catch (error) {
     console.error("Error creating presigned download:", error);
-    const message = error instanceof Error ? error.message : "Failed to create download URL";
+    const message =
+      error instanceof Error ? error.message : "Failed to create download URL";
     const status = message === "Evidence not found" ? 404 : 500;
     return c.json({ error: message }, status);
   }
@@ -222,13 +254,13 @@ export async function listEvidencesController(c: Context) {
   try {
     const reportId = c.req.param("reportId");
     const includePending = c.req.query("includePending") === "true";
-    
+
     if (!reportId) {
       return c.json({ error: "reportId is required" }, 400);
     }
-    
+
     const evidences = await listEvidencesByReport(reportId, includePending);
-    
+
     return c.json({
       reportId,
       count: evidences.length,
@@ -303,9 +335,13 @@ const bodyToUint8Array = async (body: unknown) => {
   if (body instanceof Readable) {
     const chunks: Uint8Array[] = [];
     for await (const chunk of body) {
-      chunks.push(typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk);
+      chunks.push(
+        typeof chunk === "string" ? new TextEncoder().encode(chunk) : chunk,
+      );
     }
-    return new Uint8Array(Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))));
+    return new Uint8Array(
+      Buffer.concat(chunks.map((chunk) => Buffer.from(chunk))),
+    );
   }
   if (typeof (body as any).arrayBuffer === "function") {
     const buffer = await (body as any).arrayBuffer();
@@ -318,7 +354,11 @@ const bodyToUint8Array = async (body: unknown) => {
   return null;
 };
 
-const buildDownloadHeaders = (key: string, contentType?: string, contentLength?: number | bigint) => {
+const buildDownloadHeaders = (
+  key: string,
+  contentType?: string,
+  contentLength?: number | bigint,
+) => {
   const headers: Record<string, string> = {
     "Content-Type": resolveContentType(key, contentType),
     "Cache-Control": "public, max-age=300",
@@ -355,7 +395,11 @@ export async function getEvidenceController(c: Context) {
         return c.json({ error: "Evidence not found" }, 404);
       }
 
-      const headers = buildDownloadHeaders(key, result.ContentType, result.ContentLength);
+      const headers = buildDownloadHeaders(
+        key,
+        result.ContentType,
+        result.ContentLength,
+      );
       const stream = toWebStream(result.Body);
       if (stream) {
         return new Response(stream, { headers });
@@ -385,4 +429,3 @@ export async function getEvidenceController(c: Context) {
   const headers = buildDownloadHeaders(key);
   return new Response(Readable.toWeb(stream) as ReadableStream, { headers });
 }
-

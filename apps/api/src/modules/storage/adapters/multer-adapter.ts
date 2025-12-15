@@ -1,7 +1,15 @@
 import { writeFile } from "fs/promises";
 import path from "path";
-import type { StorageAdapter, UploadResult, CreateStorageAdapter } from "./storage-interface";
-import { ensureUploadDir, generateFileName, isValidFileType } from "../../../config/multer";
+import type {
+  StorageAdapter,
+  UploadResult,
+  CreateStorageAdapter,
+} from "./storage-interface";
+import {
+  ensureUploadDir,
+  generateFileName,
+  isValidFileType,
+} from "../../../config/multer";
 import { storagePolicies } from "../storage.policies";
 
 const validateMulterConfig = () => {
@@ -9,7 +17,10 @@ const validateMulterConfig = () => {
   return { baseUrl };
 };
 
-const isValidFileTypeForUpload = (contentType: string, fileName: string): boolean => {
+const isValidFileTypeForUpload = (
+  contentType: string,
+  fileName: string,
+): boolean => {
   if (fileName.includes("permission-document")) {
     const policies = storagePolicies();
     return policies.permissionDocument.allowedTypes.includes(contentType);
@@ -22,14 +33,18 @@ const uploadFileToLocal = async (
   file: File,
   fileName: string,
   contentType: string,
-  baseUrl: string
+  baseUrl: string,
 ): Promise<UploadResult> => {
   try {
     if (!isValidFileTypeForUpload(contentType, fileName)) {
       if (fileName.includes("permission-document")) {
-        throw new Error("File type not allowed. Only images and PDF are supported for permission documents.");
+        throw new Error(
+          "File type not allowed. Only images and PDF are supported for permission documents.",
+        );
       }
-      throw new Error("File type not allowed. Only images and videos are supported.");
+      throw new Error(
+        "File type not allowed. Only images and videos are supported.",
+      );
     }
 
     const uploadDir = ensureUploadDir();
@@ -50,7 +65,9 @@ const uploadFileToLocal = async (
     };
   } catch (error) {
     console.error("Local file upload failed:", error);
-    throw new Error(`File upload failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+    throw new Error(
+      `File upload failed: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
   }
 };
 

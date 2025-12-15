@@ -27,7 +27,11 @@ export default function InventarioPage() {
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
 
-  const { data: items, isLoading, error } = useWarehouseItems({
+  const {
+    data: items,
+    isLoading,
+    error,
+  } = useWarehouseItems({
     search: search || undefined,
     lowStock: showLowStock || undefined,
   });

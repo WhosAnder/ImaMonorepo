@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const WorkReportSchema = z.object({
   subsistema: z.string().min(1),

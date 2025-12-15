@@ -1,6 +1,6 @@
-import { z } from 'zod';
+import { z } from "zod";
 
-export const warehouseItemStatusSchema = z.enum(['active', 'inactive']);
+export const warehouseItemStatusSchema = z.enum(["active", "inactive"]);
 
 const baseWarehouseItemSchema = z.object({
   sku: z.string().min(1),
@@ -18,9 +18,11 @@ const baseWarehouseItemSchema = z.object({
   status: warehouseItemStatusSchema.optional(),
 });
 
-export const CreateWarehouseItemSchema = baseWarehouseItemSchema.extend({
-  status: warehouseItemStatusSchema.default('active'),
-}).strict();
+export const CreateWarehouseItemSchema = baseWarehouseItemSchema
+  .extend({
+    status: warehouseItemStatusSchema.default("active"),
+  })
+  .strict();
 
 export const UpdateWarehouseItemSchema = baseWarehouseItemSchema
   .partial()
@@ -30,9 +32,16 @@ export const UpdateWarehouseItemSchema = baseWarehouseItemSchema
 export const WarehouseAdjustmentSchema = z
   .object({
     delta: z.number().refine((value) => value !== 0, {
-      message: 'delta must not be zero',
+      message: "delta must not be zero",
     }),
-    reason: z.enum(['initial', 'increase', 'decrease', 'correction', 'damage', 'audit']),
+    reason: z.enum([
+      "initial",
+      "increase",
+      "decrease",
+      "correction",
+      "damage",
+      "audit",
+    ]),
     note: z.string().optional(),
   })
   .strict();

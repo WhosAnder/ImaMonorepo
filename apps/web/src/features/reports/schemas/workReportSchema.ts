@@ -8,44 +8,43 @@ export const activityDetailSchema = z.object({
   evidencias: z.array(z.any()).optional(),
 });
 
-export const workReportSchema = z
-  .object({
-    subsistema: z.string().min(1, "El subsistema es obligatorio"),
-    ubicacion: z.string().min(1, "La ubicación es obligatoria"),
-    fechaHoraInicio: z
-      .string()
-      .min(1, "La fecha y hora de inicio son obligatorias"),
-    turno: z.string(),
-    frecuencia: z.string().min(1, "La frecuencia es obligatoria"),
-    
-    trabajadores: z
-      .array(z.string())
-      .min(1, "Debe seleccionar al menos un trabajador"),
+export const workReportSchema = z.object({
+  subsistema: z.string().min(1, "El subsistema es obligatorio"),
+  ubicacion: z.string().min(1, "La ubicación es obligatoria"),
+  fechaHoraInicio: z
+    .string()
+    .min(1, "La fecha y hora de inicio son obligatorias"),
+  turno: z.string(),
+  frecuencia: z.string().min(1, "La frecuencia es obligatoria"),
 
-    // New per-activity structure
-    actividadesRealizadas: z.array(activityDetailSchema).optional(),
+  trabajadores: z
+    .array(z.string())
+    .min(1, "Debe seleccionar al menos un trabajador"),
 
-    // Global fields removed or optional
-    inspeccionRealizada: z.boolean().optional(),
-    observacionesActividad: z.string().optional(),
-    evidencias: z.array(z.any()).optional(),
+  // New per-activity structure
+  actividadesRealizadas: z.array(activityDetailSchema).optional(),
 
-    herramientas: z.array(z.string()).optional(),
-    refacciones: z.array(z.string()).optional(),
+  // Global fields removed or optional
+  inspeccionRealizada: z.boolean().optional(),
+  observacionesActividad: z.string().optional(),
+  evidencias: z.array(z.any()).optional(),
 
-    observacionesGenerales: z.string().optional(),
-    nombreResponsable: z
-      .string()
-      .min(1, "El nombre del responsable es obligatorio"),
-    firmaResponsable: z
-      .string()
-      .nullable()
-      .refine((val) => val !== null, {
-        message: "La firma es obligatoria",
-      }),
-    fechaHoraTermino: z.string().optional(),
-    
-    templateIds: z.array(z.string()).optional(),
-  });
+  herramientas: z.array(z.string()).optional(),
+  refacciones: z.array(z.string()).optional(),
+
+  observacionesGenerales: z.string().optional(),
+  nombreResponsable: z
+    .string()
+    .min(1, "El nombre del responsable es obligatorio"),
+  firmaResponsable: z
+    .string()
+    .nullable()
+    .refine((val) => val !== null, {
+      message: "La firma es obligatoria",
+    }),
+  fechaHoraTermino: z.string().optional(),
+
+  templateIds: z.array(z.string()).optional(),
+});
 
 export type WorkReportFormValues = z.infer<typeof workReportSchema>;

@@ -4,7 +4,12 @@ import { auth } from "../lib/auth";
 import { db } from "../db/client";
 import { account, user } from "../db/schema";
 import { loginSchema, registerSchema } from "../schemas/auth.schema";
-import { applySetCookies, collectSetCookies, getSessionFromRequest, hasAdminRole } from "../lib/session";
+import {
+  applySetCookies,
+  collectSetCookies,
+  getSessionFromRequest,
+  hasAdminRole,
+} from "../lib/session";
 import { hashPassword } from "better-auth/crypto";
 import { randomBytes } from "crypto";
 
@@ -24,7 +29,11 @@ authRoute.post("/register", async (c) => {
   const { email, password, role, name } = parsed.data;
 
   // Check if email exists
-  const existing = await db.select({ id: user.id }).from(user).where(eq(user.email, email)).limit(1);
+  const existing = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.email, email))
+    .limit(1);
   if (existing.length > 0) {
     return c.json({ error: "Email already registered" }, 400);
   }
@@ -43,9 +52,16 @@ authRoute.post("/register", async (c) => {
   }
 
   // Get the created user and update role
-  const [createdUser] = await db.select().from(user).where(eq(user.email, email)).limit(1);
+  const [createdUser] = await db
+    .select()
+    .from(user)
+    .where(eq(user.email, email))
+    .limit(1);
   if (createdUser) {
-    await db.update(user).set({ role: role || DEFAULT_ROLE }).where(eq(user.id, createdUser.id));
+    await db
+      .update(user)
+      .set({ role: role || DEFAULT_ROLE })
+      .where(eq(user.id, createdUser.id));
   }
 
   return c.json({ success: true }, 201);
@@ -63,7 +79,11 @@ authRoute.post("/login", async (c) => {
   const { email, password } = parsed.data;
 
   // Check if user exists and is not banned
-  const result = await db.select().from(user).where(eq(user.email, email)).limit(1);
+  const result = await db
+    .select()
+    .from(user)
+    .where(eq(user.email, email))
+    .limit(1);
   const found = result[0];
 
   if (!found) {
@@ -115,7 +135,11 @@ authRoute.post("/admin/users/:id/reset-password", async (c) => {
 
   const userId = c.req.param("id");
 
-  const [targetUser] = await db.select().from(user).where(eq(user.id, userId)).limit(1);
+  const [targetUser] = await db
+    .select()
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1);
 
   if (!targetUser) {
     return c.json({ error: "User not found" }, 404);
@@ -163,7 +187,8 @@ authRoute.all("/*", async (c) => {
 });
 
 function generateTemporaryPassword(length = 12) {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz0123456789!@#$%";
+  const alphabet =
+    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz0123456789!@#$%";
   const randomBuffer = randomBytes(length);
   let password = "";
   for (let i = 0; i < length; i++) {

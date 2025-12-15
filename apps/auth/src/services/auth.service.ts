@@ -28,7 +28,11 @@ export class AuthService {
   }
 
   static async login(data: LoginInput) {
-    const result = await db.select().from(user).where(eq(users.email, data.email)).limit(1);
+    const result = await db
+      .select()
+      .from(user)
+      .where(eq(users.email, data.email))
+      .limit(1);
     const found = result[0];
 
     if (!found) {

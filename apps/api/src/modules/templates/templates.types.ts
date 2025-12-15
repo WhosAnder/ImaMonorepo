@@ -1,14 +1,14 @@
-import { ObjectId } from 'mongodb';
+import { ObjectId } from "mongodb";
 
-export type ReportType = 'work' | 'warehouse';
+export type ReportType = "work" | "warehouse";
 
 export type TemplateSectionKey =
-  | 'actividad'
-  | 'herramientas'
-  | 'refacciones'
-  | 'observacionesGenerales'
-  | 'fechas'
-  | 'firmas';
+  | "actividad"
+  | "herramientas"
+  | "refacciones"
+  | "observacionesGenerales"
+  | "fechas"
+  | "firmas";
 
 export interface TemplateSectionConfig {
   enabled: boolean;

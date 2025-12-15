@@ -1,27 +1,82 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useMemo } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useReportsExplorer } from "@/hooks/useReportsExplorer";
-import { ReportExplorerParams, ReportExplorerNode, ReportItem } from "@/api/reportsExplorerClient";
 import {
-  Folder,
+  ReportExplorerParams,
+  ReportExplorerNode,
+  ReportItem,
+} from "@/api/reportsExplorerClient";
+import {
   ChevronRight,
   Home,
   Loader2,
-  HardDrive,
-  Calendar,
   FileText,
-  AlertCircle,
-  CheckCircle,
   Clock,
   User,
 } from "lucide-react";
 
 const MONTH_LABELS = [
-  "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+  "",
+  "Enero",
+  "Febrero",
+  "Marzo",
+  "Abril",
+  "Mayo",
+  "Junio",
+  "Julio",
+  "Agosto",
+  "Septiembre",
+  "Octubre",
+  "Noviembre",
+  "Diciembre",
 ];
+
+// ============================================================================
+// URL HELPERS
+// ============================================================================
+
+function buildExplorerUrl(
+  pathname: string,
+  params: ReportExplorerParams,
+): string {
+  const searchParams = new URLSearchParams();
+
+  if (params.subsystemSlug) {
+    searchParams.set("subsystem", params.subsystemSlug);
+  }
+  if (params.year !== undefined) {
+    searchParams.set("year", String(params.year));
+  }
+  if (params.month !== undefined) {
+    searchParams.set("month", String(params.month));
+  }
+  if (params.day !== undefined) {
+    searchParams.set("day", String(params.day));
+  }
+
+  const queryString = searchParams.toString();
+  return queryString ? `${pathname}?${queryString}` : pathname;
+}
+
+function parseExplorerParams(
+  searchParams: URLSearchParams,
+  type: "work" | "warehouse",
+): ReportExplorerParams {
+  const subsystemSlug = searchParams.get("subsystem") || undefined;
+  const yearStr = searchParams.get("year");
+  const monthStr = searchParams.get("month");
+  const dayStr = searchParams.get("day");
+
+  return {
+    type,
+    subsystemSlug,
+    year: yearStr ? parseInt(yearStr, 10) : undefined,
+    month: monthStr ? parseInt(monthStr, 10) : undefined,
+    day: dayStr ? parseInt(dayStr, 10) : undefined,
+  };
+}
 
 // ============================================================================
 // BREADCRUMBS
@@ -29,8 +84,9 @@ const MONTH_LABELS = [
 
 const Breadcrumbs: React.FC<{
   path: ReportExplorerParams;
-  onNavigate: (path: ReportExplorerParams) => void;
-}> = ({ path, onNavigate }) => {
+  pathname: string;
+  onNavigate: (url: string) => void;
+}> = ({ path, pathname, onNavigate }) => {
   const items: { label: string; path: ReportExplorerParams }[] = [
     { label: "Inicio", path: { type: path.type } },
   ];
@@ -44,13 +100,22 @@ const Breadcrumbs: React.FC<{
   if (path.year !== undefined) {
     items.push({
       label: String(path.year),
-      path: { type: path.type, subsystemSlug: path.subsystemSlug, year: path.year },
+      path: {
+        type: path.type,
+        subsystemSlug: path.subsystemSlug,
+        year: path.year,
+      },
     });
   }
   if (path.month !== undefined) {
     items.push({
       label: MONTH_LABELS[path.month] || String(path.month),
-      path: { type: path.type, subsystemSlug: path.subsystemSlug, year: path.year, month: path.month },
+      path: {
+        type: path.type,
+        subsystemSlug: path.subsystemSlug,
+        year: path.year,
+        month: path.month,
+      },
     });
   }
   if (path.day !== undefined) {
@@ -72,9 +137,11 @@ const Breadcrumbs: React.FC<{
         <React.Fragment key={index}>
           {index > 0 && <ChevronRight className="w-4 h-4 mx-2 text-gray-400" />}
           <button
-            onClick={() => onNavigate(item.path)}
+            onClick={() => onNavigate(buildExplorerUrl(pathname, item.path))}
             className={`hover:text-blue-600 transition-colors px-2 py-1 rounded-md hover:bg-white ${
-              index === items.length - 1 ? "font-semibold text-gray-900 bg-white shadow-sm border border-gray-100" : ""
+              index === items.length - 1
+                ? "font-semibold text-gray-900 bg-white shadow-sm border border-gray-100"
+                : ""
             }`}
           >
             {index === 0 ? <Home className="w-4 h-4" /> : item.label}
@@ -90,21 +157,21 @@ const Breadcrumbs: React.FC<{
 // ============================================================================
 
 const CustomFolderIcon: React.FC<{ className?: string }> = ({ className }) => (
-  <svg 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    xmlns="http://www.w3.org/2000/svg" 
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
     className={className}
   >
-    <path 
-      d="M2.5 7.5C2.5 5.84315 3.84315 4.5 5.5 4.5H8.87868C9.67433 4.5 10.4374 4.81607 11 5.37868L12.6213 7H18.5C20.1569 7 21.5 8.34315 21.5 10V18.5C21.5 20.1569 20.1569 21.5 18.5 21.5H5.5C3.84315 21.5 2.5 20.1569 2.5 18.5V7.5Z" 
-      className="stroke-blue-500" 
+    <path
+      d="M2.5 7.5C2.5 5.84315 3.84315 4.5 5.5 4.5H8.87868C9.67433 4.5 10.4374 4.81607 11 5.37868L12.6213 7H18.5C20.1569 7 21.5 8.34315 21.5 10V18.5C21.5 20.1569 20.1569 21.5 18.5 21.5H5.5C3.84315 21.5 2.5 20.1569 2.5 18.5V7.5Z"
+      className="stroke-blue-500"
       strokeWidth="2"
     />
-    <path 
-      d="M4.5 10.5C4.5 9.39543 5.39543 8.5 6.5 8.5H19.5C20.6046 8.5 21.5 9.39543 21.5 10.5V18.5C21.5 19.6046 20.6046 20.5 19.5 20.5H6.5C5.39543 20.5 4.5 19.6046 4.5 18.5V10.5Z" 
-      className="fill-blue-100 stroke-blue-500" 
-      strokeWidth="2" 
+    <path
+      d="M4.5 10.5C4.5 9.39543 5.39543 8.5 6.5 8.5H19.5C20.6046 8.5 21.5 9.39543 21.5 10.5V18.5C21.5 19.6046 20.6046 20.5 19.5 20.5H6.5C5.39543 20.5 4.5 19.6046 4.5 18.5V10.5Z"
+      className="fill-blue-100 stroke-blue-500"
+      strokeWidth="2"
     />
   </svg>
 );
@@ -122,20 +189,20 @@ const FolderRow: React.FC<{
       onClick={onClick}
       className="group flex items-center w-full p-3 bg-white rounded-xl border border-gray-200 hover:border-blue-400 hover:shadow-md transition-all duration-200 text-left"
     >
-      <div className="flex-shrink-0 mr-3">
+      <div className="shrink-0 mr-3">
         <CustomFolderIcon className="w-9 h-9" />
       </div>
-      
+
       <div className="flex-1 min-w-0">
         <h3 className="text-sm font-semibold text-gray-900 group-hover:text-blue-600 truncate">
           {node.label}
         </h3>
         <p className="text-xs text-gray-500 mt-0.5">
-          {node.count} {node.count === 1 ? 'reporte' : 'reportes'}
+          {node.count} {node.count === 1 ? "reporte" : "reportes"}
         </p>
       </div>
 
-      <div className="flex-shrink-0 ml-4 text-gray-300 group-hover:text-blue-400">
+      <div className="shrink-0 ml-4 text-gray-300 group-hover:text-blue-400">
         <ChevronRight className="w-4 h-4" />
       </div>
     </button>
@@ -175,18 +242,24 @@ const ReportRow: React.FC<{
   };
 
   return (
-    <div 
+    <div
       onClick={onClick}
       className="group flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md cursor-pointer transition-all duration-200"
     >
       <div className="flex items-center gap-5 flex-1 min-w-0">
-        <div className={`p-3 rounded-xl ${type === "work" ? "bg-blue-50 text-blue-600 group-hover:bg-blue-100" : "bg-purple-50 text-purple-600 group-hover:bg-purple-100"} transition-colors`}>
+        <div
+          className={`p-3 rounded-xl ${type === "work" ? "bg-blue-50 text-blue-600 group-hover:bg-blue-100" : "bg-purple-50 text-purple-600 group-hover:bg-purple-100"} transition-colors`}
+        >
           <FileText className="w-6 h-6" />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 mb-1">
-            <span className="font-bold text-gray-900 text-lg">Folio: {report.folio}</span>
-            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusColor(report.status)}`}>
+            <span className="font-bold text-gray-900 text-lg">
+              Folio: {report.folio}
+            </span>
+            <span
+              className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusColor(report.status)}`}
+            >
               {report.status === "completed" ? "Completado" : report.status}
             </span>
           </div>
@@ -224,12 +297,19 @@ interface ReportExplorerProps {
 
 export const ReportExplorer: React.FC<ReportExplorerProps> = ({ type }) => {
   const router = useRouter();
-  const [currentPath, setCurrentPath] = useState<ReportExplorerParams>({ type });
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  // Parse current path from URL search params
+  const currentPath = useMemo(
+    () => parseExplorerParams(searchParams, type),
+    [searchParams, type],
+  );
 
   const { data, isLoading, error } = useReportsExplorer(currentPath);
 
-  const handleNavigate = (path: ReportExplorerParams) => {
-    setCurrentPath(path);
+  const handleNavigate = (url: string) => {
+    router.push(url);
   };
 
   const handleFolderClick = (node: ReportExplorerNode) => {
@@ -240,7 +320,8 @@ export const ReportExplorer: React.FC<ReportExplorerProps> = ({ type }) => {
       month: node.month,
       day: node.day,
     };
-    setCurrentPath(newPath);
+    const url = buildExplorerUrl(pathname, newPath);
+    router.push(url);
   };
 
   const handleReportClick = (report: ReportItem) => {
@@ -269,7 +350,11 @@ export const ReportExplorer: React.FC<ReportExplorerProps> = ({ type }) => {
 
   return (
     <div className="space-y-6">
-      <Breadcrumbs path={currentPath} onNavigate={handleNavigate} />
+      <Breadcrumbs
+        path={currentPath}
+        pathname={pathname}
+        onNavigate={handleNavigate}
+      />
 
       {/* Folders List */}
       {data?.folders && data.folders.length > 0 && (

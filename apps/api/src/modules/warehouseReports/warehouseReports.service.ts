@@ -1,29 +1,31 @@
-import { RequestUser } from '../../types/auth';
+import { RequestUser } from "../../types/auth";
 import {
   adjustStockForReportDelivery,
   adjustStockForReportReturn,
   StockAdjustmentOutcome,
-} from '../warehouse/warehouse.service';
+} from "../warehouse/warehouse.service";
 import {
   NewWarehouseReport,
   WarehouseReportFilters,
+  PaginationOptions,
   UpdateWarehouseReportInput,
   findWarehouseReportById,
   findWarehouseReports,
   insertWarehouseReport,
   updateWarehouseReportById,
-} from './warehouseReports.repository';
+} from "./warehouseReports.repository";
 import {
   StockAdjustmentSummary,
   WarehouseItem,
   WarehouseReport,
   WarehouseReportWithAdjustments,
-} from './warehouseReports.types';
+} from "./warehouseReports.types";
 
 export async function listWarehouseReports(
-  filters: WarehouseReportFilters = {}
+  filters: WarehouseReportFilters = {},
+  pagination?: PaginationOptions,
 ) {
-  return findWarehouseReports(filters);
+  return findWarehouseReports(filters, pagination);
 }
 
 export async function getWarehouseReportById(id: string) {
@@ -48,7 +50,7 @@ type AdjustmentHandler = (
   sku: string,
   units: number,
   reportFolio: string,
-  actor: RequestUser
+  actor: RequestUser,
 ) => Promise<StockAdjustmentOutcome>;
 
 async function processItemsForAdjustments(
@@ -57,7 +59,7 @@ async function processItemsForAdjustments(
   handler: AdjustmentHandler,
   options?: {
     skipItemIds?: Set<string>;
-  }
+  },
 ): Promise<{ summary: StockAdjustmentSummary; processedItemIds: string[] }> {
   const summary = emptyAdjustmentSummary();
   const processedItemIds: string[] = [];
@@ -69,7 +71,7 @@ async function processItemsForAdjustments(
 
     if (!item.sku) {
       summary.warnings.push(
-        `Item "${item.name}" does not have a SKU and was skipped`
+        `Item "${item.name}" does not have a SKU and was skipped`,
       );
       continue;
     }
@@ -83,12 +85,12 @@ async function processItemsForAdjustments(
 
     summary.failed.push({
       sku: item.sku,
-      reason: result.failureReason ?? 'Unknown error',
+      reason: result.failureReason ?? "Unknown error",
     });
     summary.warnings.push(
       `Failed to adjust SKU ${item.sku}: ${
-        result.failureReason ?? 'Unknown error'
-      }`
+        result.failureReason ?? "Unknown error"
+      }`,
     );
   }
 
@@ -97,7 +99,7 @@ async function processItemsForAdjustments(
 
 export async function createWarehouseReport(
   data: NewWarehouseReport,
-  actor?: RequestUser
+  actor?: RequestUser,
 ): Promise<WarehouseReportWithAdjustments> {
   const newReport = await insertWarehouseReport({
     ...data,
@@ -111,7 +113,7 @@ export async function createWarehouseReport(
   const { summary } = await processItemsForAdjustments(
     newReport,
     actor,
-    adjustStockForReportDelivery
+    adjustStockForReportDelivery,
   );
 
   if (!newReport._id) {
@@ -137,11 +139,11 @@ export async function createWarehouseReport(
 export async function processReportReturn(
   reportId: string,
   actor: RequestUser,
-  fechaHoraRecepcion?: string
+  fechaHoraRecepcion?: string,
 ): Promise<WarehouseReportWithAdjustments> {
   const report = await findWarehouseReportById(reportId);
   if (!report) {
-    throw new Error('REPORT_NOT_FOUND');
+    throw new Error("REPORT_NOT_FOUND");
   }
 
   const processedSet = new Set(report.returnProcessedItemIds ?? []);
@@ -149,7 +151,7 @@ export async function processReportReturn(
     report,
     actor,
     adjustStockForReportReturn,
-    { skipItemIds: processedSet }
+    { skipItemIds: processedSet },
   );
 
   const updates: UpdateWarehouseReportInput = {};
@@ -164,7 +166,7 @@ export async function processReportReturn(
   }
 
   const shouldSetReturnDate =
-    !report.fechaHoraRecepcion || typeof fechaHoraRecepcion === 'string';
+    !report.fechaHoraRecepcion || typeof fechaHoraRecepcion === "string";
   if (shouldSetReturnDate) {
     const effectiveDate =
       fechaHoraRecepcion ||

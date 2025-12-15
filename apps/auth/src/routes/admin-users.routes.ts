@@ -31,7 +31,9 @@ const updateUserSchema = z
     message: "No fields to update",
   });
 
-export const adminUsersRoute = new Hono<{ Variables: { adminUser: SessionUser } }>();
+export const adminUsersRoute = new Hono<{
+  Variables: { adminUser: SessionUser };
+}>();
 
 adminUsersRoute.use("*", async (c, next) => {
   const session = await getSessionFromRequest(c);

@@ -12,4 +12,3 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   supervisor: "Supervisor",
   warehouse: "Almacenista",
 };
-
