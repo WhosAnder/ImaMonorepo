@@ -4,6 +4,27 @@ import { WarehouseReport } from "@/features/almacen/types/warehouseReport";
 import { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
 import { API_URL } from "../config/env";
 
+const AUTH_STORAGE_KEY = "ima_auth_user";
+
+// Helper to get auth headers for protected requests
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  
+  const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+  if (!stored) return {};
+  
+  try {
+    const user = JSON.parse(stored);
+    return {
+      "x-user-id": user.id || "",
+      "x-user-name": user.name || "",
+      "x-user-role": user.role || "user",
+    };
+  } catch {
+    return {};
+  }
+}
+
 // Pagination types
 export interface PaginatedResponse<T> {
   data: T[];
@@ -81,6 +102,45 @@ export async function createWorkReport(data: any): Promise<WorkReport> {
   return res.json();
 }
 
+export async function updateWorkReport(
+  id: string,
+  data: Partial<WorkReport>,
+): Promise<WorkReport> {
+  const res = await fetch(`${API_URL}/api/reports/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("API Error:", res.status, res.statusText, errorText);
+    let errorData;
+    try {
+      errorData = JSON.parse(errorText);
+    } catch (e) {
+      errorData = { error: errorText || "Unknown error" };
+    }
+    throw new Error(errorData.error || "Error updating work report");
+  }
+  return res.json();
+}
+
+export async function deleteWorkReport(id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/reports/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || "Error deleting work report");
+  }
+}
+
 // Warehouse reports
 export async function fetchWarehouseReports(
   pagination?: PaginationParams,
@@ -140,4 +200,36 @@ export async function createWarehouseReport(
     throw new Error(errorData.error || "Error creating warehouse report");
   }
   return res.json();
+}
+
+export async function updateWarehouseReport(
+  id: string,
+  data: Partial<WarehouseReport>,
+): Promise<WarehouseReport> {
+  const res = await fetch(`${API_URL}/api/warehouse-reports/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || "Error updating warehouse report");
+  }
+  return res.json();
+}
+
+export async function deleteWarehouseReport(id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/warehouse-reports/${id}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+
+  if (!res.ok) {
+    const errorData = await res.json().catch(() => ({}));
+    throw new Error(errorData.error || "Error deleting warehouse report");
+  }
 }

@@ -20,10 +20,25 @@ export interface PaginatedResult<T> {
 
 const DEFAULT_LIMIT = 100;
 
+// Ensure indexes are created for better query performance
+let indexesCreated = false;
+async function ensureIndexes() {
+  if (indexesCreated) return;
+  const collection = await getWarehouseReportCollection();
+  await Promise.all([
+    collection.createIndex({ createdAt: -1 }),
+    collection.createIndex({ subsistema: 1 }),
+    collection.createIndex({ fechaHoraEntrega: -1 }),
+  ]);
+  indexesCreated = true;
+  console.log("📦 Warehouse reports indexes created");
+}
+
 export async function findWarehouseReports(
   filters: WarehouseReportFilters = {},
   pagination?: PaginationOptions,
 ): Promise<PaginatedResult<WarehouseReport>> {
+  await ensureIndexes();
   const collection = await getWarehouseReportCollection();
   const query: Record<string, string> = {};
 
@@ -126,5 +141,13 @@ export async function updateWarehouseReportById(
     { returnDocument: "after" },
   );
 
-  return result.value;
+  return result;
+}
+
+export async function deleteWarehouseReportById(
+  id: string,
+): Promise<boolean> {
+  const collection = await getWarehouseReportCollection();
+  const result = await collection.deleteOne({ _id: new ObjectId(id) });
+  return result.deletedCount === 1;
 }

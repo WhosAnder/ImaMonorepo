@@ -126,10 +126,10 @@ export default function WorkersPage() {
           </div>
           <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <button className="inline-flex items-center justify-center px-4 py-2 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 bg-blue-600 text-white hover:bg-blue-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Nuevo Trabajador
-              </Button>
+              </button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>

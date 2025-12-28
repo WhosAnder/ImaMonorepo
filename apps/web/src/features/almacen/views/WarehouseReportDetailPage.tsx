@@ -1,20 +1,36 @@
 "use client";
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/shared/ui/Button";
 import { AppLayout } from "@/shared/layout/AppLayout";
 import { WarehouseReportPreview } from "../components/WarehouseReportPreview";
 import { generatePDFReport } from "../helpers/generate-pdf";
-import { ArrowLeft, DownloadIcon } from "lucide-react";
-import { useWarehouseReportQuery } from "@/hooks/useWarehouseReports";
+import { ArrowLeft, DownloadIcon, Pencil, Trash2 } from "lucide-react";
+import { useWarehouseReportQuery, useDeleteWarehouseReportMutation } from "@/hooks/useWarehouseReports";
+import { ConfirmDeleteModal } from "@/shared/ui/ConfirmDeleteModal";
+import { useAuth } from "@/auth/AuthContext";
 
 export const WarehouseReportDetailPage: React.FC = () => {
   const params = useParams();
   const router = useRouter();
+  const { user } = useAuth();
   const id = params?.id as string;
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const { data: report, isLoading, error } = useWarehouseReportQuery(id || "");
+  const deleteMutation = useDeleteWarehouseReportMutation();
+
+  const isAdmin = user?.role === "admin";
+
+  const handleDelete = async () => {
+    try {
+      await deleteMutation.mutateAsync(id);
+      router.push("/almacen");
+    } catch (error) {
+      console.error("Error deleting report:", error);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -65,6 +81,24 @@ export const WarehouseReportDetailPage: React.FC = () => {
               </div>
             </div>
           </div>
+          {isAdmin && (
+            <div className="flex items-center gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => router.push(`/almacen/${id}/edit`)}
+              >
+                <Pencil className="h-4 w-4 mr-2" />
+                Editar
+              </Button>
+              <button
+                onClick={() => setShowDeleteModal(true)}
+                className="inline-flex items-center justify-center px-4 py-2 rounded-md font-medium bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Eliminar
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="bg-gray-100 p-8 rounded-xl border border-gray-200 shadow-inner overflow-auto">
@@ -81,6 +115,14 @@ export const WarehouseReportDetailPage: React.FC = () => {
           Descargar PDF <DownloadIcon className="h-4 w-4 ml-2" />
         </Button>
       </div>
+
+      <ConfirmDeleteModal
+        isOpen={showDeleteModal}
+        onCancel={() => setShowDeleteModal(false)}
+        onConfirm={handleDelete}
+        isLoading={deleteMutation.isPending}
+        itemName={`Reporte ${report.subsistema}`}
+      />
     </AppLayout>
   );
 };

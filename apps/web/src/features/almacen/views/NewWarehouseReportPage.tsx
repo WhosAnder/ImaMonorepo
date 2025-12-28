@@ -2,7 +2,7 @@
 
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useCreateWarehouseReportMutation } from "@/hooks/useWarehouseReports";
+import { useCreateWarehouseReportMutation, useUpdateWarehouseReportMutation, useWarehouseReportQuery } from "@/hooks/useWarehouseReports";
 import { useWarehouseItems } from "@/hooks/useWarehouse";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,10 +32,20 @@ const SUBSYSTEMS = [
   "EQUIPO DE MANTENIMIENTO",
 ];
 
-export const NewWarehouseReportPage: React.FC = () => {
+interface NewWarehouseReportPageProps {
+  reportId?: string;
+}
+
+export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({ reportId }) => {
   const router = useRouter();
   const { user } = useAuth();
   const createMutation = useCreateWarehouseReportMutation();
+  const updateMutation = useUpdateWarehouseReportMutation();
+  
+  const isEditMode = Boolean(reportId);
+  
+  // Fetch existing report data when in edit mode
+  const { data: existingReport, isLoading: isLoadingReport } = useWarehouseReportQuery(reportId || '');
 
   // Fetch inventory
   const { data: inventoryItems, isLoading: loadingInventory } =
@@ -175,14 +185,27 @@ export const NewWarehouseReportPage: React.FC = () => {
     const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
     data.fechaHoraEntrega = localISOTime;
 
+    if (isEditMode && reportId) {
+      // Update existing report
+      try {
+        await updateMutation.mutateAsync({ id: reportId, data: data as any });
+        alert("Reporte actualizado exitosamente");
+        router.push(`/almacen/${reportId}`);
+      } catch (error) {
+        console.error("Error updating report:", error);
+        alert("Error al actualizar el reporte");
+      }
+      return;
+    }
+
     const { data: report, error } = await createReport(data);
 
     if (report) {
       // Upload evidences to S3 with the new reportId
-      const reportId = report._id;
-      if (reportId) {
+      const reportIdFromResponse = report._id;
+      if (reportIdFromResponse) {
         console.log("Uploading evidences to S3...");
-        await uploadAllEvidences(reportId, data);
+        await uploadAllEvidences(reportIdFromResponse, data);
         console.log("Evidences uploaded");
       }
 
@@ -529,11 +552,11 @@ export const NewWarehouseReportPage: React.FC = () => {
             <div className="flex justify-end">
               <Button
                 type="submit"
-                isLoading={isSubmitting}
+                isLoading={isSubmitting || updateMutation.isPending}
                 className="px-8 py-3"
               >
                 <Save className="w-5 h-5 mr-2" />
-                Generar Reporte
+                {isEditMode ? 'Actualizar Reporte' : 'Generar Reporte'}
               </Button>
             </div>
           </form>

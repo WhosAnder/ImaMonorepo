@@ -6,6 +6,8 @@ import {
   getWarehouseReportById,
   listWarehouseReports,
   processReportReturn,
+  updateWarehouseReportData,
+  deleteWarehouseReport,
 } from "./warehouseReports.service";
 import {
   NewWarehouseReport,
@@ -115,6 +117,64 @@ export async function createWarehouseReportController(c: Context) {
       return c.json({ error: "Validation Error", details: error.errors }, 400);
     }
     console.error("Error creating warehouse report:", error);
+    return c.json({ error: "Internal Server Error" }, 500);
+  }
+}
+
+export async function updateWarehouseReportController(c: Context) {
+  const id = c.req.param("id");
+  try {
+    const body = await c.req.json();
+    
+    // Check if report exists first
+    const existing = await getWarehouseReportById(id);
+    if (!existing) {
+      return c.json({ error: "Report not found" }, 404);
+    }
+
+    // Validate incoming data (partial validation for updates)
+    const validatedData = WarehouseReportSchema.partial().parse(body);
+    
+    // Filter and convert null to undefined for compatibility
+    const updateData: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(validatedData)) {
+      if (value !== null) {
+        updateData[key] = value;
+      }
+    }
+
+    const updatedReport = await updateWarehouseReportData(id, updateData);
+    if (!updatedReport) {
+      return c.json({ error: "Failed to update report" }, 500);
+    }
+
+    return c.json(mapReportToResponse(updatedReport));
+  } catch (error) {
+    if (error instanceof ZodError) {
+      return c.json({ error: "Validation Error", details: error.errors }, 400);
+    }
+    console.error("Error updating warehouse report:", error);
+    return c.json({ error: "Internal Server Error" }, 500);
+  }
+}
+
+export async function deleteWarehouseReportController(c: Context) {
+  const id = c.req.param("id");
+  try {
+    // Check if report exists first
+    const existing = await getWarehouseReportById(id);
+    if (!existing) {
+      return c.json({ error: "Report not found" }, 404);
+    }
+
+    const deleted = await deleteWarehouseReport(id);
+    if (!deleted) {
+      return c.json({ error: "Failed to delete report" }, 500);
+    }
+
+    return c.json({ success: true, message: "Report deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting warehouse report:", error);
     return c.json({ error: "Internal Server Error" }, 500);
   }
 }

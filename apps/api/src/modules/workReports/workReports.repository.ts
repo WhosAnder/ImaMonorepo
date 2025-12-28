@@ -20,10 +20,26 @@ export interface PaginatedResult<T> {
 
 const DEFAULT_LIMIT = 100;
 
+// Ensure indexes are created for better query performance
+let indexesCreated = false;
+async function ensureIndexes() {
+  if (indexesCreated) return;
+  const collection = await getWorkReportCollection();
+  await Promise.all([
+    collection.createIndex({ createdAt: -1 }),
+    collection.createIndex({ subsistema: 1 }),
+    collection.createIndex({ fecha: -1 }),
+    collection.createIndex({ folio: 1 }, { unique: true }),
+  ]);
+  indexesCreated = true;
+  console.log("📊 Work reports indexes created");
+}
+
 export async function findWorkReports(
   filters: WorkReportFilters = {},
   pagination?: PaginationOptions,
 ): Promise<PaginatedResult<WorkReport>> {
+  await ensureIndexes();
   const collection = await getWorkReportCollection();
   const query: Record<string, string> = {};
 
@@ -102,4 +118,35 @@ export async function insertWorkReport(
 
   const result = await collection.insertOne(newReport);
   return { ...newReport, _id: result.insertedId };
+}
+
+export type UpdateWorkReportInput = Partial<
+  Omit<WorkReport, "_id" | "folio" | "createdAt">
+>;
+
+export async function updateWorkReportById(
+  id: string,
+  updates: UpdateWorkReportInput,
+): Promise<WorkReport | null> {
+  const collection = await getWorkReportCollection();
+  const result = await collection.findOneAndUpdate(
+    { _id: new ObjectId(id) },
+    {
+      $set: {
+        ...updates,
+        updatedAt: new Date(),
+      },
+    },
+    { returnDocument: "after" },
+  );
+
+  return result;
+}
+
+export async function deleteWorkReportById(
+  id: string,
+): Promise<boolean> {
+  const collection = await getWorkReportCollection();
+  const result = await collection.deleteOne({ _id: new ObjectId(id) });
+  return result.deletedCount === 1;
 }

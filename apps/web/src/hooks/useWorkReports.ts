@@ -4,10 +4,13 @@ import {
   fetchWorkReportsPaginated,
   fetchWorkReportById,
   createWorkReport,
+  updateWorkReport,
+  deleteWorkReport,
   PaginatedResponse,
   PaginationParams,
 } from "../api/reportsClient";
 import { WorkReportListItem } from "@/features/reports/types/workReportList";
+import { WorkReport } from "@/features/reports/types/workReport";
 
 interface UseWorkReportsQueryOptions {
   enabled?: boolean;
@@ -50,6 +53,32 @@ export function useCreateWorkReportMutation() {
     mutationFn: createWorkReport,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["workReports"] });
+    },
+  });
+}
+
+export function useUpdateWorkReportMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<WorkReport> }) =>
+      updateWorkReport(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["workReports"] });
+      queryClient.invalidateQueries({ queryKey: ["workReports", variables.id] });
+    },
+  });
+}
+
+export function useDeleteWorkReportMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteWorkReport(id),
+    onSuccess: () => {
+      // Invalidate all workReports queries with immediate refetch
+      queryClient.invalidateQueries({ 
+        queryKey: ["workReports"],
+        refetchType: 'all'
+      });
     },
   });
 }

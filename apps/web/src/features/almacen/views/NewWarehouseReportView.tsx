@@ -16,8 +16,6 @@ import {
 import { createWarehouseReport } from "@/api/reportsClient";
 import { Save, Plus, Trash2, Check, ChevronsUpDown } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
-import { useWorkers } from "@/hooks/useWorkers";
-import { MultiSelect } from "@/shared/ui/MultiSelect";
 
 const SUBSYSTEMS = [
   "EQUIPO DE GUIA/ TRABAJO DE GUIA",
@@ -162,15 +160,6 @@ export const NewWarehouseReportPage: React.FC = () => {
   // you can filter here: inventoryItems?.filter(i => i.category?.toLowerCase() === 'herramientas')
   const inventoryOptions = inventoryItems || [];
 
-  // Fetch workers
-  const { data: workers = [] } = useWorkers();
-  const workerOptions = React.useMemo(() => 
-    workers
-      .filter(w => w.active)
-      .map(w => ({ value: w.name, label: w.name })),
-    [workers]
-  );
-
   const {
     register,
     control,
@@ -191,9 +180,7 @@ export const NewWarehouseReportPage: React.FC = () => {
       nombreQuienEntrega: "",
       herramientas: [],
       refacciones: [],
-      refacciones: [],
       observacionesGenerales: "",
-      trabajadores: [],
     },
   });
 
@@ -303,11 +290,18 @@ export const NewWarehouseReportPage: React.FC = () => {
       const almacenistaName = user?.name ?? data.nombreAlmacenista ?? "";
       const quienEntregaName =
         user?.name ?? data.nombreQuienEntrega ?? almacenistaName;
+      
+      // Get current time in local timezone ISO format
+      const now = new Date();
+      const offset = now.getTimezoneOffset() * 60000;
+      const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
+      
       // Build payload with required fields for the API
       const payload = {
         ...data,
         nombreAlmacenista: almacenistaName,
         nombreQuienEntrega: quienEntregaName,
+        fechaHoraRecepcion: localISOTime, // Auto-assign current time
         tipoMantenimiento: "Preventivo", // Default value, could be added to form if needed
       };
 
@@ -398,22 +392,6 @@ export const NewWarehouseReportPage: React.FC = () => {
                         {errors.nombreQuienRecibe.message}
                       </p>
                     )}
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <Label className="mb-2 block">Trabajadores Involucrados</Label>
-                    <Controller
-                      name="trabajadores"
-                      control={control}
-                      render={({ field }) => (
-                        <MultiSelect
-                          options={workerOptions}
-                          value={field.value || []}
-                          onChange={field.onChange}
-                          placeholder="Seleccionar..."
-                        />
-                      )}
-                    />
                   </div>
                 </div>
               </Card>

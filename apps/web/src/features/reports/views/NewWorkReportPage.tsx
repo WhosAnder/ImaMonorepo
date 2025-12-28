@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTemplateFilters, useActivitiesBySubsystemAndFrequency } from '@/hooks/useTemplates';
-import { useCreateWorkReportMutation } from '@/hooks/useWorkReports';
+import { useCreateWorkReportMutation, useUpdateWorkReportMutation, useWorkReportQuery } from '@/hooks/useWorkReports';
 import { useWarehouseItems } from '@/hooks/useWarehouse';
 import { useForm, Controller, useFieldArray } from 'react-hook-form';
 import { useWorkers } from '@/hooks/useWorkers';
@@ -86,12 +86,21 @@ const prepareActivityEvidence = async (activities: any[]) => {
   }));
 };
 
-export const NewWorkReportPage: React.FC = () => {
+interface NewWorkReportPageProps {
+  reportId?: string;
+}
+
+export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }) => {
   const router = useRouter();
   const { user } = useAuth();
   const [activitiesState, setActivitiesState] = useState<ActivityWithDetails[]>([]);
   const [draftStatus, setDraftStatus] = useState<'empty' | 'loaded'>('empty');
   const draftRestorationGuardRef = useRef(false);
+  
+  const isEditMode = Boolean(reportId);
+  
+  // Fetch existing report data when in edit mode
+  const { data: existingReport, isLoading: isLoadingReport } = useWorkReportQuery(reportId || '');
 
   const initialFormValues: WorkReportFormValues = {
     fechaHoraInicio: new Date().toISOString().slice(0, 16),
@@ -101,7 +110,7 @@ export const NewWorkReportPage: React.FC = () => {
     herramientas: [],
     refacciones: [],
     nombreResponsable: user?.name || '',
-    firmaResponsable: undefined,
+    firmaResponsable: null,
     templateIds: [],
   };
 
@@ -304,6 +313,7 @@ export const NewWorkReportPage: React.FC = () => {
   };
 
   const createReportMutation = useCreateWorkReportMutation();
+  const updateReportMutation = useUpdateWorkReportMutation();
 
   const onSubmit = async (data: WorkReportFormValues) => {
     const now = new Date();
@@ -344,19 +354,25 @@ export const NewWorkReportPage: React.FC = () => {
     };
 
     try {
-      console.log('Creating report...', payload);
-      
-      const result = await createReportMutation.mutateAsync(payload as any);
-      
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem(WORK_REPORT_DRAFT_KEY);
+      if (isEditMode && reportId) {
+        console.log('Updating report...', payload);
+        await updateReportMutation.mutateAsync({ id: reportId, data: payload as any });
+        alert('Reporte actualizado exitosamente');
+        router.push(`/reports/${reportId}`);
+      } else {
+        console.log('Creating report...', payload);
+        const result = await createReportMutation.mutateAsync(payload as any);
+        
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem(WORK_REPORT_DRAFT_KEY);
+        }
+        
+        alert('Reporte generado exitosamente');
+        router.push(`/reports/${(result as any)._id}`);
       }
-      
-      alert('Reporte generado exitosamente');
-      router.push(`/reports/${(result as any)._id}`);
     } catch (error) {
-      console.error("Error creating report:", error);
-      alert('Error al generar el reporte');
+      console.error(isEditMode ? "Error updating report:" : "Error creating report:", error);
+      alert(isEditMode ? 'Error al actualizar el reporte' : 'Error al generar el reporte');
     }
   };
 
@@ -381,8 +397,15 @@ export const NewWorkReportPage: React.FC = () => {
 
         {/* Page Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground">Formato de trabajo proyecto AEROTREN AICM</h1>
-          <p className="text-muted-foreground mt-1">Selecciona las actividades realizadas y registra observaciones y evidencias.</p>
+          <h1 className="text-2xl font-bold text-foreground">
+            {isEditMode ? 'Editar Reporte de Trabajo' : 'Formato de trabajo proyecto AEROTREN AICM'}
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {isEditMode 
+              ? 'Modifica los datos del reporte y guarda los cambios.'
+              : 'Selecciona las actividades realizadas y registra observaciones y evidencias.'
+            }
+          </p>
         </div>
 
         <div className="space-y-8">
@@ -651,9 +674,19 @@ export const NewWorkReportPage: React.FC = () => {
                   <Save className="w-5 h-5 mr-2" />
                   Guardar Borrador
                 </Button>
-                <Button type="submit" size="lg" disabled={isSubmitting} className="bg-[#153A7A] hover:bg-[#153A7A]/90 text-white">
+                <Button 
+                  type="submit" 
+                  size="lg" 
+                  disabled={isSubmitting || updateReportMutation.isPending} 
+                  className="bg-[#153A7A] hover:bg-[#153A7A]/90 text-white"
+                >
                   <Save className="w-5 h-5 mr-2" />
-                  {isSubmitting ? 'Guardando...' : 'Guardar Reporte'}
+                  {isSubmitting || updateReportMutation.isPending 
+                    ? 'Guardando...' 
+                    : isEditMode 
+                      ? 'Actualizar Reporte' 
+                      : 'Guardar Reporte'
+                  }
                 </Button>
               </div>
             )}

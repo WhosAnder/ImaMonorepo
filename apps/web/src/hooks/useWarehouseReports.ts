@@ -4,10 +4,13 @@ import {
   fetchWarehouseReportsPaginated,
   fetchWarehouseReportById,
   createWarehouseReport,
+  updateWarehouseReport,
+  deleteWarehouseReport,
   PaginatedResponse,
   PaginationParams,
 } from "../api/reportsClient";
 import { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
+import { WarehouseReport } from "@/features/almacen/types/warehouseReport";
 
 interface UseWarehouseReportsQueryOptions {
   enabled?: boolean;
@@ -52,6 +55,32 @@ export function useCreateWarehouseReportMutation() {
     mutationFn: createWarehouseReport,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["warehouseReports"] });
+    },
+  });
+}
+
+export function useUpdateWarehouseReportMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Partial<WarehouseReport> }) =>
+      updateWarehouseReport(id, data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["warehouseReports"] });
+      queryClient.invalidateQueries({ queryKey: ["warehouseReports", variables.id] });
+    },
+  });
+}
+
+export function useDeleteWarehouseReportMutation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteWarehouseReport(id),
+    onSuccess: () => {
+      // Invalidate all warehouseReports queries with immediate refetch
+      queryClient.invalidateQueries({ 
+        queryKey: ["warehouseReports"],
+        refetchType: 'all'
+      });
     },
   });
 }

@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { cors } from "hono/cors";
+import { compress } from "hono/compress";
 import { workReportsRoute } from "./modules/workReports/workReports.route";
 import { warehouseReportsRoute } from "./modules/warehouseReports/warehouseReports.route";
 import { templatesRoute } from "./modules/templates/templates.route";
@@ -17,6 +18,9 @@ import { workersRoute } from "./modules/workers/workers.route";
 const app = new Hono();
 
 app.use("*", logger());
+
+// Enable gzip compression for all responses
+app.use("*", compress());
 
 // Enable CORS for the web app
 app.use(

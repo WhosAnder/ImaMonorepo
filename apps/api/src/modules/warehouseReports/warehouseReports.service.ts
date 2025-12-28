@@ -13,6 +13,7 @@ import {
   findWarehouseReports,
   insertWarehouseReport,
   updateWarehouseReportById,
+  deleteWarehouseReportById,
 } from "./warehouseReports.repository";
 import {
   StockAdjustmentSummary,
@@ -30,6 +31,17 @@ export async function listWarehouseReports(
 
 export async function getWarehouseReportById(id: string) {
   return findWarehouseReportById(id);
+}
+
+export async function updateWarehouseReportData(
+  id: string,
+  data: UpdateWarehouseReportInput,
+) {
+  return updateWarehouseReportById(id, data);
+}
+
+export async function deleteWarehouseReport(id: string) {
+  return deleteWarehouseReportById(id);
 }
 
 function emptyAdjustmentSummary(): StockAdjustmentSummary {
