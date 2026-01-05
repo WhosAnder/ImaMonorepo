@@ -8,6 +8,28 @@ import { Plus, FileText, Package, TrendingUp } from "lucide-react";
 import type { WorkReportListItem } from "@/features/reports/types/workReportList";
 import { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
 
+const RECENT_LIMIT = 5;
+const RECENT_STALE_TIME = 1000 * 60 * 5;
+const RECENT_CACHE_TIME = 1000 * 60 * 30;
+
+type ReportTimestampSource = {
+  createdAt?: string;
+  fechaHoraInicio?: string;
+  fechaHoraEntrega?: string;
+  fecha?: string;
+};
+
+function getReportTimestamp(report: ReportTimestampSource) {
+  const raw =
+    report.createdAt ||
+    report.fechaHoraEntrega ||
+    report.fechaHoraInicio ||
+    report.fecha;
+  if (!raw) return 0;
+  const timestamp = Date.parse(raw);
+  return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
 interface PaginatedResponse<T> {
   data: T[];
   total: number;
@@ -21,41 +43,56 @@ export function AdminDashboard() {
   const { data: workReportsResponse } = useQuery<
     PaginatedResponse<WorkReportListItem>
   >({
-    queryKey: ["workReports"],
-    queryFn: () => apiGet("/api/reports"),
-    enabled: true,
-    refetchOnMount: true,
+    queryKey: ["workReports", "recent", { limit: RECENT_LIMIT }],
+    queryFn: () =>
+      apiGet(`/api/reports?limit=${RECENT_LIMIT}&offset=0`),
+    staleTime: RECENT_STALE_TIME,
+    gcTime: RECENT_CACHE_TIME,
   });
 
   const { data: warehouseReportsResponse } = useQuery<
     PaginatedResponse<WarehouseReportListItem>
   >({
-    queryKey: ["warehouseReports"],
-    queryFn: () => apiGet("/api/warehouse-reports"),
-    enabled: true,
-    refetchOnMount: true,
+    queryKey: ["warehouseReports", "recent", { limit: RECENT_LIMIT }],
+    queryFn: () =>
+      apiGet(`/api/warehouse-reports?limit=${RECENT_LIMIT}&offset=0`),
+    staleTime: RECENT_STALE_TIME,
+    gcTime: RECENT_CACHE_TIME,
   });
 
-  const workReports = workReportsResponse?.data ?? [];
-  const warehouseReports = warehouseReportsResponse?.data ?? [];
+  const workReports =
+    (workReportsResponse?.data ?? []) as (WorkReportListItem &
+      ReportTimestampSource)[];
+  const warehouseReports =
+    (warehouseReportsResponse?.data ?? []) as (WarehouseReportListItem &
+      ReportTimestampSource)[];
   const totalWorkReports = workReportsResponse?.total ?? 0;
   const totalWarehouseReports = warehouseReportsResponse?.total ?? 0;
   const totalReports = totalWorkReports + totalWarehouseReports;
 
   // Merge recent reports from both modules
   const recentActivity = [
-    ...workReports.slice(0, 3).map((r) => ({
-      ...r,
+    ...workReports.map((report) => ({
+      id: report.id,
+      folio: report.folio,
+      subsistema: report.subsistema,
+      fecha: report.fecha,
       type: "Trabajo" as const,
-      href: `/reports/${r.id}`,
+      href: `/reports/${report.id}`,
+      timestamp: getReportTimestamp(report),
     })),
-    ...warehouseReports.slice(0, 3).map((r) => ({
-      ...r,
+    ...warehouseReports.map((report) => ({
+      id: report.id,
+      folio: report.folio,
+      subsistema: report.subsistema,
+      fecha: report.fechaEntrega,
       type: "Almacén" as const,
-      href: `/warehouse/${r.id}`,
-      fecha: r.fechaEntrega,
+      href: `/warehouse/${report.id}`,
+      timestamp: getReportTimestamp(report),
     })),
-  ].slice(0, 6);
+  ]
+    .sort((a, b) => b.timestamp - a.timestamp)
+    .slice(0, RECENT_LIMIT);
 
   return (
     <div className="space-y-6">
@@ -101,9 +138,9 @@ export function AdminDashboard() {
           Actividad reciente
         </h2>
         <div className="space-y-3">
-          {recentActivity.map((item, idx) => (
+          {recentActivity.map((item) => (
             <div
-              key={idx}
+              key={`${item.type}-${item.id}`}
               className="flex items-center justify-between py-3 border-b last:border-0"
             >
               <div className="flex-1">
