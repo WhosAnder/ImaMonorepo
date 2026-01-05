@@ -7,6 +7,7 @@ import { themes } from "@/shared/theme/colors";
 import { Plus, FileText, Package, TrendingUp } from "lucide-react";
 import type { WorkReportListItem } from "@/features/reports/types/workReportList";
 import { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const RECENT_LIMIT = 5;
 const RECENT_STALE_TIME = 1000 * 60 * 5;
@@ -40,7 +41,7 @@ interface PaginatedResponse<T> {
 export function AdminDashboard() {
   const themeColor = themes.admin.primary;
 
-  const { data: workReportsResponse } = useQuery<
+  const { data: workReportsResponse, isLoading: isWorkReportsLoading } = useQuery<
     PaginatedResponse<WorkReportListItem>
   >({
     queryKey: ["workReports", "recent", { limit: RECENT_LIMIT }],
@@ -50,7 +51,10 @@ export function AdminDashboard() {
     gcTime: RECENT_CACHE_TIME,
   });
 
-  const { data: warehouseReportsResponse } = useQuery<
+  const {
+    data: warehouseReportsResponse,
+    isLoading: isWarehouseReportsLoading,
+  } = useQuery<
     PaginatedResponse<WarehouseReportListItem>
   >({
     queryKey: ["warehouseReports", "recent", { limit: RECENT_LIMIT }],
@@ -69,6 +73,8 @@ export function AdminDashboard() {
   const totalWorkReports = workReportsResponse?.total ?? 0;
   const totalWarehouseReports = warehouseReportsResponse?.total ?? 0;
   const totalReports = totalWorkReports + totalWarehouseReports;
+  const isRecentActivityLoading =
+    isWorkReportsLoading || isWarehouseReportsLoading;
 
   // Merge recent reports from both modules
   const recentActivity = [
@@ -137,42 +143,67 @@ export function AdminDashboard() {
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Actividad reciente
         </h2>
-        <div className="space-y-3">
-          {recentActivity.map((item) => (
-            <div
-              key={`${item.type}-${item.id}`}
-              className="flex items-center justify-between py-3 border-b last:border-0"
-            >
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span
-                    className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-white"
-                    style={{
-                      backgroundColor:
-                        item.type === "Trabajo"
-                          ? themes.work.primary
-                          : themes.warehouse.primary,
-                    }}
-                  >
-                    {item.type}
-                  </span>
-                  <span className="font-medium text-gray-900">
-                    {item.folio}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">{item.subsistema}</p>
-                <p className="text-xs text-gray-400 mt-0.5">{item.fecha}</p>
-              </div>
-              <Link
-                href={item.href}
-                className="text-sm font-medium hover:underline"
-                style={{ color: themeColor }}
+        {isRecentActivityLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: RECENT_LIMIT }).map((_, idx) => (
+              <div
+                key={`recent-activity-skeleton-${idx}`}
+                className="flex items-center justify-between py-3 border-b last:border-0"
               >
-                Ver
-              </Link>
-            </div>
-          ))}
-        </div>
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-5 w-16" />
+                    <Skeleton className="h-5 w-24" />
+                  </div>
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+                <Skeleton className="h-4 w-10" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {recentActivity.map((item) => (
+              <div
+                key={`${item.type}-${item.id}`}
+                className="flex items-center justify-between py-3 border-b last:border-0"
+              >
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium text-white"
+                      style={{
+                        backgroundColor:
+                          item.type === "Trabajo"
+                            ? themes.work.primary
+                            : themes.warehouse.primary,
+                      }}
+                    >
+                      {item.type}
+                    </span>
+                    <span className="font-medium text-gray-900">
+                      {item.folio}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {item.subsistema}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {item.fecha}
+                  </p>
+                </div>
+                <Link
+                  href={item.href}
+                  className="text-sm font-medium hover:underline"
+                  style={{ color: themeColor }}
+                >
+                  Ver
+                </Link>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Quick Actions */}
@@ -193,7 +224,7 @@ export function AdminDashboard() {
             <span className="font-medium">Nuevo reporte de trabajo</span>
           </Link>
           <Link
-            href="/warehouse/new"
+            href="/almacen/new"
             className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 hover:bg-gray-50 transition-colors"
             style={{
               borderColor: themes.warehouse.primary,

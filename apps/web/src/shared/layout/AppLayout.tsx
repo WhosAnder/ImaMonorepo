@@ -9,9 +9,6 @@ import { navConfig } from "@/shared/navigation/navConfig";
 import { themes } from "@/shared/theme/colors";
 import {
   Menu,
-  Search,
-  Bell,
-  ChevronDown,
   LogOut,
   ShieldCheck,
 } from "lucide-react";
@@ -163,28 +160,13 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 </Link>
               )}
 
-              <div className="hidden md:flex items-center bg-gray-100 rounded-lg px-3 py-2 w-64">
-                <Search className="w-4 h-4 text-gray-400 mr-2" />
-                <input
-                  type="text"
-                  placeholder="Buscar..."
-                  className="bg-transparent border-none focus:outline-none text-sm text-gray-700 w-full"
-                />
-              </div>
-
-              <button className="p-2 text-gray-400 hover:text-gray-600 relative">
-                <Bell className="w-5 h-5" />
-                <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white"></span>
-              </button>
-
               <div className="flex items-center pl-4 border-l border-gray-200">
                 <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm mr-2"
+                  className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
                   style={{ backgroundColor: themeColor }}
                 >
                   {user.name.charAt(0)}
                 </div>
-                <ChevronDown className="w-4 h-4 text-gray-400" />
               </div>
             </div>
           </header>
