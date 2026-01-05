@@ -1,6 +1,25 @@
-import { useAuth } from "@/auth/AuthContext";
+import { API_URL } from "@/config/env";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api";
+const AUTH_STORAGE_KEY = "ima_auth_user";
+
+// Helper to get auth headers for protected requests
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  
+  const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+  if (!stored) return {};
+  
+  try {
+    const user = JSON.parse(stored);
+    return {
+      "x-user-id": user.id || "",
+      "x-user-name": user.name || "",
+      "x-user-role": user.role || "user",
+    };
+  } catch {
+    return {};
+  }
+}
 
 export interface Worker {
   _id: string;
@@ -27,17 +46,27 @@ export async function listWorkers(
   if (search) params.append("q", search);
   if (includeInactive) params.append("includeInactive", "true");
 
-  const res = await fetch(`${API_URL}/workers?${params.toString()}`, {
+  const res = await fetch(`${API_URL}/api/workers?${params.toString()}`, {
     credentials: "include",
+    headers: {
+      ...getAuthHeaders(),
+    },
   });
-  if (!res.ok) throw new Error("Failed to fetch workers");
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("Failed to fetch workers:", res.status, errorText);
+    throw new Error(`Failed to fetch workers: ${res.status} ${errorText}`);
+  }
   return res.json();
 }
 
 export async function createWorker(data: CreateWorkerInput): Promise<Worker> {
-  const res = await fetch(`${API_URL}/workers`, {
+  const res = await fetch(`${API_URL}/api/workers`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
     credentials: "include",
     body: JSON.stringify(data),
   });
@@ -49,9 +78,12 @@ export async function updateWorker(
   id: string,
   data: UpdateWorkerInput
 ): Promise<Worker> {
-  const res = await fetch(`${API_URL}/workers/${id}`, {
+  const res = await fetch(`${API_URL}/api/workers/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: { 
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
     credentials: "include",
     body: JSON.stringify(data),
   });
@@ -60,8 +92,11 @@ export async function updateWorker(
 }
 
 export async function deleteWorker(id: string): Promise<Worker> {
-  const res = await fetch(`${API_URL}/workers/${id}`, {
+  const res = await fetch(`${API_URL}/api/workers/${id}`, {
     method: "DELETE",
+    headers: {
+      ...getAuthHeaders(),
+    },
     credentials: "include",
   });
   if (!res.ok) throw new Error("Failed to delete worker");

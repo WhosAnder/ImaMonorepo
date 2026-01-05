@@ -16,7 +16,20 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// Simple Card component to match almacen/new UX
+const Card = ({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) => (
+  <div
+    className={`w-full rounded-xl border border-gray-200 bg-white text-gray-950 shadow-sm ${className}`}
+  >
+    {children}
+  </div>
+);
 import {
   Select,
   SelectContent,
@@ -35,6 +48,7 @@ import { Template } from '@/types/template';
 import { WorkReportPreview } from '../components/WorkReportPreview';
 import { useAuth } from '@/auth/AuthContext';
 import type { WarehouseItem } from "@/api/warehouseClient";
+import { uploadEvidence } from '@/api/evidencesClient';
 
 
 
@@ -102,9 +116,12 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
   // Fetch existing report data when in edit mode
   const { data: existingReport, isLoading: isLoadingReport } = useWorkReportQuery(reportId || '');
 
-  const initialFormValues: WorkReportFormValues = {
+  const initialFormValues = {
+    subsistema: '',
+    ubicacion: '',
     fechaHoraInicio: new Date().toISOString().slice(0, 16),
     turno: '',
+    frecuencia: '',
     trabajadores: [],
     actividadesRealizadas: [],
     herramientas: [],
@@ -112,6 +129,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
     nombreResponsable: user?.name || '',
     firmaResponsable: null,
     templateIds: [],
+    observacionesGenerales: '',
   };
 
   const {
@@ -125,7 +143,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
     formState: { errors, isSubmitting },
   } = useForm<WorkReportFormValues>({
     resolver: zodResolver(workReportSchema) as any,
-    defaultValues: initialFormValues
+    defaultValues: initialFormValues as any
   });
 
   const fechaHoraInicio = watch('fechaHoraInicio');
@@ -144,14 +162,22 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
     frecuenciaCodigo: frecuencia || undefined,
   });
 
-  // Fetch workers
-  const { data: workers = [] } = useWorkers();
-  const workerOptions = useMemo(() => 
-    workers
+  // Fetch workers - include inactive to show all workers
+  const { data: workers = [], isLoading: isLoadingWorkers, error: workersError } = useWorkers(undefined, true);
+  const workerOptions = useMemo(() => {
+    if (!workers || workers.length === 0) return [];
+    return workers
       .filter(w => w.active)
-      .map(w => ({ value: w.name, label: w.name })),
-    [workers]
-  );
+      .map(w => ({ value: w.name, label: w.name }));
+  }, [workers]);
+  
+  // Log for debugging
+  useEffect(() => {
+    if (workersError) {
+      console.error('Error fetching workers:', workersError);
+    }
+    console.log('Workers data:', { workers, workerOptions, isLoadingWorkers });
+  }, [workers, workerOptions, isLoadingWorkers, workersError]);
 
   // Fetch inventory
   const { data: warehouseItems = [], isLoading: loadingInventory } = useWarehouseItems({ status: 'active' });
@@ -315,7 +341,80 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
   const createReportMutation = useCreateWorkReportMutation();
   const updateReportMutation = useUpdateWorkReportMutation();
 
+  /**
+   * Upload evidences from activities to S3 bucket and return evidence info grouped by activity
+   */
+  const uploadAllEvidences = async (
+    reportId: string,
+    activities: ActivityWithDetails[],
+  ): Promise<Map<string, any[]>> => {
+    const selectedActivities = activities.filter(a => a.isSelected);
+    const evidenceMap = new Map<string, any[]>();
+    
+    // Upload evidences for each activity
+    for (const activity of selectedActivities) {
+      if (!activity.evidencias || activity.evidencias.length === 0) {
+        evidenceMap.set(activity.id, []);
+        continue;
+      }
+
+      const activityEvidences: any[] = [];
+      for (const file of activity.evidencias) {
+        if (!(file instanceof File)) continue;
+
+        try {
+          const evidenceInfo = await uploadEvidence({
+            reportId,
+            reportType: "work",
+            file,
+          });
+          activityEvidences.push({
+            id: evidenceInfo.id,
+            key: evidenceInfo.key,
+            originalName: evidenceInfo.originalName,
+            mimeType: evidenceInfo.mimeType,
+            size: evidenceInfo.size,
+          });
+          console.log(`Uploaded evidence for activity: ${activity.name}`, evidenceInfo);
+        } catch (err) {
+          console.error(`Failed to upload evidence for activity ${activity.name}:`, err);
+          // Continue with other uploads even if one fails
+        }
+      }
+      evidenceMap.set(activity.id, activityEvidences);
+    }
+    
+    return evidenceMap;
+  };
+
+  const onError = (errors: any) => {
+    console.error('Form validation errors:', errors);
+    const errorMessages: string[] = [];
+    
+    // Collect all error messages
+    Object.keys(errors).forEach((key) => {
+      const error = errors[key];
+      if (error?.message) {
+        errorMessages.push(error.message);
+      }
+    });
+    
+    if (errorMessages.length > 0) {
+      alert(`Por favor corrige los siguientes errores:\n\n${errorMessages.join('\n')}`);
+    }
+    
+    // Scroll to first error
+    const firstError = Object.keys(errors)[0];
+    if (firstError) {
+      const element = document.querySelector(`[name="${firstError}"]`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  };
+
   const onSubmit = async (data: WorkReportFormValues) => {
+    console.log('onSubmit called with data:', data);
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
     const localISOTime = (new Date(now.getTime() - offset)).toISOString().slice(0, 16);
@@ -323,25 +422,15 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
 
     const selectedActivitiesData = activitiesState.filter(a => a.isSelected);
     
-    // Process activity evidences
-    const actividadesConEvidencias = await Promise.all(
-      selectedActivitiesData.map(async (act) => {
-        const evidencias = await Promise.all(act.evidencias.map(async (file: File) => {
-          return new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(file);
-          });
-        }));
-        return {
-          templateId: act.template._id || act.id,
-          nombre: act.name,
-          realizado: true,
-          observaciones: act.observaciones,
-          evidencias,
-        };
-      })
-    );
+    // For now, send empty evidencias array - they will be uploaded separately after report creation
+    // The backend will link them via the storage system
+    const actividadesConEvidencias = selectedActivitiesData.map((act) => ({
+      templateId: act.template._id || act.id,
+      nombre: act.name,
+      realizado: true,
+      observaciones: act.observaciones,
+      evidencias: [], // Will be uploaded to S3 separately
+    }));
 
     const payload = {
       ...data,
@@ -362,13 +451,47 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
       } else {
         console.log('Creating report...', payload);
         const result = await createReportMutation.mutateAsync(payload as any);
+        const reportIdFromResponse = (result as any)._id;
+        
+        if (reportIdFromResponse) {
+          // Upload evidences to S3 with the new reportId
+          console.log('Uploading evidences to S3...');
+          try {
+            const evidenceMap = await uploadAllEvidences(reportIdFromResponse, activitiesState);
+            console.log('Evidences uploaded successfully', evidenceMap);
+            
+            // Update the report with evidence references
+            const updatedActividades = selectedActivitiesData.map((act) => {
+              const evidences = evidenceMap.get(act.template._id || act.id) || [];
+              return {
+                templateId: act.template._id || act.id,
+                nombre: act.name,
+                realizado: true,
+                observaciones: act.observaciones,
+                evidencias: evidences,
+              };
+            });
+            
+            // Update report with evidence references
+            await updateReportMutation.mutateAsync({
+              id: reportIdFromResponse,
+              data: {
+                actividadesRealizadas: updatedActividades,
+              } as any,
+            });
+            console.log('Report updated with evidence references');
+          } catch (err) {
+            console.error('Error uploading evidences:', err);
+            // Don't block the user - evidences can be uploaded later if needed
+          }
+        }
         
         if (typeof window !== 'undefined') {
           localStorage.removeItem(WORK_REPORT_DRAFT_KEY);
         }
         
         alert('Reporte generado exitosamente');
-        router.push(`/reports/${(result as any)._id}`);
+        router.push(`/reports/${reportIdFromResponse}`);
       }
     } catch (error) {
       console.error(isEditMode ? "Error updating report:" : "Error creating report:", error);
@@ -392,15 +515,14 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
   const hasSelectedActivities = selectedActivities.length > 0;
 
   return (
-    <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-[1600px] mx-auto">
-
-        {/* Page Header */}
+    <div className="min-h-screen bg-white pb-12 font-sans text-gray-900">
+      <div className="max-w-[1600px] mx-auto px-6 py-8">
+        {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
             {isEditMode ? 'Editar Reporte de Trabajo' : 'Formato de trabajo proyecto AEROTREN AICM'}
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-gray-500 mt-2 text-lg">
             {isEditMode 
               ? 'Modifica los datos del reporte y guarda los cambios.'
               : 'Selecciona las actividades realizadas y registra observaciones y evidencias.'
@@ -408,20 +530,25 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
           </p>
         </div>
 
-        <div className="space-y-8">
+        <div className="flex flex-col gap-8">
+          {/* Form Section */}
+          <div className="w-full">
+            <form
+              onSubmit={handleSubmit(onSubmit as any, onError)}
+              className="w-full space-y-6"
+            >
 
-          {/* Form */}
-          <form onSubmit={handleSubmit(onSubmit as any)} className="space-y-6">
-
-            {/* 1. Datos Generales */}
-            <Card>
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#153A7A] text-white flex items-center justify-center text-sm font-bold">1</div>
-                  <CardTitle>Datos generales</CardTitle>
+              {/* Section 1: Datos Generales */}
+              <Card className="p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold text-sm">
+                    1
+                  </div>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Datos generales
+                  </h2>
                 </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
+
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="subsistema">Subsistema</Label>
@@ -441,6 +568,11 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                         </Select>
                       )}
                     />
+                    {errors.subsistema && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.subsistema.message}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="frecuencia">Frecuencia</Label>
@@ -460,60 +592,85 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                         </Select>
                       )}
                     />
+                    {errors.frecuencia && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.frecuencia.message}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="ubicacion">Ubicación</Label>
                     <Input {...register('ubicacion')} placeholder="Ej. Centro de Operación T2 PK N/A" className="w-full" />
+                    {errors.ubicacion && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.ubicacion.message}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label>Trabajadores Involucrados</Label>
-                    <Controller
-                      name="trabajadores"
-                      control={control}
-                      render={({ field }) => (
-                        <MultiSelect
-                          options={workerOptions}
-                          value={field.value}
-                          onChange={field.onChange}
-                          placeholder="Seleccionar..."
-                        />
-                      )}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* 2. Actividades */}
-            {subsistema && frecuencia && (
-              <Card>
-                <CardHeader className="pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#153A7A] text-white flex items-center justify-center text-sm font-bold">2</div>
-                    <CardTitle>Actividades</CardTitle>
-                    {hasSelectedActivities && (
-                      <Badge className="ml-auto bg-[#F0493B] hover:bg-[#F0493B]/90 text-white">
-                        {selectedActivities.length} seleccionada(s)
-                      </Badge>
+                    {isLoadingWorkers ? (
+                      <div className="text-sm text-gray-500">Cargando trabajadores...</div>
+                    ) : workersError ? (
+                      <div className="text-sm text-red-500">Error al cargar trabajadores</div>
+                    ) : (
+                      <Controller
+                        name="trabajadores"
+                        control={control}
+                        render={({ field }) => (
+                          <MultiSelect
+                            options={workerOptions}
+                            value={field.value}
+                            onChange={field.onChange}
+                            placeholder={workerOptions.length === 0 ? "No hay trabajadores disponibles" : "Seleccionar..."}
+                          />
+                        )}
+                      />
+                    )}
+                    {errors.trabajadores && (
+                      <p className="text-red-500 text-xs mt-1">
+                        {errors.trabajadores.message}
+                      </p>
                     )}
                   </div>
-                </CardHeader>
-                <CardContent>
+                </div>
+              </Card>
+
+              {/* Section 2: Actividades */}
+              {subsistema && frecuencia && (
+                <Card className="p-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold text-sm">
+                        2
+                      </div>
+                      <h2 className="text-xl font-semibold text-gray-900">
+                        Actividades
+                      </h2>
+                      {hasSelectedActivities && (
+                        <Badge className="ml-3 bg-[#F0493B] hover:bg-[#F0493B]/90 text-white">
+                          {selectedActivities.length} seleccionada(s)
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+
+                  <div>
                   {isLoadingActivities ? (
-                    <div className="text-center py-8 text-muted-foreground">Cargando actividades...</div>
+                    <div className="text-center py-8 text-gray-500">Cargando actividades...</div>
                   ) : activitiesState.length > 0 ? (
                     <div className="space-y-4">
                       {activitiesState.map((activity) => (
                         <div 
                           key={activity.id} 
-                          className={`border rounded-lg transition-all duration-200 ${
+                          className={`p-4 rounded-lg border transition-all duration-200 relative group ${
                             activity.isSelected 
                               ? 'bg-blue-50/50 border-blue-200 shadow-sm' 
-                              : 'bg-card hover:bg-muted/50 border-border'
+                              : 'bg-gray-50/50 border-gray-100 hover:bg-gray-100/50'
                           }`}
                         >
                           {/* Header: Checkbox + Name */}
-                          <div className="p-4 flex items-start gap-3">
+                          <div className="flex items-start gap-3">
                             <Checkbox
                               checked={activity.isSelected}
                               onCheckedChange={() => toggleActivity(activity.id)}
@@ -521,7 +678,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                             />
                             <div className="flex-1">
                               <div className="flex items-center justify-between">
-                                <span className={`text-sm font-medium ${activity.isSelected ? 'text-blue-900' : 'text-foreground'}`}>
+                                <span className={`text-sm font-medium ${activity.isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
                                   {activity.name}
                                 </span>
                                 {activity.isSelected && (
@@ -531,14 +688,14 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                                 )}
                               </div>
                               {activity.code && (
-                                <p className="text-xs text-muted-foreground mt-0.5">{activity.code}</p>
+                                <p className="text-xs text-gray-500 mt-0.5">{activity.code}</p>
                               )}
                             </div>
                           </div>
 
                           {/* Expanded Content (Visible when selected) */}
                           {activity.isSelected && (
-                            <div className="px-4 pb-4 pt-0 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div className="pt-4 space-y-4">
                               {/* Observations - Full Width */}
                               <div className="space-y-2">
                                 <Label className="text-xs font-semibold text-blue-900">Observaciones</Label>
@@ -567,24 +724,27 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                    <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg text-gray-400 text-sm">
                       No se encontraron actividades para esta selección.
                     </div>
                   )}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* 3. Herramientas y refacciones (OLD LOGIC - MultiSelect) */}
-            {hasSelectedActivities && (
-              <Card>
-                <CardHeader className="pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#153A7A] text-white flex items-center justify-center text-sm font-bold">3</div>
-                    <CardTitle>Herramientas y refacciones</CardTitle>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-6">
+                </Card>
+              )}
+
+              {/* Section 3: Herramientas y refacciones */}
+              {hasSelectedActivities && (
+                <Card className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold text-sm">
+                      3
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Herramientas y refacciones
+                    </h2>
+                  </div>
+
+                  <div className="space-y-6">
                   {/* Herramientas */}
                   <div className="space-y-2">
                     <Label>Herramientas utilizadas</Label>
@@ -618,87 +778,124 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                       )}
                     />
                   </div>
-                </CardContent>
-              </Card>
-            )}
+                  </div>
+                </Card>
+              )}
 
-            {/* 4. Cierre */}
-            {hasSelectedActivities && (
-              <Card>
-                <CardHeader className="pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-[#153A7A] text-white flex items-center justify-center text-sm font-bold">4</div>
-                    <CardTitle>Cierre del reporte</CardTitle>
+              {/* Section 4: Cierre y Firmas */}
+              {hasSelectedActivities && (
+                <Card className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold text-sm">
+                      4
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Cierre y Firmas
+                    </h2>
                   </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Observaciones Generales</Label>
-                    <Textarea
-                      {...register('observacionesGenerales')}
-                      placeholder="Comentarios generales del trabajo realizado..."
-                      rows={3}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Nombre del Supervisor</Label>
-                    <Input
-                      {...register('nombreResponsable')}
-                      placeholder="Nombre completo"
-                      readOnly
-                      className="bg-gray-100 text-gray-600 cursor-not-allowed"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Controller
-                      name="firmaResponsable"
-                      control={control}
-                      render={({ field }) => (
-                        <SignaturePad label="Firma del Supervisor" onChange={field.onChange} />
-                      )}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            )}
 
-            {/* Submit Button */}
-            {hasSelectedActivities && (
-              <div className="flex justify-end pt-4 gap-4">
+                  <div className="space-y-6">
+                    <div>
+                      <Label className="mb-2 block">
+                        Observaciones Generales
+                      </Label>
+                      <Textarea
+                        {...register('observacionesGenerales')}
+                        placeholder="Comentarios generales del trabajo realizado..."
+                        className="min-h-[80px]"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-6 pt-4 border-t border-gray-100">
+                      <div>
+                        <Label className="mb-2 block">
+                          Nombre del Supervisor
+                        </Label>
+                        <Input
+                          {...register('nombreResponsable')}
+                          placeholder="Nombre completo"
+                          disabled
+                          readOnly
+                          className="bg-gray-50 text-gray-500"
+                        />
+                      </div>
+                      <Card className="p-6">
+                        <div className="space-y-4">
+                          <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wide mb-0">
+                            Firma del Supervisor
+                          </h3>
+                          <Controller
+                            name="firmaResponsable"
+                            control={control}
+                            render={({ field }) => (
+                              <SignaturePad
+                                label="Firma digital"
+                                onChange={field.onChange}
+                              />
+                            )}
+                          />
+                          {errors.firmaResponsable && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors.firmaResponsable.message}
+                            </p>
+                          )}
+                        </div>
+                      </Card>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Submit */}
+              <div className="flex justify-end pt-4">
                 <Button 
                   type="button" 
                   variant="outline" 
                   onClick={handleSaveDraft}
-                  className="border-[#153A7A] text-[#153A7A] hover:bg-[#153A7A]/10"
+                  className="mr-4 border-[#153A7A] text-[#153A7A] hover:bg-[#153A7A]/10"
                 >
                   <Save className="w-5 h-5 mr-2" />
                   Guardar Borrador
                 </Button>
-                <Button 
-                  type="submit" 
-                  size="lg" 
-                  disabled={isSubmitting || updateReportMutation.isPending} 
-                  className="bg-[#153A7A] hover:bg-[#153A7A]/90 text-white"
+                <Button
+                  type="submit"
+                  disabled={isSubmitting || updateReportMutation.isPending || !hasSelectedActivities}
+                  className="px-8 bg-[#153A7A] hover:bg-[#153A7A]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={(e) => {
+                    console.log('Submit button clicked', {
+                      isSubmitting,
+                      isPending: updateReportMutation.isPending,
+                      hasSelectedActivities,
+                      errors: Object.keys(errors),
+                    });
+                    if (!hasSelectedActivities) {
+                      e.preventDefault();
+                      alert('Por favor selecciona al menos una actividad antes de generar el reporte.');
+                      return;
+                    }
+                  }}
                 >
                   <Save className="w-5 h-5 mr-2" />
                   {isSubmitting || updateReportMutation.isPending 
                     ? 'Guardando...' 
                     : isEditMode 
                       ? 'Actualizar Reporte' 
-                      : 'Guardar Reporte'
+                      : 'Generar Reporte'
                   }
                 </Button>
               </div>
-            )}
-
-          </form>
-
-          {/* Preview Section */}
-          <div className="border-t pt-8">
-            <h2 className="text-xl font-bold mb-4 text-foreground">Vista Previa del Reporte</h2>
-            <WorkReportPreview values={previewValues as any} />
+            </form>
           </div>
 
+          {/* Preview Section */}
+          <div className="w-full">
+            <div className="sticky top-8 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <h3 className="mb-4 text-sm font-medium text-gray-500">
+                Vista previa del reporte
+              </h3>
+              <WorkReportPreview values={previewValues as any} />
+            </div>
+          </div>
         </div>
       </div>
     </div>
