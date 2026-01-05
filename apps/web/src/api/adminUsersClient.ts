@@ -1,7 +1,7 @@
 import type { UserRole } from "@/features/auth/types/roles";
 
-const AUTH_BASE_URL =
-  process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:5001/auth";
+const baseUrl = process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:5001";
+const AUTH_BASE_URL = baseUrl.endsWith("/auth") ? baseUrl : `${baseUrl}/auth`;
 
 export type User = {
   id: string;

@@ -2,8 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { authClient } from "@/shared/lib/auth";
 import type { UserRole } from "@/features/auth/types/roles";
 
-const AUTH_BASE_URL =
-  process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:5001/auth";
+const baseUrl = process.env.NEXT_PUBLIC_AUTH_URL || "http://localhost:5001";
+const AUTH_BASE_URL = baseUrl.endsWith("/auth") ? baseUrl : `${baseUrl}/auth`;
 
 export const ADMIN_USERS_KEY = ["admin-users"];
 
