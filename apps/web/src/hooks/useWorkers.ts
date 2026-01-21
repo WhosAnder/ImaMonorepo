@@ -4,6 +4,8 @@ import {
   createWorker,
   updateWorker,
   deleteWorker,
+  toggleWorkerActive,
+  permanentlyDeleteWorker,
   CreateWorkerInput,
   UpdateWorkerInput,
 } from "../api/workersClient";
@@ -47,6 +49,26 @@ export function useDeleteWorker() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteWorker(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: WORKERS_KEYS.lists() });
+    },
+  });
+}
+
+export function useToggleWorkerActive() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => toggleWorkerActive(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: WORKERS_KEYS.lists() });
+    },
+  });
+}
+
+export function usePermanentlyDeleteWorker() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => permanentlyDeleteWorker(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WORKERS_KEYS.lists() });
     },

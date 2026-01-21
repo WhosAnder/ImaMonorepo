@@ -59,9 +59,17 @@ export const WarehouseReportsListPage: React.FC = () => {
       report.subsistema.toLowerCase().includes(searchTerm.toLowerCase()) ||
       report.responsableAlmacen
         .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+        .includes(searchTerm.toLowerCase()) ||
+      report.responsableRecepcion
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase()) ||
+      report.fechaEntrega.toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesSearch;
+    const matchesShift =
+      filterStatus === "all" ||
+      report.turno.toLowerCase() === filterStatus.toLowerCase();
+
+    return matchesSearch && matchesShift;
   });
 
   const handlePrevPage = () => {
@@ -102,7 +110,7 @@ export const WarehouseReportsListPage: React.FC = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
                 type="text"
-                placeholder="Buscar por folio, subsistema o responsable..."
+                placeholder="Buscar por folio, subsistema, almacenista, recibe o fecha..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}

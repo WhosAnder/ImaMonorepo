@@ -102,3 +102,26 @@ export async function deleteWorker(id: string): Promise<Worker> {
   if (!res.ok) throw new Error("Failed to delete worker");
   return res.json();
 }
+
+export async function toggleWorkerActive(id: string): Promise<Worker> {
+  const res = await fetch(`${API_URL}/api/workers/${id}/toggle`, {
+    method: "PATCH",
+    headers: {
+      ...getAuthHeaders(),
+    },
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to toggle worker status");
+  return res.json();
+}
+
+export async function permanentlyDeleteWorker(id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/api/workers/${id}?permanent=true`, {
+    method: "DELETE",
+    headers: {
+      ...getAuthHeaders(),
+    },
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Failed to permanently delete worker");
+}
