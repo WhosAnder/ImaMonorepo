@@ -110,6 +110,9 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
   const [activitiesState, setActivitiesState] = useState<ActivityWithDetails[]>([]);
   const [draftStatus, setDraftStatus] = useState<'empty' | 'loaded'>('empty');
   const draftRestorationGuardRef = useRef(false);
+  const [customSubsistema, setCustomSubsistema] = useState('');
+  const [customFrecuencia, setCustomFrecuencia] = useState('');
+  const [customActivities, setCustomActivities] = useState<ActivityWithDetails[]>([]);
   
   const isEditMode = Boolean(reportId);
   
@@ -152,14 +155,28 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
 
   const { data: filtersData, isLoading: isLoadingFilters } = useTemplateFilters('work');
   const subsystems = filtersData?.subsistemas || [];
+  
+  // Add "Otros" option to subsystems list
+  const subsystemsWithOtros = useMemo(() => {
+    return [...subsystems, 'Otros'];
+  }, [subsystems]);
+  
+  // Check if "Otros" is selected
+  const isOtrosSelected = subsistema === 'Otros';
+  
+  // Effective subsystem for API calls
+  const effectiveSubsistema = isOtrosSelected ? customSubsistema : subsistema;
+  
+  // Effective frequency for API calls
+  const effectiveFrecuencia = isOtrosSelected ? customFrecuencia : frecuencia;
 
-  const { data: freqData, isLoading: isLoadingFreq } = useTemplateFilters('work', subsistema || undefined);
+  const { data: freqData, isLoading: isLoadingFreq } = useTemplateFilters('work', effectiveSubsistema || undefined);
   const frequencies = freqData?.frecuencias || [];
 
   const { data: activities, isLoading: isLoadingActivities } = useActivitiesBySubsystemAndFrequency({
     tipoReporte: 'work',
-    subsistema: subsistema || undefined,
-    frecuenciaCodigo: frecuencia || undefined,
+    subsistema: effectiveSubsistema || undefined,
+    frecuenciaCodigo: effectiveFrecuencia || undefined,
   });
 
   // Fetch workers - include inactive to show all workers
@@ -266,6 +283,14 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
     setValue('templateIds', selected.map(a => a.template._id || a.id));
   }, [activitiesState, setValue]);
 
+  // Sync custom frequency with form field when "Otros" is selected
+  useEffect(() => {
+    if (isOtrosSelected) {
+      if (customSubsistema) setValue('subsistema', customSubsistema);
+      if (customFrecuencia) setValue('frecuencia', customFrecuencia);
+    }
+  }, [isOtrosSelected, customSubsistema, customFrecuencia, setValue]);
+
   // Load draft on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -309,6 +334,43 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
   const updateActivityEvidencias = (id: string, files: any[]) => {
     const fileObjects = files.map(f => f.file).filter(Boolean) as File[];
     setActivitiesState(prev => prev.map(a => 
+      a.id === id ? { ...a, evidencias: fileObjects } : a
+    ));
+  };
+
+  // Custom activities helper functions
+  const addCustomActivity = () => {
+    const newActivity: ActivityWithDetails = {
+      id: `custom-${Date.now()}`,
+      name: '',
+      template: {} as Template,
+      isSelected: true,
+      observaciones: '',
+      evidencias: [],
+      expanded: true,
+    };
+    setCustomActivities(prev => [...prev, newActivity]);
+  };
+
+  const removeCustomActivity = (id: string) => {
+    setCustomActivities(prev => prev.filter(a => a.id !== id));
+  };
+
+  const updateCustomActivityName = (id: string, name: string) => {
+    setCustomActivities(prev => prev.map(a => 
+      a.id === id ? { ...a, name } : a
+    ));
+  };
+
+  const updateCustomActivityObservaciones = (id: string, observaciones: string) => {
+    setCustomActivities(prev => prev.map(a => 
+      a.id === id ? { ...a, observaciones } : a
+    ));
+  };
+
+  const updateCustomActivityEvidencias = (id: string, files: any[]) => {
+    const fileObjects = files.map(f => f.file).filter(Boolean) as File[];
+    setCustomActivities(prev => prev.map(a => 
       a.id === id ? { ...a, evidencias: fileObjects } : a
     ));
   };
@@ -420,7 +482,10 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
     const localISOTime = (new Date(now.getTime() - offset)).toISOString().slice(0, 16);
     data.fechaHoraTermino = localISOTime;
 
-    const selectedActivitiesData = activitiesState.filter(a => a.isSelected);
+    // Use custom activities when "Otros" is selected, otherwise use template-based activities
+    const selectedActivitiesData = isOtrosSelected 
+      ? customActivities 
+      : activitiesState.filter(a => a.isSelected);
     
     // For now, send empty evidencias array - they will be uploaded separately after report creation
     // The backend will link them via the storage system
@@ -434,6 +499,8 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
 
     const payload = {
       ...data,
+      subsistema: effectiveSubsistema, // Use custom subsystem if "Otros" is selected
+      frecuencia: effectiveFrecuencia, // Use custom frequency if "Otros" is selected
       actividadesRealizadas: actividadesConEvidencias,
       templateIds: selectedActivitiesData.map(a => a.template._id || a.id),
       tipoMantenimiento: selectedActivitiesData[0]?.template.tipoMantenimiento || 'Preventivo',
@@ -500,7 +567,9 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
   };
 
   const watchedValues = watch();
-  const selectedActivities = activitiesState.filter(a => a.isSelected);
+  const selectedActivities = isOtrosSelected 
+    ? customActivities 
+    : activitiesState.filter(a => a.isSelected);
   
   const previewValues = {
     ...watchedValues,
@@ -556,16 +625,39 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                       name="subsistema"
                       control={control}
                       render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value} disabled={isLoadingFilters}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Seleccionar..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {subsystems.map(sub => (
-                              <SelectItem key={sub} value={sub}>{sub}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                        <>
+                          <Select 
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              if (value !== 'Otros') {
+                                setCustomSubsistema('');
+                                setCustomFrecuencia('');
+                              }
+                            }} 
+                            value={field.value} 
+                            disabled={isLoadingFilters}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder="Seleccionar..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {subsystemsWithOtros.map(sub => (
+                                <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          
+                          {isOtrosSelected && (
+                            <div className="mt-2">
+                              <Input
+                                placeholder="Especifica el subsistema..."
+                                value={customSubsistema}
+                                onChange={(e) => setCustomSubsistema(e.target.value)}
+                                className="w-full"
+                              />
+                            </div>
+                          )}
+                        </>
                       )}
                     />
                     {errors.subsistema && (
@@ -576,22 +668,37 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="frecuencia">Frecuencia</Label>
-                    <Controller
-                      name="frecuencia"
-                      control={control}
-                      render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value} disabled={!subsistema || isLoadingFreq}>
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder={subsistema ? 'Seleccionar...' : 'Selecciona un subsistema'} />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {frequencies.map(freq => (
-                              <SelectItem key={freq.code} value={freq.code}>{freq.label}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
+                    {isOtrosSelected ? (
+                      // Show text input when "Otros" is selected
+                      <Input
+                        placeholder="Especifica la frecuencia..."
+                        value={customFrecuencia}
+                        onChange={(e) => setCustomFrecuencia(e.target.value)}
+                        className="w-full"
+                      />
+                    ) : (
+                      // Show dropdown for regular subsystems
+                      <Controller
+                        name="frecuencia"
+                        control={control}
+                        render={({ field }) => (
+                          <Select 
+                            onValueChange={field.onChange} 
+                            value={field.value} 
+                            disabled={!effectiveSubsistema || isLoadingFreq}
+                          >
+                            <SelectTrigger className="w-full">
+                              <SelectValue placeholder={effectiveSubsistema ? 'Seleccionar...' : 'Selecciona un subsistema'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {frequencies.map(freq => (
+                                <SelectItem key={freq.code} value={freq.code}>{freq.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                      />
+                    )}
                     {errors.frecuencia && (
                       <p className="text-red-500 text-xs mt-1">
                         {errors.frecuencia.message}
@@ -637,7 +744,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
               </Card>
 
               {/* Section 2: Actividades */}
-              {subsistema && frecuencia && (
+              {effectiveSubsistema && effectiveFrecuencia && (
                 <Card className="p-6">
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center gap-3">
@@ -656,7 +763,76 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                   </div>
 
                   <div>
-                  {isLoadingActivities ? (
+                  {isOtrosSelected ? (
+                    // Custom activities for "Otros" subsystem
+                    <div className="space-y-4">
+                      {customActivities.map((activity) => (
+                        <div 
+                          key={activity.id} 
+                          className="p-4 rounded-lg border bg-blue-50/50 border-blue-200 shadow-sm"
+                        >
+                          {/* Header: Activity Name Input + Delete Button */}
+                          <div className="flex items-start gap-3 mb-4">
+                            <div className="flex-1">
+                              <Label className="text-xs font-semibold text-blue-900 mb-2 block">
+                                Nombre de la actividad
+                              </Label>
+                              <Input
+                                placeholder="Ej. Revisión de sistema eléctrico..."
+                                value={activity.name}
+                                onChange={(e) => updateCustomActivityName(activity.id, e.target.value)}
+                                className="bg-white"
+                              />
+                            </div>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeCustomActivity(activity.id)}
+                              className="text-red-600 hover:text-red-800 hover:bg-red-50 mt-6"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+
+                          {/* Observations */}
+                          <div className="space-y-2 mb-4">
+                            <Label className="text-xs font-semibold text-blue-900">Observaciones</Label>
+                            <Textarea
+                              value={activity.observaciones}
+                              onChange={(e) => updateCustomActivityObservaciones(activity.id, e.target.value)}
+                              placeholder="Escribe observaciones para esta actividad..."
+                              className="bg-white min-h-[80px]"
+                            />
+                          </div>
+
+                          {/* Evidences */}
+                          <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-blue-900">
+                              Evidencias Fotográficas (máx. 5)
+                            </Label>
+                            <div className="bg-white p-3 rounded-lg border border-blue-100">
+                              <ImageUpload
+                                label=""
+                                onChange={(files) => updateCustomActivityEvidencias(activity.id, files)}
+                                compact
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={addCustomActivity}
+                        className="w-full"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Agregar Actividad
+                      </Button>
+                    </div>
+                  ) : isLoadingActivities ? (
                     <div className="text-center py-8 text-gray-500">Cargando actividades...</div>
                   ) : activitiesState.length > 0 ? (
                     <div className="space-y-4">
