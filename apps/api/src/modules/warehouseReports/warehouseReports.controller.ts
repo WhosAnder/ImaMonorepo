@@ -82,10 +82,56 @@ export async function getWarehouseReportByIdController(c: Context) {
   }
 }
 
+/**
+ * Validate that no base64 data is present in warehouse report data
+ */
+function validateNoBase64Data(data: any): void {
+  // Check evidences in herramientas and refacciones
+  const checkItems = (items: any[], fieldName: string) => {
+    for (const item of items || []) {
+      for (const evidence of item.evidences || []) {
+        if (
+          evidence.base64 ||
+          (typeof evidence.previewUrl === "string" &&
+            evidence.previewUrl.startsWith("data:"))
+        ) {
+          throw new Error(
+            `Base64 data found in ${fieldName} evidences. All images must be uploaded to S3 before creating the report.`,
+          );
+        }
+      }
+    }
+  };
+
+  checkItems(data.herramientas, "herramientas");
+  checkItems(data.refacciones, "refacciones");
+
+  // Check signatures
+  const checkSignature = (signature: string | undefined, name: string) => {
+    if (
+      signature &&
+      typeof signature === "string" &&
+      signature.startsWith("data:")
+    ) {
+      throw new Error(
+        `Base64 data found in ${name}. Signature must be uploaded to S3 before creating the report.`,
+      );
+    }
+  };
+
+  checkSignature(data.firmaQuienRecibe, "firmaQuienRecibe");
+  checkSignature(data.firmaAlmacenista, "firmaAlmacenista");
+  checkSignature(data.firmaQuienEntrega, "firmaQuienEntrega");
+}
+
 export async function createWarehouseReportController(c: Context) {
   try {
     const body = await c.req.json();
     const validatedData = WarehouseReportSchema.parse(body);
+
+    // Validate no base64 data
+    validateNoBase64Data(validatedData);
+
     const actor = getRequestUser(c);
 
     type WarehouseItemInput = Partial<WarehouseItem> &
@@ -125,7 +171,7 @@ export async function updateWarehouseReportController(c: Context) {
   const id = c.req.param("id");
   try {
     const body = await c.req.json();
-    
+
     // Check if report exists first
     const existing = await getWarehouseReportById(id);
     if (!existing) {
@@ -134,7 +180,7 @@ export async function updateWarehouseReportController(c: Context) {
 
     // Validate incoming data (partial validation for updates)
     const validatedData = WarehouseReportSchema.partial().parse(body);
-    
+
     // Filter and convert null to undefined for compatibility
     const updateData: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(validatedData)) {

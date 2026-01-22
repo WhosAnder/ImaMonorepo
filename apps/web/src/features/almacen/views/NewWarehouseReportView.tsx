@@ -16,6 +16,8 @@ import {
 import { createWarehouseReport } from "@/api/reportsClient";
 import { Save, Plus, Trash2, Check, ChevronsUpDown } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
+import { uploadSignaturesToS3 } from "../helpers/upload-signatures";
+import { uploadEvidencesForItem } from "../helpers/upload-evidences";
 
 const SUBSYSTEMS = [
   "EQUIPO DE GUIA/ TRABAJO DE GUIA",
@@ -29,12 +31,14 @@ const SUBSYSTEMS = [
   "EQUIPO DE MANTENIMIENTO",
 ];
 
-const WAREHOUSE_REPORT_DRAFT_KEY = 'warehouse_report_draft';
+const WAREHOUSE_REPORT_DRAFT_KEY = "warehouse_report_draft";
 
-const convertSignatureToBase64 = async (signatureUrl: string | null): Promise<string | null> => {
+const convertSignatureToBase64 = async (
+  signatureUrl: string | null,
+): Promise<string | null> => {
   if (!signatureUrl) return null;
-  if (signatureUrl.startsWith('data:image')) return signatureUrl;
-  
+  if (signatureUrl.startsWith("data:image")) return signatureUrl;
+
   try {
     const response = await fetch(signatureUrl);
     const blob = await response.blob();
@@ -44,33 +48,38 @@ const convertSignatureToBase64 = async (signatureUrl: string | null): Promise<st
       reader.readAsDataURL(blob);
     });
   } catch (error) {
-    console.error('Error converting signature:', error);
+    console.error("Error converting signature:", error);
     return null;
   }
 };
 
 const prepareWarehouseItemsEvidence = async (items: any[]) => {
-  return Promise.all(items.map(async (item) => {
-    const evidences = await Promise.all((item.evidences || []).map(async (file: any) => {
-      if (typeof file === 'string') return file;
-      // If it's already a base64 object from image upload
-      if (file.base64) return file;
-      
-      return new Promise<any>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve({
-            base64: reader.result as string,
-            name: file.name,
-            type: file.type
-        });
-        reader.readAsDataURL(file);
-      });
-    }));
-    return {
-      ...item,
-      evidences
-    };
-  }));
+  return Promise.all(
+    items.map(async (item) => {
+      const evidences = await Promise.all(
+        (item.evidences || []).map(async (file: any) => {
+          if (typeof file === "string") return file;
+          // If it's already a base64 object from image upload
+          if (file.base64) return file;
+
+          return new Promise<any>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () =>
+              resolve({
+                base64: reader.result as string,
+                name: file.name,
+                type: file.type,
+              });
+            reader.readAsDataURL(file);
+          });
+        }),
+      );
+      return {
+        ...item,
+        evidences,
+      };
+    }),
+  );
 };
 
 // Shadcn-like components (internal for now as we don't have the full library)
@@ -150,7 +159,7 @@ Textarea.displayName = "Textarea";
 export const NewWarehouseReportPage: React.FC = () => {
   const router = useRouter();
   const { user } = useAuth();
-  const [draftStatus, setDraftStatus] = useState<'empty' | 'loaded'>('empty');
+  const [draftStatus, setDraftStatus] = useState<"empty" | "loaded">("empty");
   const draftRestorationGuardRef = useRef(false);
 
   // Fetch inventory - all active items are available for both sections
@@ -173,7 +182,11 @@ export const NewWarehouseReportPage: React.FC = () => {
     resolver: zodResolver(warehouseReportSchema) as any,
     defaultValues: {
       subsistema: "",
-      fechaHoraEntrega: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
+      fechaHoraEntrega: new Date(
+        new Date().getTime() - new Date().getTimezoneOffset() * 60000,
+      )
+        .toISOString()
+        .slice(0, 16),
       turno: "",
       nombreQuienRecibe: "",
       nombreAlmacenista: "",
@@ -226,23 +239,25 @@ export const NewWarehouseReportPage: React.FC = () => {
 
   // Load draft on mount
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     const savedDraft = localStorage.getItem(WAREHOUSE_REPORT_DRAFT_KEY);
     if (savedDraft) {
-      const shouldLoad = window.confirm('Se encontró un borrador guardado. ¿Deseas cargarlo?');
+      const shouldLoad = window.confirm(
+        "Se encontró un borrador guardado. ¿Deseas cargarlo?",
+      );
       if (shouldLoad) {
         try {
           const parsed = JSON.parse(savedDraft);
           if (parsed.formValues) {
             draftRestorationGuardRef.current = true;
             reset(parsed.formValues);
-            setDraftStatus('loaded');
+            setDraftStatus("loaded");
             setTimeout(() => {
-                draftRestorationGuardRef.current = false;
+              draftRestorationGuardRef.current = false;
             }, 500);
           }
         } catch (e) {
-          console.error('Error loading draft', e);
+          console.error("Error loading draft", e);
         }
       } else {
         localStorage.removeItem(WAREHOUSE_REPORT_DRAFT_KEY);
@@ -251,20 +266,30 @@ export const NewWarehouseReportPage: React.FC = () => {
   }, [reset]);
 
   const handleSaveDraft = async () => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     try {
       const currentValues = getValues();
-      
+
       // Process evidences
-      const herramientas = await prepareWarehouseItemsEvidence(currentValues.herramientas || []);
-      const refacciones = await prepareWarehouseItemsEvidence(currentValues.refacciones || []);
-      
+      const herramientas = await prepareWarehouseItemsEvidence(
+        currentValues.herramientas || [],
+      );
+      const refacciones = await prepareWarehouseItemsEvidence(
+        currentValues.refacciones || [],
+      );
+
       // Process signatures
-      const firmaQuienRecibe = await convertSignatureToBase64(currentValues.firmaQuienRecibe || null);
-      const firmaAlmacenista = await convertSignatureToBase64(currentValues.firmaAlmacenista || null);
-      const firmaQuienEntrega = await convertSignatureToBase64(currentValues.firmaQuienEntrega || null);
-      
+      const firmaQuienRecibe = await convertSignatureToBase64(
+        currentValues.firmaQuienRecibe || null,
+      );
+      const firmaAlmacenista = await convertSignatureToBase64(
+        currentValues.firmaAlmacenista || null,
+      );
+      const firmaQuienEntrega = await convertSignatureToBase64(
+        currentValues.firmaQuienEntrega || null,
+      );
+
       const draftPayload = {
         formValues: {
           ...currentValues,
@@ -277,39 +302,105 @@ export const NewWarehouseReportPage: React.FC = () => {
         timestamp: new Date().toISOString(),
       };
 
-      localStorage.setItem(WAREHOUSE_REPORT_DRAFT_KEY, JSON.stringify(draftPayload));
-      alert('Borrador guardado correctamente');
+      localStorage.setItem(
+        WAREHOUSE_REPORT_DRAFT_KEY,
+        JSON.stringify(draftPayload),
+      );
+      alert("Borrador guardado correctamente");
     } catch (error) {
-      console.error('Error saving draft:', error);
-      alert('No se pudo guardar el borrador');
+      console.error("Error saving draft:", error);
+      alert("No se pudo guardar el borrador");
     }
   };
 
   const onSubmit = async (data: WarehouseReportFormValues) => {
     try {
+      console.log("Starting warehouse report submission...");
+
+      // Generate temp UUID for S3 paths
+      const tempReportId = crypto.randomUUID();
+      console.log("Generated temp report ID:", tempReportId);
+
+      // Step 1: Upload signatures to S3 signatures bucket
+      console.log("Uploading signatures to S3...");
+      const signatureUploadResult = await uploadSignaturesToS3(
+        {
+          firmaQuienRecibe: data.firmaQuienRecibe ?? undefined,
+          firmaAlmacenista: data.firmaAlmacenista ?? undefined,
+          firmaQuienEntrega: data.firmaQuienEntrega ?? undefined,
+        },
+        tempReportId,
+        data.subsistema,
+        data.fechaHoraEntrega,
+      );
+      console.log("Signatures uploaded:", signatureUploadResult);
+
+      // Step 2: Upload tool evidences to S3 evidences bucket
+      console.log("Uploading tool evidences...");
+      const herramientas = await Promise.all(
+        (data.herramientas || []).map(async (tool) => {
+          const uploadedEvidences = await uploadEvidencesForItem(
+            tool.evidences || [],
+            tempReportId,
+            data.subsistema,
+            "warehouse",
+          );
+          return {
+            ...tool,
+            evidences: uploadedEvidences,
+          };
+        }),
+      );
+      console.log("Tool evidences uploaded");
+
+      // Step 3: Upload part evidences to S3 evidences bucket
+      console.log("Uploading part evidences...");
+      const refacciones = await Promise.all(
+        (data.refacciones || []).map(async (part) => {
+          const uploadedEvidences = await uploadEvidencesForItem(
+            part.evidences || [],
+            tempReportId,
+            data.subsistema,
+            "warehouse",
+          );
+          return {
+            ...part,
+            evidences: uploadedEvidences,
+          };
+        }),
+      );
+      console.log("Part evidences uploaded");
+
+      // Step 4: Create report with clean data (S3 URLs only, no base64)
       const almacenistaName = user?.name ?? data.nombreAlmacenista ?? "";
       const quienEntregaName =
         user?.name ?? data.nombreQuienEntrega ?? almacenistaName;
-      
-      // Get current time in local timezone ISO format
+
       const now = new Date();
       const offset = now.getTimezoneOffset() * 60000;
-      const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
-      
-      // Build payload with required fields for the API
+      const localISOTime = new Date(now.getTime() - offset)
+        .toISOString()
+        .slice(0, 16);
+
       const payload = {
         ...data,
+        herramientas,
+        refacciones,
+        firmaQuienRecibe: signatureUploadResult.firmaQuienRecibe,
+        firmaAlmacenista: signatureUploadResult.firmaAlmacenista,
+        firmaQuienEntrega: signatureUploadResult.firmaQuienEntrega,
         nombreAlmacenista: almacenistaName,
         nombreQuienEntrega: quienEntregaName,
-        fechaHoraRecepcion: localISOTime, // Auto-assign current time
-        tipoMantenimiento: "Preventivo", // Default value, could be added to form if needed
+        fechaHoraRecepcion: localISOTime,
+        tipoMantenimiento: "Preventivo",
       };
 
+      console.log("Creating warehouse report with clean data...");
       const result = await createWarehouseReport(payload);
-      console.log("Warehouse report created:", result);
+      console.log("Warehouse report created successfully:", result);
 
       // Clear draft on success
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         localStorage.removeItem(WAREHOUSE_REPORT_DRAFT_KEY);
       }
 
@@ -794,9 +885,9 @@ export const NewWarehouseReportPage: React.FC = () => {
 
               {/* Submit */}
               <div className="flex justify-end pt-4">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={handleSaveDraft}
                   className="mr-4 border-[#153A7A] text-[#153A7A] hover:bg-[#153A7A]/10"
                 >

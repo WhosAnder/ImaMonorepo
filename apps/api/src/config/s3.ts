@@ -108,3 +108,100 @@ export const getAllowedEvidenceMimeTypes = (): string[] => {
 // Legacy aliases for backward compatibility
 export const getMaxFileSizeBytes = getMaxEvidenceSizeBytes;
 export const getAllowedMimeTypes = getAllowedEvidenceMimeTypes;
+
+// ============================================================================
+// SIGNATURES BUCKET CONFIG
+// ============================================================================
+
+/**
+ * Get signatures bucket name from env
+ */
+export const getS3SignaturesBucket = () =>
+  process.env.S3_SIGNATURES_BUCKET ?? "";
+
+/**
+ * Get S3 endpoint for signatures (may be same or different from evidences)
+ */
+const getS3SignaturesEndpoint = () =>
+  process.env.S3_SIGNATURES_ENDPOINT ??
+  process.env.S3_ENDPOINT ??
+  process.env.AWS_S3_ENDPOINT ??
+  process.env.AWS_ENDPOINT;
+
+/**
+ * Get S3 region for signatures
+ */
+const getS3SignaturesRegion = () =>
+  process.env.S3_SIGNATURES_REGION ??
+  process.env.S3_REGION ??
+  process.env.AWS_REGION ??
+  "auto";
+
+/**
+ * Get S3 credentials for signatures bucket
+ */
+const getS3SignaturesCredentials = () => ({
+  accessKeyId:
+    process.env.S3_SIGNATURES_ACCESS_KEY_ID ??
+    process.env.S3_ACCESS_KEY_ID ??
+    process.env.AWS_ACCESS_KEY_ID ??
+    "",
+  secretAccessKey:
+    process.env.S3_SIGNATURES_SECRET_ACCESS_KEY ??
+    process.env.S3_SECRET_ACCESS_KEY ??
+    process.env.AWS_SECRET_ACCESS_KEY ??
+    "",
+});
+
+/**
+ * Check if S3 signatures bucket is properly configured
+ */
+export const isS3SignaturesConfigured = () => {
+  const endpoint = getS3SignaturesEndpoint();
+  const bucket = getS3SignaturesBucket();
+  const creds = getS3SignaturesCredentials();
+  return Boolean(
+    endpoint && bucket && creds.accessKeyId && creds.secretAccessKey,
+  );
+};
+
+/**
+ * Get or create cached S3Client for signatures bucket
+ */
+let cachedSignaturesClient: S3Client | null = null;
+
+export const getS3SignaturesClient = (): S3Client => {
+  if (cachedSignaturesClient) {
+    return cachedSignaturesClient;
+  }
+
+  const region = getS3SignaturesRegion();
+  const endpoint = getS3SignaturesEndpoint();
+
+  if (!endpoint) {
+    throw new Error(
+      "S3 signatures endpoint not configured. Set S3_SIGNATURES_ENDPOINT env var.",
+    );
+  }
+
+  const credentials = getS3SignaturesCredentials();
+
+  console.log("S3 Signatures credentials check:", {
+    accessKeyId: credentials.accessKeyId?.substring(0, 20) + "...",
+    secretAccessKeyLength: credentials.secretAccessKey?.length,
+    secretAccessKeyStart: credentials.secretAccessKey?.substring(0, 10) + "...",
+    secretAccessKeyEnd: "..." + credentials.secretAccessKey?.slice(-10),
+  });
+
+  cachedSignaturesClient = new S3Client({
+    region,
+    endpoint,
+    credentials,
+    forcePathStyle: true,
+  });
+
+  console.log(
+    `✅ S3 Signatures Client initialized: ${endpoint} (region: ${region})`,
+  );
+  return cachedSignaturesClient;
+};

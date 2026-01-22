@@ -2,7 +2,11 @@
 
 import React, { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useCreateWarehouseReportMutation, useUpdateWarehouseReportMutation, useWarehouseReportQuery } from "@/hooks/useWarehouseReports";
+import {
+  useCreateWarehouseReportMutation,
+  useUpdateWarehouseReportMutation,
+  useWarehouseReportQuery,
+} from "@/hooks/useWarehouseReports";
 import { useWarehouseItems } from "@/hooks/useWarehouse";
 import { useForm, useFieldArray, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -19,6 +23,8 @@ import { createReport } from "../helpers/create-report";
 import { generatePDFReport } from "../helpers/generate-pdf";
 import { uploadEvidence as uploadEvidencePresigned } from "@/api/evidencesClient";
 import { useAuth } from "@/auth/AuthContext";
+import { uploadSignaturesToS3 } from "../helpers/upload-signatures";
+import { uploadEvidencesForItem } from "../helpers/upload-evidences";
 
 const SUBSYSTEMS = [
   "EQUIPO DE GUIA/ TRABAJO DE GUIA",
@@ -36,16 +42,19 @@ interface NewWarehouseReportPageProps {
   reportId?: string;
 }
 
-export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({ reportId }) => {
+export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
+  reportId,
+}) => {
   const router = useRouter();
   const { user } = useAuth();
   const createMutation = useCreateWarehouseReportMutation();
   const updateMutation = useUpdateWarehouseReportMutation();
-  
+
   const isEditMode = Boolean(reportId);
-  
+
   // Fetch existing report data when in edit mode
-  const { data: existingReport, isLoading: isLoadingReport } = useWarehouseReportQuery(reportId || '');
+  const { data: existingReport, isLoading: isLoadingReport } =
+    useWarehouseReportQuery(reportId || "");
 
   // Fetch inventory
   const { data: inventoryItems, isLoading: loadingInventory } =
@@ -70,7 +79,11 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({ 
     resolver: zodResolver(warehouseReportSchema) as any,
     defaultValues: {
       subsistema: "",
-      fechaHoraEntrega: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16),
+      fechaHoraEntrega: new Date(
+        new Date().getTime() - new Date().getTimezoneOffset() * 60000,
+      )
+        .toISOString()
+        .slice(0, 16),
       turno: "",
       nombreQuienRecibe: "",
       nombreAlmacenista: user?.name || "",
@@ -117,105 +130,91 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({ 
     }
   }, [user, setValue]);
 
-  /**
-   * Upload evidences from tools/parts to S3 bucket
-   */
-  const uploadAllEvidences = async (
-    reportId: string,
-    data: WarehouseReportFormValues,
-  ) => {
-    const allEvidences: any[] = [];
-
-    // Collect evidences from herramientas
-    data.herramientas?.forEach((tool: any) => {
-      if (tool.evidences && Array.isArray(tool.evidences)) {
-        allEvidences.push(...tool.evidences);
-      }
-    });
-
-    // Collect evidences from refacciones
-    data.refacciones?.forEach((part: any) => {
-      if (part.evidences && Array.isArray(part.evidences)) {
-        allEvidences.push(...part.evidences);
-      }
-    });
-
-    // Upload each evidence
-    for (const evidence of allEvidences) {
-      if (!evidence) continue;
-
-      // Skip if already uploaded (has remote URL)
-      if (evidence.url && evidence.url.startsWith("http")) continue;
-
-      // Get dataUrl from evidence
-      const dataUrl = evidence.base64 || evidence.previewUrl;
-      if (!dataUrl || !dataUrl.startsWith("data:")) continue;
-
-      try {
-        // Convert dataUrl to File
-        const [header, base64Data] = dataUrl.split(",");
-        const mimeMatch = header.match(/data:(.+);/);
-        const mimeType = mimeMatch?.[1] || "image/jpeg";
-        const byteString = atob(base64Data);
-        const ab = new ArrayBuffer(byteString.length);
-        const ia = new Uint8Array(ab);
-        for (let i = 0; i < byteString.length; i++) {
-          ia[i] = byteString.charCodeAt(i);
-        }
-        const blob = new Blob([ab], { type: mimeType });
-        const file = new File([blob], evidence.name || "evidence.jpg", {
-          type: mimeType,
-        });
-
-        await uploadEvidencePresigned({
-          reportId,
-          reportType: "warehouse",
-          file,
-        });
-      } catch (err) {
-        console.error("Failed to upload evidence:", err);
-      }
-    }
-  };
-
   const onSubmit = async (data: WarehouseReportFormValues) => {
-    // Ensure timezone is correct (local)
-    const now = new Date();
-    const offset = now.getTimezoneOffset() * 60000;
-    const localISOTime = new Date(now.getTime() - offset).toISOString().slice(0, 16);
-    data.fechaHoraEntrega = localISOTime;
+    try {
+      // 1. Generate temp ID for S3 paths (before report creation)
+      const tempReportId = crypto.randomUUID();
 
-    if (isEditMode && reportId) {
-      // Update existing report
-      try {
-        await updateMutation.mutateAsync({ id: reportId, data: data as any });
-        alert("Reporte actualizado exitosamente");
-        router.push(`/almacen/${reportId}`);
-      } catch (error) {
-        console.error("Error updating report:", error);
-        alert("Error al actualizar el reporte");
+      console.log("📤 Step 1/4: Uploading signatures to S3...");
+
+      // 2. Upload ALL signatures first
+      const uploadedSignatures = await uploadSignaturesToS3(
+        {
+          firmaQuienRecibe: data.firmaQuienRecibe || undefined,
+          firmaAlmacenista: data.firmaAlmacenista || undefined,
+          firmaQuienEntrega: data.firmaQuienEntrega || undefined,
+        },
+        tempReportId,
+        data.subsistema,
+        data.fechaHoraEntrega,
+      );
+
+      console.log("✅ Signatures uploaded");
+      console.log("📤 Step 2/4: Uploading tool evidences to S3...");
+
+      // 3. Upload evidences from herramientas
+      const uploadedHerramientas = await Promise.all(
+        (data.herramientas || []).map(async (tool) => {
+          const uploadedEvidences = await uploadEvidencesForItem(
+            tool.evidences || [],
+            tempReportId,
+            data.subsistema,
+            "warehouse",
+          );
+          return {
+            ...tool,
+            evidences: uploadedEvidences,
+          };
+        }),
+      );
+
+      console.log("✅ Tool evidences uploaded");
+      console.log("📤 Step 3/4: Uploading part evidences to S3...");
+
+      // 4. Upload evidences from refacciones
+      const uploadedRefacciones = await Promise.all(
+        (data.refacciones || []).map(async (part) => {
+          const uploadedEvidences = await uploadEvidencesForItem(
+            part.evidences || [],
+            tempReportId,
+            data.subsistema,
+            "warehouse",
+          );
+          return {
+            ...part,
+            evidences: uploadedEvidences,
+          };
+        }),
+      );
+
+      console.log("✅ Part evidences uploaded");
+      console.log("📤 Step 4/4: Creating warehouse report...");
+
+      // 5. Create clean report data with S3 URLs only (no base64)
+      const cleanData = {
+        ...data,
+        firmaQuienRecibe: uploadedSignatures.firmaQuienRecibe || "",
+        firmaAlmacenista: uploadedSignatures.firmaAlmacenista || "",
+        firmaQuienEntrega: uploadedSignatures.firmaQuienEntrega || "",
+        herramientas: uploadedHerramientas,
+        refacciones: uploadedRefacciones,
+      };
+
+      // 6. Create report (lightweight, all images in S3)
+      const { data: report, error } = await createReport(cleanData);
+
+      if (error) {
+        throw new Error(error);
       }
-      return;
-    }
 
-    const { data: report, error } = await createReport(data);
-
-    if (report) {
-      // Upload evidences to S3 with the new reportId
-      const reportIdFromResponse = report._id;
-      if (reportIdFromResponse) {
-        console.log("Uploading evidences to S3...");
-        await uploadAllEvidences(reportIdFromResponse, data);
-        console.log("Evidences uploaded");
-      }
-
+      console.log("✅ Report created successfully!");
       alert("Reporte creado exitosamente");
-      // Generate PDF
-      await generatePDFReport(data);
-    }
 
-    if (error) {
-      alert(error);
+      // Generate PDF
+      await generatePDFReport(cleanData);
+    } catch (error: any) {
+      console.error("❌ Error creating report:", error);
+      alert(error.message || "Error al crear el reporte");
     }
   };
 
@@ -253,7 +252,7 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({ 
                 </div>
                 {/* Hidden Date Field (Auto-set on submit) */}
                 <input type="hidden" {...register("fechaHoraEntrega")} />
-                
+
                 {/* Hidden Turno Field (Auto-calculated) */}
                 <input type="hidden" {...register("turno")} />
 
@@ -287,7 +286,7 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({ 
                   )}
                 />
                 {/* Almacenista Signature Only (Name is auto from user) */}
-                 <Controller
+                <Controller
                   name="firmaAlmacenista"
                   control={control}
                   render={({ field }) => (
@@ -556,7 +555,7 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({ 
                 className="px-8 py-3"
               >
                 <Save className="w-5 h-5 mr-2" />
-                {isEditMode ? 'Actualizar Reporte' : 'Generar Reporte'}
+                {isEditMode ? "Actualizar Reporte" : "Generar Reporte"}
               </Button>
             </div>
           </form>

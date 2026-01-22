@@ -7,6 +7,8 @@ import {
   getS3Client,
   getS3Bucket,
   getMaxEvidenceSizeBytes,
+  getS3SignaturesClient,
+  getS3SignaturesBucket,
 } from "../../config/s3";
 import { storageRepo } from "./storage.repo";
 import {
@@ -230,6 +232,10 @@ export interface CreatePresignedUploadParams {
   mimeType: string;
   size: number;
   createdBy?: string;
+  // Optional params for pre-report uploads
+  subsystem?: string;
+  fechaHoraInicio?: string;
+  skipDbRecord?: boolean; // If true, don't create evidence DB record
 }
 
 export const createPresignedUpload = async (
@@ -240,40 +246,54 @@ export const createPresignedUpload = async (
     throw new Error("S3_BUCKET not configured");
   }
 
-  const report = await lookupReport(params.reportId, params.reportType);
-  if (!report) {
-    throw new Error(`Report not found: ${params.reportId}`);
+  // Try to get subsystem/date from params or lookup report
+  let subsystem = params.subsystem;
+  let fechaHoraInicio = params.fechaHoraInicio;
+
+  if (!subsystem) {
+    const report = await lookupReport(params.reportId, params.reportType);
+    if (report) {
+      subsystem = report.subsistema;
+      fechaHoraInicio = report.fechaHoraInicio;
+    } else {
+      // For temp uploads before report creation, use generic
+      subsystem = "general";
+    }
   }
 
   const keyParts = buildObjectKey({
     reportId: params.reportId,
     reportType: params.reportType,
-    subsystem: report.subsistema,
-    fechaHoraInicio: report.fechaHoraInicio,
+    subsystem: subsystem,
+    fechaHoraInicio,
     originalName: params.originalName,
   });
 
   const maxSize = getMaxEvidenceSizeBytes();
 
-  const evidenceRecord = await storageRepo.create({
-    key: keyParts.key,
-    bucket,
-    originalName: params.originalName,
-    mimeType: params.mimeType,
-    size: params.size,
-    reportId: params.reportId,
-    reportType: params.reportType,
-    subsystem: report.subsistema,
-    subsystemSlug: keyParts.subsystemSlug,
-    date: keyParts.date,
-    year: keyParts.year,
-    month: keyParts.month,
-    day: keyParts.day,
-    datePath: keyParts.datePath,
-    monthKey: keyParts.monthKey,
-    dayKey: keyParts.dayKey,
-    createdBy: params.createdBy,
-  });
+  // Only create DB record if not skipped (for temp uploads, skip DB)
+  let evidenceRecord = null;
+  if (!params.skipDbRecord) {
+    evidenceRecord = await storageRepo.create({
+      key: keyParts.key,
+      bucket,
+      originalName: params.originalName,
+      mimeType: params.mimeType,
+      size: params.size,
+      reportId: params.reportId,
+      reportType: params.reportType,
+      subsystem: subsystem,
+      subsystemSlug: keyParts.subsystemSlug,
+      date: keyParts.date,
+      year: keyParts.year,
+      month: keyParts.month,
+      day: keyParts.day,
+      datePath: keyParts.datePath,
+      monthKey: keyParts.monthKey,
+      dayKey: keyParts.dayKey,
+      createdBy: params.createdBy,
+    });
+  }
 
   const client = getS3Client();
   const { url, fields } = await createPresignedPost(client, {
@@ -290,7 +310,7 @@ export const createPresignedUpload = async (
   });
 
   return {
-    fileId: evidenceRecord._id!.toString(),
+    fileId: evidenceRecord?._id?.toString() || keyParts.key, // Use key if no DB record
     key: keyParts.key,
     bucket,
     upload: { url, fields },
@@ -389,3 +409,145 @@ export const createStorageService = (storageAdapter: StorageAdapter) => ({
 });
 
 export type StorageService = ReturnType<typeof createStorageService>;
+
+// ============================================================================
+// SIGNATURE UPLOAD FUNCTIONS
+// ============================================================================
+
+export type SignatureType = "quien-recibe" | "almacenista" | "quien-entrega";
+
+export interface BuildSignatureKeyParams {
+  reportId: string;
+  reportType: ReportType;
+  subsystem: string;
+  fechaHoraInicio?: string;
+  signatureType: SignatureType;
+}
+
+/**
+ * Build S3 key for signature upload
+ * Path: signatures/{subsystem}/{date}/{reportType}/{reportId}/{signatureType}.png
+ */
+export const buildSignatureKey = (params: BuildSignatureKeyParams) => {
+  const { reportId, reportType, subsystem, fechaHoraInicio, signatureType } =
+    params;
+
+  const subsystemSlug = slugify(subsystem);
+  const { date, year, month, day, monthKey, dayKey, datePath } =
+    getDateParts(fechaHoraInicio);
+
+  const key = `signatures/${subsystemSlug}/${datePath}/${reportType}/${reportId}/${signatureType}.png`;
+
+  return {
+    key,
+    subsystemSlug,
+    datePath,
+    date,
+    year,
+    month,
+    day,
+    monthKey,
+    dayKey,
+  };
+};
+
+export interface CreatePresignedSignatureUploadParams {
+  reportId: string;
+  reportType: ReportType;
+  signatureType: SignatureType;
+  mimeType: string;
+  size: number;
+  subsystem?: string; // Optional for temp uploads
+  fechaHoraInicio?: string;
+}
+
+/**
+ * Create presigned POST URL for signature upload
+ */
+export const createPresignedSignatureUpload = async (
+  params: CreatePresignedSignatureUploadParams,
+): Promise<PresignedUploadResult> => {
+  const bucket = getS3SignaturesBucket();
+  if (!bucket) {
+    throw new Error("S3_SIGNATURES_BUCKET not configured");
+  }
+
+  // If subsystem not provided, try to look up report
+  let subsystem = params.subsystem;
+  let fechaHoraInicio = params.fechaHoraInicio;
+
+  if (!subsystem) {
+    const report = await lookupReport(params.reportId, params.reportType);
+    if (report) {
+      subsystem = report.subsistema;
+      fechaHoraInicio = report.fechaHoraInicio;
+    } else {
+      // For temp uploads before report creation, use generic
+      subsystem = "general";
+    }
+  }
+
+  const keyParts = buildSignatureKey({
+    reportId: params.reportId,
+    reportType: params.reportType,
+    subsystem: subsystem,
+    fechaHoraInicio,
+    signatureType: params.signatureType,
+  });
+
+  const maxSize = 5 * 1024 * 1024; // 5MB max for signatures
+
+  const client = getS3SignaturesClient();
+  const { url, fields } = await createPresignedPost(client, {
+    Bucket: bucket,
+    Key: keyParts.key,
+    Conditions: [
+      ["content-length-range", 0, maxSize],
+      ["eq", "$Content-Type", params.mimeType],
+    ],
+    Fields: {
+      "Content-Type": params.mimeType,
+    },
+    Expires: 300, // 5 minutes
+  });
+
+  console.log("Presigned POST for signatures:", {
+    bucket,
+    key: keyParts.key,
+    url,
+    fieldsKeys: Object.keys(fields),
+  });
+
+  return {
+    fileId: keyParts.key, // Use key as fileId for signatures
+    key: keyParts.key,
+    bucket,
+    upload: { url, fields },
+  };
+};
+
+/**
+ * Generate presigned download URL for signature
+ */
+export const createPresignedSignatureDownload = async (
+  key: string,
+): Promise<PresignedDownloadResult> => {
+  const bucket = getS3SignaturesBucket();
+  if (!bucket) {
+    throw new Error("S3_SIGNATURES_BUCKET not configured");
+  }
+
+  const client = getS3SignaturesClient();
+  const expiresInSeconds = 3600; // 1 hour for signatures
+
+  const command = new GetObjectCommand({
+    Bucket: bucket,
+    Key: key,
+  });
+
+  const url = await getSignedUrl(client, command, {
+    expiresIn: expiresInSeconds,
+  });
+
+  return { url, expiresInSeconds };
+};
