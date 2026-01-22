@@ -41,36 +41,55 @@ export async function uploadWorkReportSignature(
   try {
     // Convert base64 to File
     const file = base64ToFile(signature, "firma-responsable.png");
+    console.log(
+      "[Upload Signature] Uploading signature file:",
+      file.name,
+      file.size,
+      "bytes",
+    );
 
     // Get presigned upload URL from backend
+    const presignPayload = {
+      filename: file.name,
+      contentType: file.type,
+      reportId,
+      reportType: "work",
+      subsystem,
+      signatureType: "responsable",
+      date,
+    };
+    console.log(
+      "[Upload Signature] Requesting presigned URL with:",
+      presignPayload,
+    );
+
     const presignResponse = await fetch(
       `${API_URL}/api/storage/signatures/presign`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          filename: file.name,
-          contentType: file.type,
-          reportId,
-          reportType: "work",
-          subsystem,
-          signatureType: "responsable",
-          date,
-        }),
+        body: JSON.stringify(presignPayload),
       },
     );
 
     if (!presignResponse.ok) {
       const errorText = await presignResponse.text();
+      console.error(
+        "[Upload Signature] Failed to get presigned URL:",
+        errorText,
+      );
       throw new Error(
         `Failed to get presigned URL: ${presignResponse.status} ${errorText}`,
       );
     }
 
     const { url, key } = await presignResponse.json();
+    console.log("[Upload Signature] Got presigned URL for key:", key);
+    console.log("[Upload Signature] Upload URL:", url);
 
     // Upload file directly to S3
+    console.log("[Upload Signature] Uploading to S3...");
     const uploadResponse = await fetch(url, {
       method: "PUT",
       body: file,
@@ -80,10 +99,16 @@ export async function uploadWorkReportSignature(
     });
 
     if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error(
+        "[Upload Signature] S3 upload failed:",
+        uploadResponse.status,
+        errorText,
+      );
       throw new Error(`Failed to upload signature: ${uploadResponse.status}`);
     }
 
-    console.log("Signature uploaded successfully:", key);
+    console.log("[Upload Signature] Successfully uploaded to S3:", key);
     return { firmaResponsable: key };
   } catch (error) {
     console.error("Error uploading signature to S3:", error);

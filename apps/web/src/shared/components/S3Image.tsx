@@ -129,7 +129,9 @@ export function S3Image({
       src={imageUrl}
       alt={alt}
       className={className}
-      onError={() => {
+      onError={(e) => {
+        console.error("[S3Image] Image failed to load:", imageUrl);
+        console.error("[S3Image] Error event:", e);
         setError("Failed to load image");
         setImageUrl(null);
       }}
