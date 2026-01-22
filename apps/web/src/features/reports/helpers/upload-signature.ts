@@ -50,13 +50,13 @@ export async function uploadWorkReportSignature(
 
     // Get presigned upload URL from backend
     const presignPayload = {
-      filename: file.name,
-      contentType: file.type,
       reportId,
       reportType: "work",
-      subsystem,
       signatureType: "responsable",
-      date,
+      mimeType: file.type,
+      size: file.size,
+      subsystem,
+      fechaHoraInicio: date,
     };
     console.log(
       "[Upload Signature] Requesting presigned URL with:",
@@ -84,18 +84,25 @@ export async function uploadWorkReportSignature(
       );
     }
 
-    const { url, key } = await presignResponse.json();
+    const { upload, key } = await presignResponse.json();
     console.log("[Upload Signature] Got presigned URL for key:", key);
-    console.log("[Upload Signature] Upload URL:", url);
+    console.log("[Upload Signature] Upload URL:", upload.url);
+    console.log(
+      "[Upload Signature] Upload fields:",
+      Object.keys(upload.fields),
+    );
 
-    // Upload file directly to S3
+    // Upload to S3 using presigned POST (matching warehouse reports pattern)
     console.log("[Upload Signature] Uploading to S3...");
-    const uploadResponse = await fetch(url, {
-      method: "PUT",
-      body: file,
-      headers: {
-        "Content-Type": file.type,
-      },
+    const formData = new FormData();
+    Object.entries(upload.fields).forEach(([k, v]) => {
+      formData.append(k, v as string);
+    });
+    formData.append("file", file);
+
+    const uploadResponse = await fetch(upload.url, {
+      method: "POST",
+      body: formData,
     });
 
     if (!uploadResponse.ok) {

@@ -5,9 +5,12 @@ import { Button } from "@/shared/ui/Button";
 import { AppLayout } from "@/shared/layout/AppLayout";
 import { ArrowLeft, DownloadIcon, Pencil, Trash2 } from "lucide-react";
 import { WorkReportPreview } from "../components/WorkReportPreview";
-import { EvidenceCarousel } from "../components/EvidenceCarousel";
+import { WorkReportEvidenceGallery } from "../components/WorkReportEvidenceGallery";
 import { generateWorkReportPDF } from "../helpers/generate-pdf";
-import { useWorkReportQuery, useDeleteWorkReportMutation } from "@/hooks/useWorkReports";
+import {
+  useWorkReportQuery,
+  useDeleteWorkReportMutation,
+} from "@/hooks/useWorkReports";
 import { ConfirmDeleteModal } from "@/shared/ui/ConfirmDeleteModal";
 import { useAuth } from "@/auth/AuthContext";
 
@@ -91,9 +94,16 @@ export const WorkReportDetailPage: React.FC = () => {
         >
           Descargar PDF <DownloadIcon className="h-4 w-4 ml-2" />
         </Button>
-        {report.evidencias && report.evidencias.length > 0 && (
-          <EvidenceCarousel evidences={report.evidencias} />
-        )}
+
+        {/* Evidence Gallery Section */}
+        {report.actividadesRealizadas &&
+          report.actividadesRealizadas.length > 0 && (
+            <div className="mt-8">
+              <WorkReportEvidenceGallery
+                actividadesRealizadas={report.actividadesRealizadas}
+              />
+            </div>
+          )}
       </div>
 
       <ConfirmDeleteModal

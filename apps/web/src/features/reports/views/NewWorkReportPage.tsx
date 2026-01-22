@@ -48,7 +48,7 @@ import {
 // Custom components
 import { MultiSelect } from "@/shared/ui/MultiSelect";
 import { SignaturePad } from "@/shared/ui/SignaturePad";
-import { ImageUpload } from "@/shared/ui/ImageUpload";
+import { ImageUpload, LocalEvidence } from "@/shared/ui/ImageUpload";
 import {
   workReportSchema,
   WorkReportFormValues,
@@ -70,7 +70,7 @@ interface ActivityWithDetails {
   template: Template;
   isSelected: boolean;
   observaciones: string;
-  evidencias: File[];
+  evidencias: LocalEvidence[];
   expanded: boolean;
 }
 
@@ -95,24 +95,18 @@ const convertSignatureToBase64 = async (
 };
 
 const prepareActivityEvidence = async (activities: any[]) => {
-  return Promise.all(
-    activities.map(async (act) => {
-      const evidencias = await Promise.all(
-        act.evidencias.map(async (file: File | string) => {
-          if (typeof file === "string") return file;
-          return new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(file);
-          });
-        }),
-      );
-      return {
-        ...act,
-        evidencias,
-      };
-    }),
-  );
+  return activities.map((act) => {
+    // LocalEvidence already has base64, so just extract the base64 URLs
+    const evidencias =
+      act.evidencias?.map((evidence: LocalEvidence | string) => {
+        if (typeof evidence === "string") return evidence;
+        return evidence.base64 || evidence.previewUrl;
+      }) || [];
+    return {
+      ...act,
+      evidencias,
+    };
+  });
 };
 
 interface NewWorkReportPageProps {
@@ -374,10 +368,9 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
     );
   };
 
-  const updateActivityEvidencias = (id: string, files: any[]) => {
-    const fileObjects = files.map((f) => f.file).filter(Boolean) as File[];
+  const updateActivityEvidencias = (id: string, files: LocalEvidence[]) => {
     setActivitiesState((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, evidencias: fileObjects } : a)),
+      prev.map((a) => (a.id === id ? { ...a, evidencias: files } : a)),
     );
   };
 
@@ -414,10 +407,12 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
     );
   };
 
-  const updateCustomActivityEvidencias = (id: string, files: any[]) => {
-    const fileObjects = files.map((f) => f.file).filter(Boolean) as File[];
+  const updateCustomActivityEvidencias = (
+    id: string,
+    files: LocalEvidence[],
+  ) => {
     setCustomActivities((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, evidencias: fileObjects } : a)),
+      prev.map((a) => (a.id === id ? { ...a, evidencias: files } : a)),
     );
   };
 
@@ -454,10 +449,27 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   const updateReportMutation = useUpdateWorkReportMutation();
 
   /**
+   * Convert base64 data URL to File object
+   */
+  const base64ToFile = (base64Data: string, filename: string): File => {
+    const arr = base64Data.split(",");
+    const mime = arr[0].match(/:(.*?);/)?.[1] || "image/jpeg";
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new File([u8arr], filename, { type: mime });
+  };
+
+  /**
    * Upload evidences from activities to S3 bucket and return evidence info grouped by activity
    */
   const uploadAllEvidences = async (
     reportId: string,
+    subsystem: string,
+    fechaHoraInicio: string,
     activities: ActivityWithDetails[],
   ): Promise<Map<string, any[]>> => {
     const selectedActivities = activities.filter((a) => a.isSelected);
@@ -466,19 +478,46 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
     // Upload evidences for each activity
     for (const activity of selectedActivities) {
       if (!activity.evidencias || activity.evidencias.length === 0) {
-        evidenceMap.set(activity.id, []);
+        evidenceMap.set(activity.template._id || activity.id, []);
         continue;
       }
 
       const activityEvidences: any[] = [];
-      for (const file of activity.evidencias) {
-        if (!(file instanceof File)) continue;
+      for (let i = 0; i < activity.evidencias.length; i++) {
+        const evidence = activity.evidencias[i];
+
+        // Skip if already uploaded (has http URL)
+        if (evidence.previewUrl && evidence.previewUrl.startsWith("http")) {
+          activityEvidences.push({
+            id: evidence.id,
+            key: evidence.previewUrl,
+          });
+          continue;
+        }
+
+        // Get base64 data
+        const dataUrl = evidence.base64 || evidence.previewUrl;
+        if (!dataUrl || !dataUrl.startsWith("data:")) {
+          console.warn(
+            `Skipping invalid evidence for activity ${activity.name}`,
+          );
+          continue;
+        }
+
+        // Convert base64 to File
+        const file = base64ToFile(
+          dataUrl,
+          evidence.name || `evidence-${i}.jpg`,
+        );
 
         try {
           const evidenceInfo = await uploadEvidence({
             reportId,
             reportType: "work",
             file,
+            subsystem,
+            fechaHoraInicio,
+            skipDbRecord: true,
           });
           activityEvidences.push({
             id: evidenceInfo.id,
@@ -487,10 +526,6 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
             mimeType: evidenceInfo.mimeType,
             size: evidenceInfo.size,
           });
-          console.log(
-            `Uploaded evidence for activity: ${activity.name}`,
-            evidenceInfo,
-          );
         } catch (err) {
           console.error(
             `Failed to upload evidence for activity ${activity.name}:`,
@@ -499,7 +534,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           // Continue with other uploads even if one fails
         }
       }
-      evidenceMap.set(activity.id, activityEvidences);
+      evidenceMap.set(activity.template._id || activity.id, activityEvidences);
     }
 
     return evidenceMap;
@@ -534,7 +569,6 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   };
 
   const onSubmit = async (data: WorkReportFormValues) => {
-    console.log("onSubmit called with data:", data);
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
     const localISOTime = new Date(now.getTime() - offset)
@@ -561,7 +595,6 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
       // Step 1: Upload signature to S3 if present
       let firmaResponsableKey: string | null = null;
       if (data.firmaResponsable) {
-        console.log("Uploading signature to S3...");
         try {
           // Generate temporary report ID for S3 path
           const tempReportId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
@@ -574,7 +607,6 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           );
 
           firmaResponsableKey = signatureResult.firmaResponsable;
-          console.log("Signature uploaded to S3:", firmaResponsableKey);
         } catch (err) {
           console.error("Error uploading signature:", err);
           alert("Error al subir la firma. Por favor intenta de nuevo.");
@@ -600,7 +632,6 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
 
       // Step 3: Create or update report
       if (isEditMode && reportId) {
-        console.log("Updating report...", payload);
         await updateReportMutation.mutateAsync({
           id: reportId,
           data: payload as any,
@@ -608,19 +639,18 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
         alert("Reporte actualizado exitosamente");
         router.push(`/reports/${reportId}`);
       } else {
-        console.log("Creating report...", payload);
         const result = await createReportMutation.mutateAsync(payload as any);
         const reportIdFromResponse = (result as any)._id;
 
         if (reportIdFromResponse) {
           // Upload evidences to S3 with the new reportId
-          console.log("Uploading evidences to S3...");
           try {
             const evidenceMap = await uploadAllEvidences(
               reportIdFromResponse,
+              data.subsistema,
+              data.fechaHoraInicio,
               activitiesState,
             );
-            console.log("Evidences uploaded successfully", evidenceMap);
 
             // Update the report with evidence references
             const updatedActividades = selectedActivitiesData.map((act) => {
@@ -642,10 +672,12 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                 actividadesRealizadas: updatedActividades,
               } as any,
             });
-            console.log("Report updated with evidence references");
           } catch (err) {
             console.error("Error uploading evidences:", err);
-            // Don't block the user - evidences can be uploaded later if needed
+            alert(
+              "⚠️ Las evidencias no se pudieron cargar. El reporte se guardó sin imágenes.",
+            );
+            // Don't block the user - report is already created
           }
         }
 

@@ -10,6 +10,20 @@ export type WorkReport = {
   trabajadores: string[];
   inspeccionRealizada: boolean;
   observacionesActividad?: string;
+  // Per-activity evidences (new structure)
+  actividadesRealizadas?: Array<{
+    templateId?: string;
+    nombre: string;
+    realizado: boolean;
+    observaciones?: string;
+    evidencias?: Array<{
+      id?: string;
+      key?: string;
+      url?: string;
+      previewUrl?: string;
+    }>;
+  }>;
+  // Legacy global evidences (backward compatibility)
   evidencias?: Array<
     | {
         id?: string;
