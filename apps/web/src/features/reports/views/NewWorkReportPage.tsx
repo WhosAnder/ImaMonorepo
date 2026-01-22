@@ -1,21 +1,28 @@
 "use client";
 
-import React, { useEffect, useState, useMemo, useRef } from 'react';
-import { useRouter } from 'next/navigation';
-import { useTemplateFilters, useActivitiesBySubsystemAndFrequency } from '@/hooks/useTemplates';
-import { useCreateWorkReportMutation, useUpdateWorkReportMutation, useWorkReportQuery } from '@/hooks/useWorkReports';
-import { useWarehouseItems } from '@/hooks/useWarehouse';
-import { useForm, Controller, useFieldArray } from 'react-hook-form';
-import { useWorkers } from '@/hooks/useWorkers';
-import { zodResolver } from '@hookform/resolvers/zod';
+import React, { useEffect, useState, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
+import {
+  useTemplateFilters,
+  useActivitiesBySubsystemAndFrequency,
+} from "@/hooks/useTemplates";
+import {
+  useCreateWorkReportMutation,
+  useUpdateWorkReportMutation,
+  useWorkReportQuery,
+} from "@/hooks/useWorkReports";
+import { useWarehouseItems } from "@/hooks/useWarehouse";
+import { useForm, Controller, useFieldArray } from "react-hook-form";
+import { useWorkers } from "@/hooks/useWorkers";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 // shadcn components
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 // Simple Card component to match almacen/new UX
 const Card = ({
   children,
@@ -36,23 +43,25 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
+} from "@/components/ui/select";
 
 // Custom components
-import { MultiSelect } from '@/shared/ui/MultiSelect';
-import { SignaturePad } from '@/shared/ui/SignaturePad';
-import { ImageUpload } from '@/shared/ui/ImageUpload';
-import { workReportSchema, WorkReportFormValues } from '../schemas/workReportSchema';
-import { Save, Plus, Trash2, Wrench } from 'lucide-react';
-import { Template } from '@/types/template';
-import { WorkReportPreview } from '../components/WorkReportPreview';
-import { useAuth } from '@/auth/AuthContext';
+import { MultiSelect } from "@/shared/ui/MultiSelect";
+import { SignaturePad } from "@/shared/ui/SignaturePad";
+import { ImageUpload } from "@/shared/ui/ImageUpload";
+import {
+  workReportSchema,
+  WorkReportFormValues,
+} from "../schemas/workReportSchema";
+import { Save, Plus, Trash2, Wrench } from "lucide-react";
+import { Template } from "@/types/template";
+import { WorkReportPreview } from "../components/WorkReportPreview";
+import { useAuth } from "@/auth/AuthContext";
 import type { WarehouseItem } from "@/api/warehouseClient";
-import { uploadEvidence } from '@/api/evidencesClient';
+import { uploadEvidence } from "@/api/evidencesClient";
+import { uploadWorkReportSignature } from "../helpers/upload-signature";
 
-
-
-const WORK_REPORT_DRAFT_KEY = 'work_report_draft';
+const WORK_REPORT_DRAFT_KEY = "work_report_draft";
 
 interface ActivityWithDetails {
   id: string;
@@ -65,10 +74,12 @@ interface ActivityWithDetails {
   expanded: boolean;
 }
 
-const convertSignatureToBase64 = async (signatureUrl: string | null): Promise<string | null> => {
+const convertSignatureToBase64 = async (
+  signatureUrl: string | null,
+): Promise<string | null> => {
   if (!signatureUrl) return null;
-  if (signatureUrl.startsWith('data:image')) return signatureUrl;
-  
+  if (signatureUrl.startsWith("data:image")) return signatureUrl;
+
   try {
     const response = await fetch(signatureUrl);
     const blob = await response.blob();
@@ -78,61 +89,72 @@ const convertSignatureToBase64 = async (signatureUrl: string | null): Promise<st
       reader.readAsDataURL(blob);
     });
   } catch (error) {
-    console.error('Error converting signature:', error);
+    console.error("Error converting signature:", error);
     return null;
   }
 };
 
 const prepareActivityEvidence = async (activities: any[]) => {
-  return Promise.all(activities.map(async (act) => {
-    const evidencias = await Promise.all(act.evidencias.map(async (file: File | string) => {
-      if (typeof file === 'string') return file;
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.readAsDataURL(file);
-      });
-    }));
-    return {
-      ...act,
-      evidencias
-    };
-  }));
+  return Promise.all(
+    activities.map(async (act) => {
+      const evidencias = await Promise.all(
+        act.evidencias.map(async (file: File | string) => {
+          if (typeof file === "string") return file;
+          return new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(file);
+          });
+        }),
+      );
+      return {
+        ...act,
+        evidencias,
+      };
+    }),
+  );
 };
 
 interface NewWorkReportPageProps {
   reportId?: string;
 }
 
-export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }) => {
+export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
+  reportId,
+}) => {
   const router = useRouter();
   const { user } = useAuth();
-  const [activitiesState, setActivitiesState] = useState<ActivityWithDetails[]>([]);
-  const [draftStatus, setDraftStatus] = useState<'empty' | 'loaded'>('empty');
+  const [activitiesState, setActivitiesState] = useState<ActivityWithDetails[]>(
+    [],
+  );
+  const [draftStatus, setDraftStatus] = useState<"empty" | "loaded">("empty");
   const draftRestorationGuardRef = useRef(false);
-  const [customSubsistema, setCustomSubsistema] = useState('');
-  const [customFrecuencia, setCustomFrecuencia] = useState('');
-  const [customActivities, setCustomActivities] = useState<ActivityWithDetails[]>([]);
-  
+  const [customSubsistema, setCustomSubsistema] = useState("");
+  const [customFrecuencia, setCustomFrecuencia] = useState("");
+  const [customActivities, setCustomActivities] = useState<
+    ActivityWithDetails[]
+  >([]);
+
   const isEditMode = Boolean(reportId);
-  
+
   // Fetch existing report data when in edit mode
-  const { data: existingReport, isLoading: isLoadingReport } = useWorkReportQuery(reportId || '');
+  const { data: existingReport, isLoading: isLoadingReport } =
+    useWorkReportQuery(reportId || "");
 
   const initialFormValues = {
-    subsistema: '',
-    ubicacion: '',
+    subsistema: "",
+    ubicacion: "",
     fechaHoraInicio: new Date().toISOString().slice(0, 16),
-    turno: '',
-    frecuencia: '',
+    turno: "",
+    frecuencia: "",
     trabajadores: [],
     actividadesRealizadas: [],
     herramientas: [],
     refacciones: [],
-    nombreResponsable: user?.name || '',
+    nombreResponsable: user?.name || "",
     firmaResponsable: null,
     templateIds: [],
-    observacionesGenerales: '',
+    observacionesGenerales: "",
   };
 
   const {
@@ -146,59 +168,69 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
     formState: { errors, isSubmitting },
   } = useForm<WorkReportFormValues>({
     resolver: zodResolver(workReportSchema) as any,
-    defaultValues: initialFormValues as any
+    defaultValues: initialFormValues as any,
   });
 
-  const fechaHoraInicio = watch('fechaHoraInicio');
-  const subsistema = watch('subsistema');
-  const frecuencia = watch('frecuencia');
+  const fechaHoraInicio = watch("fechaHoraInicio");
+  const subsistema = watch("subsistema");
+  const frecuencia = watch("frecuencia");
 
-  const { data: filtersData, isLoading: isLoadingFilters } = useTemplateFilters('work');
+  const { data: filtersData, isLoading: isLoadingFilters } =
+    useTemplateFilters("work");
   const subsystems = filtersData?.subsistemas || [];
-  
+
   // Add "Otros" option to subsystems list
   const subsystemsWithOtros = useMemo(() => {
-    return [...subsystems, 'Otros'];
+    return [...subsystems, "Otros"];
   }, [subsystems]);
-  
+
   // Check if "Otros" is selected
-  const isOtrosSelected = subsistema === 'Otros';
-  
+  const isOtrosSelected = subsistema === "Otros";
+
   // Effective subsystem for API calls
   const effectiveSubsistema = isOtrosSelected ? customSubsistema : subsistema;
-  
+
   // Effective frequency for API calls
   const effectiveFrecuencia = isOtrosSelected ? customFrecuencia : frecuencia;
 
-  const { data: freqData, isLoading: isLoadingFreq } = useTemplateFilters('work', effectiveSubsistema || undefined);
+  const { data: freqData, isLoading: isLoadingFreq } = useTemplateFilters(
+    "work",
+    effectiveSubsistema || undefined,
+  );
   const frequencies = freqData?.frecuencias || [];
 
-  const { data: activities, isLoading: isLoadingActivities } = useActivitiesBySubsystemAndFrequency({
-    tipoReporte: 'work',
-    subsistema: effectiveSubsistema || undefined,
-    frecuenciaCodigo: effectiveFrecuencia || undefined,
-  });
+  const { data: activities, isLoading: isLoadingActivities } =
+    useActivitiesBySubsystemAndFrequency({
+      tipoReporte: "work",
+      subsistema: effectiveSubsistema || undefined,
+      frecuenciaCodigo: effectiveFrecuencia || undefined,
+    });
 
   // Fetch workers - include inactive to show all workers
-  const { data: workers = [], isLoading: isLoadingWorkers, error: workersError } = useWorkers(undefined, true);
+  const {
+    data: workers = [],
+    isLoading: isLoadingWorkers,
+    error: workersError,
+  } = useWorkers(undefined, true);
   const workerOptions = useMemo(() => {
     if (!workers || workers.length === 0) return [];
     return workers
-      .filter(w => w.active)
-      .map(w => ({ value: w.name, label: w.name }));
+      .filter((w) => w.active)
+      .map((w) => ({ value: w.name, label: w.name }));
   }, [workers]);
-  
+
   // Log for debugging
   useEffect(() => {
     if (workersError) {
-      console.error('Error fetching workers:', workersError);
+      console.error("Error fetching workers:", workersError);
     }
-    console.log('Workers data:', { workers, workerOptions, isLoadingWorkers });
+    console.log("Workers data:", { workers, workerOptions, isLoadingWorkers });
   }, [workers, workerOptions, isLoadingWorkers, workersError]);
 
   // Fetch inventory
-  const { data: warehouseItems = [], isLoading: loadingInventory } = useWarehouseItems({ status: 'active' });
-  
+  const { data: warehouseItems = [], isLoading: loadingInventory } =
+    useWarehouseItems({ status: "active" });
+
   const { herramientasOptions, refaccionesOptions } = useMemo(() => {
     const toOption = (item: WarehouseItem) => {
       const stockInfo =
@@ -228,13 +260,13 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
 
   useEffect(() => {
     if (user?.name) {
-      setValue('nombreResponsable', user.name);
+      setValue("nombreResponsable", user.name);
     }
   }, [user, setValue]);
 
   useEffect(() => {
-    if (draftStatus === 'empty') {
-      setValue('fechaHoraInicio', new Date().toISOString().slice(0, 16));
+    if (draftStatus === "empty") {
+      setValue("fechaHoraInicio", new Date().toISOString().slice(0, 16));
     }
   }, [draftStatus, setValue]);
 
@@ -242,10 +274,10 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
     if (fechaHoraInicio) {
       const date = new Date(fechaHoraInicio);
       const hour = date.getHours();
-      let shift = 'Nocturno';
-      if (hour >= 6 && hour < 14) shift = 'Matutino';
-      else if (hour >= 14 && hour < 22) shift = 'Vespertino';
-      setValue('turno', shift);
+      let shift = "Nocturno";
+      if (hour >= 6 && hour < 14) shift = "Matutino";
+      else if (hour >= 14 && hour < 22) shift = "Vespertino";
+      setValue("turno", shift);
     }
   }, [fechaHoraInicio, setValue]);
 
@@ -257,46 +289,53 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
   useEffect(() => {
     if (draftRestorationGuardRef.current) return;
     if (activities && activities.length > 0) {
-      setActivitiesState(activities.map(act => ({
-        id: act.id,
-        name: act.name,
-        code: act.code,
-        template: act.template,
-        isSelected: false,
-        observaciones: '',
-        evidencias: [],
-        expanded: false,
-      })));
+      setActivitiesState(
+        activities.map((act) => ({
+          id: act.id,
+          name: act.name,
+          code: act.code,
+          template: act.template,
+          isSelected: false,
+          observaciones: "",
+          evidencias: [],
+          expanded: false,
+        })),
+      );
     }
   }, [activities]);
 
   useEffect(() => {
-    const selected = activitiesState.filter(a => a.isSelected);
-    const formActivities = selected.map(a => ({
+    const selected = activitiesState.filter((a) => a.isSelected);
+    const formActivities = selected.map((a) => ({
       templateId: a.template._id || a.id,
       nombre: a.name,
       realizado: true,
       observaciones: a.observaciones,
       evidencias: a.evidencias,
     }));
-    setValue('actividadesRealizadas', formActivities);
-    setValue('templateIds', selected.map(a => a.template._id || a.id));
+    setValue("actividadesRealizadas", formActivities);
+    setValue(
+      "templateIds",
+      selected.map((a) => a.template._id || a.id),
+    );
   }, [activitiesState, setValue]);
 
   // Sync custom frequency with form field when "Otros" is selected
   useEffect(() => {
     if (isOtrosSelected) {
-      if (customSubsistema) setValue('subsistema', customSubsistema);
-      if (customFrecuencia) setValue('frecuencia', customFrecuencia);
+      if (customSubsistema) setValue("subsistema", customSubsistema);
+      if (customFrecuencia) setValue("frecuencia", customFrecuencia);
     }
   }, [isOtrosSelected, customSubsistema, customFrecuencia, setValue]);
 
   // Load draft on mount
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     const savedDraft = localStorage.getItem(WORK_REPORT_DRAFT_KEY);
     if (savedDraft) {
-      const shouldLoad = window.confirm('Se encontró un borrador guardado. ¿Deseas cargarlo?');
+      const shouldLoad = window.confirm(
+        "Se encontró un borrador guardado. ¿Deseas cargarlo?",
+      );
       if (shouldLoad) {
         try {
           const parsed = JSON.parse(savedDraft);
@@ -306,12 +345,12 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
             // Restore activities state logic would be complex here, keeping it simple for now
             // Ideally we would match IDs and restore observations
             setTimeout(() => {
-                draftRestorationGuardRef.current = false;
+              draftRestorationGuardRef.current = false;
             }, 500);
           }
-          setDraftStatus('loaded');
+          setDraftStatus("loaded");
         } catch (e) {
-          console.error('Error loading draft', e);
+          console.error("Error loading draft", e);
         }
       } else {
         localStorage.removeItem(WORK_REPORT_DRAFT_KEY);
@@ -320,69 +359,80 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
   }, [reset]);
 
   const toggleActivity = (id: string) => {
-    setActivitiesState(prev => prev.map(a => 
-      a.id === id ? { ...a, isSelected: !a.isSelected, expanded: !a.isSelected } : a
-    ));
+    setActivitiesState((prev) =>
+      prev.map((a) =>
+        a.id === id
+          ? { ...a, isSelected: !a.isSelected, expanded: !a.isSelected }
+          : a,
+      ),
+    );
   };
 
   const updateActivityObservaciones = (id: string, value: string) => {
-    setActivitiesState(prev => prev.map(a => 
-      a.id === id ? { ...a, observaciones: value } : a
-    ));
+    setActivitiesState((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, observaciones: value } : a)),
+    );
   };
 
   const updateActivityEvidencias = (id: string, files: any[]) => {
-    const fileObjects = files.map(f => f.file).filter(Boolean) as File[];
-    setActivitiesState(prev => prev.map(a => 
-      a.id === id ? { ...a, evidencias: fileObjects } : a
-    ));
+    const fileObjects = files.map((f) => f.file).filter(Boolean) as File[];
+    setActivitiesState((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, evidencias: fileObjects } : a)),
+    );
   };
 
   // Custom activities helper functions
   const addCustomActivity = () => {
     const newActivity: ActivityWithDetails = {
       id: `custom-${Date.now()}`,
-      name: '',
+      name: "",
       template: {} as Template,
       isSelected: true,
-      observaciones: '',
+      observaciones: "",
       evidencias: [],
       expanded: true,
     };
-    setCustomActivities(prev => [...prev, newActivity]);
+    setCustomActivities((prev) => [...prev, newActivity]);
   };
 
   const removeCustomActivity = (id: string) => {
-    setCustomActivities(prev => prev.filter(a => a.id !== id));
+    setCustomActivities((prev) => prev.filter((a) => a.id !== id));
   };
 
   const updateCustomActivityName = (id: string, name: string) => {
-    setCustomActivities(prev => prev.map(a => 
-      a.id === id ? { ...a, name } : a
-    ));
+    setCustomActivities((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, name } : a)),
+    );
   };
 
-  const updateCustomActivityObservaciones = (id: string, observaciones: string) => {
-    setCustomActivities(prev => prev.map(a => 
-      a.id === id ? { ...a, observaciones } : a
-    ));
+  const updateCustomActivityObservaciones = (
+    id: string,
+    observaciones: string,
+  ) => {
+    setCustomActivities((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, observaciones } : a)),
+    );
   };
 
   const updateCustomActivityEvidencias = (id: string, files: any[]) => {
-    const fileObjects = files.map(f => f.file).filter(Boolean) as File[];
-    setCustomActivities(prev => prev.map(a => 
-      a.id === id ? { ...a, evidencias: fileObjects } : a
-    ));
+    const fileObjects = files.map((f) => f.file).filter(Boolean) as File[];
+    setCustomActivities((prev) =>
+      prev.map((a) => (a.id === id ? { ...a, evidencias: fileObjects } : a)),
+    );
   };
 
   const handleSaveDraft = async () => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
     try {
       const currentValues = getValues();
-      const actividadesConEvidencias = await prepareActivityEvidence(currentValues.actividadesRealizadas || []);
-      const firmaResponsable = await convertSignatureToBase64(currentValues.firmaResponsable || null);
-      
+      const actividadesConEvidencias = await prepareActivityEvidence(
+        currentValues.actividadesRealizadas || [],
+      );
+      const firmaResponsable = await convertSignatureToBase64(
+        currentValues.firmaResponsable || null,
+      );
+
       const draftPayload = {
         formValues: {
           ...currentValues,
@@ -393,10 +443,10 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
       };
 
       localStorage.setItem(WORK_REPORT_DRAFT_KEY, JSON.stringify(draftPayload));
-      alert('Borrador guardado correctamente');
+      alert("Borrador guardado correctamente");
     } catch (error) {
-      console.error('Error saving draft:', error);
-      alert('No se pudo guardar el borrador');
+      console.error("Error saving draft:", error);
+      alert("No se pudo guardar el borrador");
     }
   };
 
@@ -410,9 +460,9 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
     reportId: string,
     activities: ActivityWithDetails[],
   ): Promise<Map<string, any[]>> => {
-    const selectedActivities = activities.filter(a => a.isSelected);
+    const selectedActivities = activities.filter((a) => a.isSelected);
     const evidenceMap = new Map<string, any[]>();
-    
+
     // Upload evidences for each activity
     for (const activity of selectedActivities) {
       if (!activity.evidencias || activity.evidencias.length === 0) {
@@ -437,22 +487,28 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
             mimeType: evidenceInfo.mimeType,
             size: evidenceInfo.size,
           });
-          console.log(`Uploaded evidence for activity: ${activity.name}`, evidenceInfo);
+          console.log(
+            `Uploaded evidence for activity: ${activity.name}`,
+            evidenceInfo,
+          );
         } catch (err) {
-          console.error(`Failed to upload evidence for activity ${activity.name}:`, err);
+          console.error(
+            `Failed to upload evidence for activity ${activity.name}:`,
+            err,
+          );
           // Continue with other uploads even if one fails
         }
       }
       evidenceMap.set(activity.id, activityEvidences);
     }
-    
+
     return evidenceMap;
   };
 
   const onError = (errors: any) => {
-    console.error('Form validation errors:', errors);
+    console.error("Form validation errors:", errors);
     const errorMessages: string[] = [];
-    
+
     // Collect all error messages
     Object.keys(errors).forEach((key) => {
       const error = errors[key];
@@ -460,33 +516,37 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
         errorMessages.push(error.message);
       }
     });
-    
+
     if (errorMessages.length > 0) {
-      alert(`Por favor corrige los siguientes errores:\n\n${errorMessages.join('\n')}`);
+      alert(
+        `Por favor corrige los siguientes errores:\n\n${errorMessages.join("\n")}`,
+      );
     }
-    
+
     // Scroll to first error
     const firstError = Object.keys(errors)[0];
     if (firstError) {
       const element = document.querySelector(`[name="${firstError}"]`);
       if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
       }
     }
   };
 
   const onSubmit = async (data: WorkReportFormValues) => {
-    console.log('onSubmit called with data:', data);
+    console.log("onSubmit called with data:", data);
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
-    const localISOTime = (new Date(now.getTime() - offset)).toISOString().slice(0, 16);
+    const localISOTime = new Date(now.getTime() - offset)
+      .toISOString()
+      .slice(0, 16);
     data.fechaHoraTermino = localISOTime;
 
     // Use custom activities when "Otros" is selected, otherwise use template-based activities
-    const selectedActivitiesData = isOtrosSelected 
-      ? customActivities 
-      : activitiesState.filter(a => a.isSelected);
-    
+    const selectedActivitiesData = isOtrosSelected
+      ? customActivities
+      : activitiesState.filter((a) => a.isSelected);
+
     // For now, send empty evidencias array - they will be uploaded separately after report creation
     // The backend will link them via the storage system
     const actividadesConEvidencias = selectedActivitiesData.map((act) => ({
@@ -497,39 +557,75 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
       evidencias: [], // Will be uploaded to S3 separately
     }));
 
-    const payload = {
-      ...data,
-      subsistema: effectiveSubsistema, // Use custom subsystem if "Otros" is selected
-      frecuencia: effectiveFrecuencia, // Use custom frequency if "Otros" is selected
-      actividadesRealizadas: actividadesConEvidencias,
-      templateIds: selectedActivitiesData.map(a => a.template._id || a.id),
-      tipoMantenimiento: selectedActivitiesData[0]?.template.tipoMantenimiento || 'Preventivo',
-      // Legacy fields required by backend
-      inspeccionRealizada: actividadesConEvidencias[0]?.realizado ?? false,
-      observacionesActividad: actividadesConEvidencias[0]?.observaciones ?? '',
-    };
-
     try {
+      // Step 1: Upload signature to S3 if present
+      let firmaResponsableKey: string | null = null;
+      if (data.firmaResponsable) {
+        console.log("Uploading signature to S3...");
+        try {
+          // Generate temporary report ID for S3 path
+          const tempReportId = `temp-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+          const signatureResult = await uploadWorkReportSignature(
+            data.firmaResponsable,
+            isEditMode && reportId ? reportId : tempReportId,
+            effectiveSubsistema,
+            data.fechaHoraInicio || localISOTime,
+          );
+
+          firmaResponsableKey = signatureResult.firmaResponsable;
+          console.log("Signature uploaded to S3:", firmaResponsableKey);
+        } catch (err) {
+          console.error("Error uploading signature:", err);
+          alert("Error al subir la firma. Por favor intenta de nuevo.");
+          return;
+        }
+      }
+
+      // Step 2: Prepare payload with S3 signature key
+      const payload = {
+        ...data,
+        firmaResponsable: firmaResponsableKey, // Use S3 key instead of base64
+        subsistema: effectiveSubsistema, // Use custom subsystem if "Otros" is selected
+        frecuencia: effectiveFrecuencia, // Use custom frequency if "Otros" is selected
+        actividadesRealizadas: actividadesConEvidencias,
+        templateIds: selectedActivitiesData.map((a) => a.template._id || a.id),
+        tipoMantenimiento:
+          selectedActivitiesData[0]?.template.tipoMantenimiento || "Preventivo",
+        // Legacy fields required by backend
+        inspeccionRealizada: actividadesConEvidencias[0]?.realizado ?? false,
+        observacionesActividad:
+          actividadesConEvidencias[0]?.observaciones ?? "",
+      };
+
+      // Step 3: Create or update report
       if (isEditMode && reportId) {
-        console.log('Updating report...', payload);
-        await updateReportMutation.mutateAsync({ id: reportId, data: payload as any });
-        alert('Reporte actualizado exitosamente');
+        console.log("Updating report...", payload);
+        await updateReportMutation.mutateAsync({
+          id: reportId,
+          data: payload as any,
+        });
+        alert("Reporte actualizado exitosamente");
         router.push(`/reports/${reportId}`);
       } else {
-        console.log('Creating report...', payload);
+        console.log("Creating report...", payload);
         const result = await createReportMutation.mutateAsync(payload as any);
         const reportIdFromResponse = (result as any)._id;
-        
+
         if (reportIdFromResponse) {
           // Upload evidences to S3 with the new reportId
-          console.log('Uploading evidences to S3...');
+          console.log("Uploading evidences to S3...");
           try {
-            const evidenceMap = await uploadAllEvidences(reportIdFromResponse, activitiesState);
-            console.log('Evidences uploaded successfully', evidenceMap);
-            
+            const evidenceMap = await uploadAllEvidences(
+              reportIdFromResponse,
+              activitiesState,
+            );
+            console.log("Evidences uploaded successfully", evidenceMap);
+
             // Update the report with evidence references
             const updatedActividades = selectedActivitiesData.map((act) => {
-              const evidences = evidenceMap.get(act.template._id || act.id) || [];
+              const evidences =
+                evidenceMap.get(act.template._id || act.id) || [];
               return {
                 templateId: act.template._id || act.id,
                 nombre: act.name,
@@ -538,7 +634,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                 evidencias: evidences,
               };
             });
-            
+
             // Update report with evidence references
             await updateReportMutation.mutateAsync({
               id: reportIdFromResponse,
@@ -546,34 +642,41 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                 actividadesRealizadas: updatedActividades,
               } as any,
             });
-            console.log('Report updated with evidence references');
+            console.log("Report updated with evidence references");
           } catch (err) {
-            console.error('Error uploading evidences:', err);
+            console.error("Error uploading evidences:", err);
             // Don't block the user - evidences can be uploaded later if needed
           }
         }
-        
-        if (typeof window !== 'undefined') {
+
+        if (typeof window !== "undefined") {
           localStorage.removeItem(WORK_REPORT_DRAFT_KEY);
         }
-        
-        alert('Reporte generado exitosamente');
+
+        alert("Reporte generado exitosamente");
         router.push(`/reports/${reportIdFromResponse}`);
       }
     } catch (error) {
-      console.error(isEditMode ? "Error updating report:" : "Error creating report:", error);
-      alert(isEditMode ? 'Error al actualizar el reporte' : 'Error al generar el reporte');
+      console.error(
+        isEditMode ? "Error updating report:" : "Error creating report:",
+        error,
+      );
+      alert(
+        isEditMode
+          ? "Error al actualizar el reporte"
+          : "Error al generar el reporte",
+      );
     }
   };
 
   const watchedValues = watch();
-  const selectedActivities = isOtrosSelected 
-    ? customActivities 
-    : activitiesState.filter(a => a.isSelected);
-  
+  const selectedActivities = isOtrosSelected
+    ? customActivities
+    : activitiesState.filter((a) => a.isSelected);
+
   const previewValues = {
     ...watchedValues,
-    actividadesRealizadas: selectedActivities.map(a => ({
+    actividadesRealizadas: selectedActivities.map((a) => ({
       nombre: a.name,
       realizado: true,
       observaciones: a.observaciones,
@@ -589,13 +692,14 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            {isEditMode ? 'Editar Reporte de Trabajo' : 'Formato de trabajo proyecto AEROTREN AICM'}
+            {isEditMode
+              ? "Editar Reporte de Trabajo"
+              : "Formato de trabajo proyecto AEROTREN AICM"}
           </h1>
           <p className="text-gray-500 mt-2 text-lg">
-            {isEditMode 
-              ? 'Modifica los datos del reporte y guarda los cambios.'
-              : 'Selecciona las actividades realizadas y registra observaciones y evidencias.'
-            }
+            {isEditMode
+              ? "Modifica los datos del reporte y guarda los cambios."
+              : "Selecciona las actividades realizadas y registra observaciones y evidencias."}
           </p>
         </div>
 
@@ -606,7 +710,6 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
               onSubmit={handleSubmit(onSubmit as any, onError)}
               className="w-full space-y-6"
             >
-
               {/* Section 1: Datos Generales */}
               <Card className="p-6">
                 <div className="flex items-center gap-3 mb-6">
@@ -626,33 +729,37 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                       control={control}
                       render={({ field }) => (
                         <>
-                          <Select 
+                          <Select
                             onValueChange={(value) => {
                               field.onChange(value);
-                              if (value !== 'Otros') {
-                                setCustomSubsistema('');
-                                setCustomFrecuencia('');
+                              if (value !== "Otros") {
+                                setCustomSubsistema("");
+                                setCustomFrecuencia("");
                               }
-                            }} 
-                            value={field.value} 
+                            }}
+                            value={field.value}
                             disabled={isLoadingFilters}
                           >
                             <SelectTrigger className="w-full">
                               <SelectValue placeholder="Seleccionar..." />
                             </SelectTrigger>
                             <SelectContent>
-                              {subsystemsWithOtros.map(sub => (
-                                <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                              {subsystemsWithOtros.map((sub) => (
+                                <SelectItem key={sub} value={sub}>
+                                  {sub}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
-                          
+
                           {isOtrosSelected && (
                             <div className="mt-2">
                               <Input
                                 placeholder="Especifica el subsistema..."
                                 value={customSubsistema}
-                                onChange={(e) => setCustomSubsistema(e.target.value)}
+                                onChange={(e) =>
+                                  setCustomSubsistema(e.target.value)
+                                }
                                 className="w-full"
                               />
                             </div>
@@ -682,17 +789,25 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                         name="frecuencia"
                         control={control}
                         render={({ field }) => (
-                          <Select 
-                            onValueChange={field.onChange} 
-                            value={field.value} 
+                          <Select
+                            onValueChange={field.onChange}
+                            value={field.value}
                             disabled={!effectiveSubsistema || isLoadingFreq}
                           >
                             <SelectTrigger className="w-full">
-                              <SelectValue placeholder={effectiveSubsistema ? 'Seleccionar...' : 'Selecciona un subsistema'} />
+                              <SelectValue
+                                placeholder={
+                                  effectiveSubsistema
+                                    ? "Seleccionar..."
+                                    : "Selecciona un subsistema"
+                                }
+                              />
                             </SelectTrigger>
                             <SelectContent>
-                              {frequencies.map(freq => (
-                                <SelectItem key={freq.code} value={freq.code}>{freq.label}</SelectItem>
+                              {frequencies.map((freq) => (
+                                <SelectItem key={freq.code} value={freq.code}>
+                                  {freq.label}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
@@ -707,7 +822,11 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="ubicacion">Ubicación</Label>
-                    <Input {...register('ubicacion')} placeholder="Ej. Centro de Operación T2 PK N/A" className="w-full" />
+                    <Input
+                      {...register("ubicacion")}
+                      placeholder="Ej. Centro de Operación T2 PK N/A"
+                      className="w-full"
+                    />
                     {errors.ubicacion && (
                       <p className="text-red-500 text-xs mt-1">
                         {errors.ubicacion.message}
@@ -717,9 +836,13 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                   <div className="space-y-2">
                     <Label>Trabajadores Involucrados</Label>
                     {isLoadingWorkers ? (
-                      <div className="text-sm text-gray-500">Cargando trabajadores...</div>
+                      <div className="text-sm text-gray-500">
+                        Cargando trabajadores...
+                      </div>
                     ) : workersError ? (
-                      <div className="text-sm text-red-500">Error al cargar trabajadores</div>
+                      <div className="text-sm text-red-500">
+                        Error al cargar trabajadores
+                      </div>
                     ) : (
                       <Controller
                         name="trabajadores"
@@ -729,7 +852,11 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                             options={workerOptions}
                             value={field.value}
                             onChange={field.onChange}
-                            placeholder={workerOptions.length === 0 ? "No hay trabajadores disponibles" : "Seleccionar..."}
+                            placeholder={
+                              workerOptions.length === 0
+                                ? "No hay trabajadores disponibles"
+                                : "Seleccionar..."
+                            }
                           />
                         )}
                       />
@@ -763,147 +890,188 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                   </div>
 
                   <div>
-                  {isOtrosSelected ? (
-                    // Custom activities for "Otros" subsystem
-                    <div className="space-y-4">
-                      {customActivities.map((activity) => (
-                        <div 
-                          key={activity.id} 
-                          className="p-4 rounded-lg border bg-blue-50/50 border-blue-200 shadow-sm"
-                        >
-                          {/* Header: Activity Name Input + Delete Button */}
-                          <div className="flex items-start gap-3 mb-4">
-                            <div className="flex-1">
-                              <Label className="text-xs font-semibold text-blue-900 mb-2 block">
-                                Nombre de la actividad
-                              </Label>
-                              <Input
-                                placeholder="Ej. Revisión de sistema eléctrico..."
-                                value={activity.name}
-                                onChange={(e) => updateCustomActivityName(activity.id, e.target.value)}
-                                className="bg-white"
-                              />
-                            </div>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeCustomActivity(activity.id)}
-                              className="text-red-600 hover:text-red-800 hover:bg-red-50 mt-6"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-
-                          {/* Observations */}
-                          <div className="space-y-2 mb-4">
-                            <Label className="text-xs font-semibold text-blue-900">Observaciones</Label>
-                            <Textarea
-                              value={activity.observaciones}
-                              onChange={(e) => updateCustomActivityObservaciones(activity.id, e.target.value)}
-                              placeholder="Escribe observaciones para esta actividad..."
-                              className="bg-white min-h-[80px]"
-                            />
-                          </div>
-
-                          {/* Evidences */}
-                          <div className="space-y-2">
-                            <Label className="text-xs font-semibold text-blue-900">
-                              Evidencias Fotográficas (máx. 5)
-                            </Label>
-                            <div className="bg-white p-3 rounded-lg border border-blue-100">
-                              <ImageUpload
-                                label=""
-                                onChange={(files) => updateCustomActivityEvidencias(activity.id, files)}
-                                compact
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={addCustomActivity}
-                        className="w-full"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Agregar Actividad
-                      </Button>
-                    </div>
-                  ) : isLoadingActivities ? (
-                    <div className="text-center py-8 text-gray-500">Cargando actividades...</div>
-                  ) : activitiesState.length > 0 ? (
-                    <div className="space-y-4">
-                      {activitiesState.map((activity) => (
-                        <div 
-                          key={activity.id} 
-                          className={`p-4 rounded-lg border transition-all duration-200 relative group ${
-                            activity.isSelected 
-                              ? 'bg-blue-50/50 border-blue-200 shadow-sm' 
-                              : 'bg-gray-50/50 border-gray-100 hover:bg-gray-100/50'
-                          }`}
-                        >
-                          {/* Header: Checkbox + Name */}
-                          <div className="flex items-start gap-3">
-                            <Checkbox
-                              checked={activity.isSelected}
-                              onCheckedChange={() => toggleActivity(activity.id)}
-                              className="mt-1"
-                            />
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <span className={`text-sm font-medium ${activity.isSelected ? 'text-blue-900' : 'text-gray-900'}`}>
-                                  {activity.name}
-                                </span>
-                                {activity.isSelected && (
-                                  <Badge className="bg-green-600 hover:bg-green-600 text-white ml-2">
-                                    SÍ
-                                  </Badge>
-                                )}
-                              </div>
-                              {activity.code && (
-                                <p className="text-xs text-gray-500 mt-0.5">{activity.code}</p>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Expanded Content (Visible when selected) */}
-                          {activity.isSelected && (
-                            <div className="pt-4 space-y-4">
-                              {/* Observations - Full Width */}
-                              <div className="space-y-2">
-                                <Label className="text-xs font-semibold text-blue-900">Observaciones</Label>
-                                <Textarea
-                                  value={activity.observaciones}
-                                  onChange={(e) => updateActivityObservaciones(activity.id, e.target.value)}
-                                  placeholder="Escribe observaciones para esta actividad..."
-                                  className="bg-white min-h-[80px]"
+                    {isOtrosSelected ? (
+                      // Custom activities for "Otros" subsystem
+                      <div className="space-y-4">
+                        {customActivities.map((activity) => (
+                          <div
+                            key={activity.id}
+                            className="p-4 rounded-lg border bg-blue-50/50 border-blue-200 shadow-sm"
+                          >
+                            {/* Header: Activity Name Input + Delete Button */}
+                            <div className="flex items-start gap-3 mb-4">
+                              <div className="flex-1">
+                                <Label className="text-xs font-semibold text-blue-900 mb-2 block">
+                                  Nombre de la actividad
+                                </Label>
+                                <Input
+                                  placeholder="Ej. Revisión de sistema eléctrico..."
+                                  value={activity.name}
+                                  onChange={(e) =>
+                                    updateCustomActivityName(
+                                      activity.id,
+                                      e.target.value,
+                                    )
+                                  }
+                                  className="bg-white"
                                 />
                               </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  removeCustomActivity(activity.id)
+                                }
+                                className="text-red-600 hover:text-red-800 hover:bg-red-50 mt-6"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
 
-                              {/* Evidences - Bottom */}
-                              <div className="space-y-2">
-                                <Label className="text-xs font-semibold text-blue-900">Evidencias Fotográficas (máx. 5)</Label>
-                                <div className="bg-white p-3 rounded-lg border border-blue-100">
-                                  <ImageUpload
-                                    label=""
-                                    onChange={(files) => updateActivityEvidencias(activity.id, files)}
-                                    compact
-                                  />
-                                </div>
+                            {/* Observations */}
+                            <div className="space-y-2 mb-4">
+                              <Label className="text-xs font-semibold text-blue-900">
+                                Observaciones
+                              </Label>
+                              <Textarea
+                                value={activity.observaciones}
+                                onChange={(e) =>
+                                  updateCustomActivityObservaciones(
+                                    activity.id,
+                                    e.target.value,
+                                  )
+                                }
+                                placeholder="Escribe observaciones para esta actividad..."
+                                className="bg-white min-h-[80px]"
+                              />
+                            </div>
+
+                            {/* Evidences */}
+                            <div className="space-y-2">
+                              <Label className="text-xs font-semibold text-blue-900">
+                                Evidencias Fotográficas (máx. 5)
+                              </Label>
+                              <div className="bg-white p-3 rounded-lg border border-blue-100">
+                                <ImageUpload
+                                  label=""
+                                  onChange={(files) =>
+                                    updateCustomActivityEvidencias(
+                                      activity.id,
+                                      files,
+                                    )
+                                  }
+                                  compact
+                                />
                               </div>
                             </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg text-gray-400 text-sm">
-                      No se encontraron actividades para esta selección.
-                    </div>
-                  )}
+                          </div>
+                        ))}
+
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={addCustomActivity}
+                          className="w-full"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Agregar Actividad
+                        </Button>
+                      </div>
+                    ) : isLoadingActivities ? (
+                      <div className="text-center py-8 text-gray-500">
+                        Cargando actividades...
+                      </div>
+                    ) : activitiesState.length > 0 ? (
+                      <div className="space-y-4">
+                        {activitiesState.map((activity) => (
+                          <div
+                            key={activity.id}
+                            className={`p-4 rounded-lg border transition-all duration-200 relative group ${
+                              activity.isSelected
+                                ? "bg-blue-50/50 border-blue-200 shadow-sm"
+                                : "bg-gray-50/50 border-gray-100 hover:bg-gray-100/50"
+                            }`}
+                          >
+                            {/* Header: Checkbox + Name */}
+                            <div className="flex items-start gap-3">
+                              <Checkbox
+                                checked={activity.isSelected}
+                                onCheckedChange={() =>
+                                  toggleActivity(activity.id)
+                                }
+                                className="mt-1"
+                              />
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between">
+                                  <span
+                                    className={`text-sm font-medium ${activity.isSelected ? "text-blue-900" : "text-gray-900"}`}
+                                  >
+                                    {activity.name}
+                                  </span>
+                                  {activity.isSelected && (
+                                    <Badge className="bg-green-600 hover:bg-green-600 text-white ml-2">
+                                      SÍ
+                                    </Badge>
+                                  )}
+                                </div>
+                                {activity.code && (
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    {activity.code}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Expanded Content (Visible when selected) */}
+                            {activity.isSelected && (
+                              <div className="pt-4 space-y-4">
+                                {/* Observations - Full Width */}
+                                <div className="space-y-2">
+                                  <Label className="text-xs font-semibold text-blue-900">
+                                    Observaciones
+                                  </Label>
+                                  <Textarea
+                                    value={activity.observaciones}
+                                    onChange={(e) =>
+                                      updateActivityObservaciones(
+                                        activity.id,
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder="Escribe observaciones para esta actividad..."
+                                    className="bg-white min-h-[80px]"
+                                  />
+                                </div>
+
+                                {/* Evidences - Bottom */}
+                                <div className="space-y-2">
+                                  <Label className="text-xs font-semibold text-blue-900">
+                                    Evidencias Fotográficas (máx. 5)
+                                  </Label>
+                                  <div className="bg-white p-3 rounded-lg border border-blue-100">
+                                    <ImageUpload
+                                      label=""
+                                      onChange={(files) =>
+                                        updateActivityEvidencias(
+                                          activity.id,
+                                          files,
+                                        )
+                                      }
+                                      compact
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 border-2 border-dashed border-gray-200 rounded-lg text-gray-400 text-sm">
+                        No se encontraron actividades para esta selección.
+                      </div>
+                    )}
                   </div>
                 </Card>
               )}
@@ -921,39 +1089,39 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                   </div>
 
                   <div className="space-y-6">
-                  {/* Herramientas */}
-                  <div className="space-y-2">
-                    <Label>Herramientas utilizadas</Label>
-                    <Controller
-                      name="herramientas"
-                      control={control}
-                      render={({ field }) => (
-                        <MultiSelect
-                          options={herramientasOptions}
-                          value={field.value || []}
-                          onChange={field.onChange}
-                          placeholder="Seleccionar herramientas..."
-                        />
-                      )}
-                    />
-                  </div>
+                    {/* Herramientas */}
+                    <div className="space-y-2">
+                      <Label>Herramientas utilizadas</Label>
+                      <Controller
+                        name="herramientas"
+                        control={control}
+                        render={({ field }) => (
+                          <MultiSelect
+                            options={herramientasOptions}
+                            value={field.value || []}
+                            onChange={field.onChange}
+                            placeholder="Seleccionar herramientas..."
+                          />
+                        )}
+                      />
+                    </div>
 
-                  {/* Refacciones */}
-                  <div className="space-y-2">
-                    <Label>Refacciones utilizadas</Label>
-                    <Controller
-                      name="refacciones"
-                      control={control}
-                      render={({ field }) => (
-                        <MultiSelect
-                          options={refaccionesOptions}
-                          value={field.value || []}
-                          onChange={field.onChange}
-                          placeholder="Seleccionar refacciones..."
-                        />
-                      )}
-                    />
-                  </div>
+                    {/* Refacciones */}
+                    <div className="space-y-2">
+                      <Label>Refacciones utilizadas</Label>
+                      <Controller
+                        name="refacciones"
+                        control={control}
+                        render={({ field }) => (
+                          <MultiSelect
+                            options={refaccionesOptions}
+                            value={field.value || []}
+                            onChange={field.onChange}
+                            placeholder="Seleccionar refacciones..."
+                          />
+                        )}
+                      />
+                    </div>
                   </div>
                 </Card>
               )}
@@ -976,7 +1144,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                         Observaciones Generales
                       </Label>
                       <Textarea
-                        {...register('observacionesGenerales')}
+                        {...register("observacionesGenerales")}
                         placeholder="Comentarios generales del trabajo realizado..."
                         className="min-h-[80px]"
                       />
@@ -988,7 +1156,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                           Nombre del Supervisor
                         </Label>
                         <Input
-                          {...register('nombreResponsable')}
+                          {...register("nombreResponsable")}
                           placeholder="Nombre completo"
                           disabled
                           readOnly
@@ -1024,9 +1192,9 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
 
               {/* Submit */}
               <div className="flex justify-end pt-4">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={handleSaveDraft}
                   className="mr-4 border-[#153A7A] text-[#153A7A] hover:bg-[#153A7A]/10"
                 >
@@ -1035,10 +1203,14 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting || updateReportMutation.isPending || !hasSelectedActivities}
+                  disabled={
+                    isSubmitting ||
+                    updateReportMutation.isPending ||
+                    !hasSelectedActivities
+                  }
                   className="px-8 bg-[#153A7A] hover:bg-[#153A7A]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={(e) => {
-                    console.log('Submit button clicked', {
+                    console.log("Submit button clicked", {
                       isSubmitting,
                       isPending: updateReportMutation.isPending,
                       hasSelectedActivities,
@@ -1046,18 +1218,19 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({ reportId }
                     });
                     if (!hasSelectedActivities) {
                       e.preventDefault();
-                      alert('Por favor selecciona al menos una actividad antes de generar el reporte.');
+                      alert(
+                        "Por favor selecciona al menos una actividad antes de generar el reporte.",
+                      );
                       return;
                     }
                   }}
                 >
                   <Save className="w-5 h-5 mr-2" />
-                  {isSubmitting || updateReportMutation.isPending 
-                    ? 'Guardando...' 
-                    : isEditMode 
-                      ? 'Actualizar Reporte' 
-                      : 'Generar Reporte'
-                  }
+                  {isSubmitting || updateReportMutation.isPending
+                    ? "Guardando..."
+                    : isEditMode
+                      ? "Actualizar Reporte"
+                      : "Generar Reporte"}
                 </Button>
               </div>
             </form>

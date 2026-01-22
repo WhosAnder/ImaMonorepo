@@ -1,7 +1,7 @@
 import React from "react";
 import { WarehouseReportFormValues } from "../schemas/warehouseReportSchema";
 import { themes } from "@/shared/theme/colors";
-import { S3Image } from "./S3Image";
+import { S3Image } from "@/shared/components/S3Image";
 
 // ???
 type DeepPartial<T> = {

@@ -1,4 +1,5 @@
 import React from "react";
+import { S3Image } from "@/shared/components/S3Image";
 
 export type ActivityPreview = {
   nombre: string;
@@ -137,7 +138,10 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                   <LabeledPill label="TURNO" value={turno} />
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <LabeledPill label="FRECUENCIA" value={formatFrecuencia(frecuencia)} />
+                  <LabeledPill
+                    label="FRECUENCIA"
+                    value={formatFrecuencia(frecuencia)}
+                  />
                   <LabeledPill
                     label="TRABAJADORES INVOLUCRADOS"
                     value={
@@ -272,10 +276,15 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                       </div>
                       <div className="mt-2 h-[20px] border-t border-dashed border-[#999] flex items-end justify-center">
                         {firmaResponsable && (
-                          <img
-                            src={firmaResponsable}
-                            alt="Firma"
+                          <S3Image
+                            s3Key={firmaResponsable}
+                            alt="Firma del Responsable"
                             className="h-5 object-contain"
+                            fallback={
+                              <span className="text-[8px] text-gray-400">
+                                Error al cargar firma
+                              </span>
+                            }
                           />
                         )}
                       </div>
