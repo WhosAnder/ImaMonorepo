@@ -32,6 +32,9 @@ build/
 .env.production.local
 .env*.local
 
+# Keep example files
+!.env.example
+
 # TurboRepo
 .turbo
 

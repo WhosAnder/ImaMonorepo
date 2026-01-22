@@ -9,6 +9,10 @@ import {
   deleteWorkReport,
 } from "./workReports.service";
 import { WorkReportFilters, NewWorkReport } from "./workReports.repository";
+import {
+  markCompleted,
+  markFailed,
+} from "../deduplication/deduplication.service";
 
 function mapReportToResponse(report: any) {
   const { _id, ...rest } = report;
@@ -59,8 +63,13 @@ export async function getWorkReportByIdController(c: Context) {
 }
 
 export async function createWorkReportController(c: Context) {
+  // Get request hash from idempotency middleware (if present)
+  const requestHash = c.get("requestHash") as string | undefined;
+  const bodyFromMiddleware = c.get("requestBody");
+
   try {
-    const body = await c.req.json();
+    // Use pre-parsed body from middleware or parse fresh
+    const body = bodyFromMiddleware || (await c.req.json());
     const validatedData = WorkReportSchema.parse(body);
 
     const fecha = validatedData.fechaHoraInicio.substring(0, 10);
@@ -78,8 +87,25 @@ export async function createWorkReportController(c: Context) {
     };
 
     const newReport = await createWorkReport(dataToCreate);
+
+    // Mark request as completed in deduplication tracking
+    if (requestHash) {
+      await markCompleted(
+        requestHash,
+        newReport._id?.toString() || "",
+        newReport,
+      );
+    }
+
     return c.json(newReport, 201);
   } catch (error) {
+    // Mark request as failed in deduplication tracking
+    if (requestHash) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      await markFailed(requestHash, errorMessage);
+    }
+
     if (error instanceof ZodError) {
       return c.json({ error: "Validation Error", details: error.errors }, 400);
     }
@@ -92,7 +118,7 @@ export async function updateWorkReportController(c: Context) {
   const id = c.req.param("id");
   try {
     const body = await c.req.json();
-    
+
     // Check if report exists first
     const existing = await getWorkReportById(id);
     if (!existing) {
@@ -101,7 +127,7 @@ export async function updateWorkReportController(c: Context) {
 
     // Validate incoming data (partial validation for updates)
     const validatedData = WorkReportSchema.partial().parse(body);
-    
+
     // Filter and convert null to undefined for compatibility
     const updateData: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(validatedData)) {

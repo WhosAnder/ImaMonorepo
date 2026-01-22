@@ -693,11 +693,23 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
         isEditMode ? "Error updating report:" : "Error creating report:",
         error,
       );
-      alert(
-        isEditMode
-          ? "Error al actualizar el reporte"
-          : "Error al generar el reporte",
-      );
+
+      // Handle specific error codes from idempotency system
+      if ((error as any).code === "DUPLICATE_IN_PROGRESS") {
+        alert(
+          "El reporte ya se está generando. Por favor espera unos segundos y revisa tu lista de reportes.",
+        );
+      } else if ((error as any).status === 409) {
+        alert(
+          "Esta solicitud está siendo procesada. Por favor espera un momento.",
+        );
+      } else {
+        alert(
+          isEditMode
+            ? "Error al actualizar el reporte"
+            : "Error al generar el reporte",
+        );
+      }
     }
   };
 

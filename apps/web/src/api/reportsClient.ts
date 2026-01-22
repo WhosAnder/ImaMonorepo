@@ -9,10 +9,10 @@ const AUTH_STORAGE_KEY = "ima_auth_user";
 // Helper to get auth headers for protected requests
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
-  
+
   const stored = localStorage.getItem(AUTH_STORAGE_KEY);
   if (!stored) return {};
-  
+
   try {
     const user = JSON.parse(stored);
     return {
@@ -97,7 +97,16 @@ export async function createWorkReport(data: any): Promise<WorkReport> {
     } catch (e) {
       errorData = { error: errorText || "Unknown error" };
     }
-    throw new Error(errorData.error || "Error creating work report");
+
+    // Create enhanced error with code and status
+    const error: any = new Error(
+      errorData.error || "Error creating work report",
+    );
+    error.code = errorData.code;
+    error.status = res.status;
+    error.retryAfter = errorData.retryAfter;
+    error.message = errorData.message || error.message;
+    throw error;
   }
   return res.json();
 }
