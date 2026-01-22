@@ -60,10 +60,15 @@ app.patch("/:id/toggle", async (c) => {
 // DELETE /api/workers/:id - Permanent delete
 app.delete("/:id", async (c) => {
   const id = c.req.param("id");
-  const permanent = c.req.query("permanent") === "true";
+  const permanentParam = c.req.query("permanent");
+  const permanent = permanentParam === "true";
   
   if (!permanent) {
-    return c.json({ error: "Must specify permanent=true to delete" }, 400);
+    const errorMessage =
+      permanentParam === null
+        ? "Permanent delete requires the query parameter 'permanent=true'."
+        : "Permanent delete is only allowed when 'permanent=true' is specified in the query string.";
+    return c.json({ error: errorMessage }, 400);
   }
   
   const success = await permanentlyDeleteWorker(id);
