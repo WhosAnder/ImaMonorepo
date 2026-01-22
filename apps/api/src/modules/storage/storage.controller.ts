@@ -500,7 +500,9 @@ export async function presignSignatureUploadController(c: Context) {
  */
 export async function getSignatureDownloadController(c: Context) {
   try {
-    const key = c.req.param("key");
+    // Extract key from wildcard path (everything after /signatures/)
+    const fullPath = c.req.path;
+    const key = fullPath.replace("/api/storage/signatures/", "");
 
     if (!key) {
       return c.json({ error: "key is required" }, 400);

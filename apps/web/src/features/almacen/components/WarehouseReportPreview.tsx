@@ -1,6 +1,7 @@
 import React from "react";
 import { WarehouseReportFormValues } from "../schemas/warehouseReportSchema";
 import { themes } from "@/shared/theme/colors";
+import { S3Image } from "./S3Image";
 
 // ???
 type DeepPartial<T> = {
@@ -385,10 +386,15 @@ function SignatureBox({
           style={{ borderColor: "#d1d5db" }}
         >
           {signature ? (
-            <img
-              src={signature}
+            <S3Image
+              s3Key={signature}
               alt="Firma"
               className="h-full object-contain"
+              fallback={
+                <span className="text-[8px]" style={{ color: "#d1d5db" }}>
+                  Error al cargar firma
+                </span>
+              }
             />
           ) : (
             <span className="text-[8px]" style={{ color: "#d1d5db" }}>

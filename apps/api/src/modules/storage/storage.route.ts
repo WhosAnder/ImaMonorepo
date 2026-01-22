@@ -24,4 +24,4 @@ storageRoute.get("/report/:reportId", listEvidencesController);
 
 // Signature endpoints
 storageRoute.post("/signatures/presign", presignSignatureUploadController);
-storageRoute.get("/signatures/:key", getSignatureDownloadController);
+storageRoute.get("/signatures/*", getSignatureDownloadController);
