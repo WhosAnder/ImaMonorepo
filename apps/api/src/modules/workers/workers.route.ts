@@ -6,8 +6,11 @@ import {
   createWorker,
   updateWorker,
   deactivateWorker,
+  permanentlyDeleteWorker,
 } from "./workers.repository";
 import { requireAdmin } from "../../middleware/requireAdmin";
+import { ObjectId } from "mongodb";
+import { getWorkersCollection } from "../../db/mongo";
 
 const app = new Hono();
 
@@ -40,14 +43,40 @@ app.patch("/:id", zValidator("json", UpdateWorkerSchema), async (c) => {
   return c.json(worker);
 });
 
-// DELETE /api/workers/:id (Soft delete)
-app.delete("/:id", async (c) => {
+// PATCH /api/workers/:id/toggle - Toggle active status
+app.patch("/:id/toggle", async (c) => {
   const id = c.req.param("id");
-  const worker = await deactivateWorker(id);
+  const collection = await getWorkersCollection();
+  const worker = await collection.findOne({ _id: new ObjectId(id) });
+  
   if (!worker) {
     return c.json({ error: "Worker not found" }, 404);
   }
-  return c.json(worker);
+  
+  const updated = await updateWorker(id, { active: !worker.active });
+  return c.json(updated);
+});
+
+// DELETE /api/workers/:id - Permanent delete
+app.delete("/:id", async (c) => {
+  const id = c.req.param("id");
+  const permanentParam = c.req.query("permanent");
+  const permanent = permanentParam === "true";
+  
+  if (!permanent) {
+    const errorMessage =
+      permanentParam === null
+        ? "Permanent delete requires the query parameter 'permanent=true'."
+        : "Permanent delete is only allowed when 'permanent=true' is specified in the query string.";
+    return c.json({ error: errorMessage }, 400);
+  }
+  
+  const success = await permanentlyDeleteWorker(id);
+  if (!success) {
+    return c.json({ error: "Worker not found" }, 404);
+  }
+  
+  return c.json({ message: "Worker permanently deleted" });
 });
 
 export const workersRoute = app;

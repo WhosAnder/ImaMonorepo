@@ -56,3 +56,9 @@ export async function updateWorker(
 export async function deactivateWorker(id: string): Promise<WorkerRecord | null> {
   return updateWorker(id, { active: false });
 }
+
+export async function permanentlyDeleteWorker(id: string): Promise<boolean> {
+  const collection = await getWorkersCollection();
+  const result = await collection.deleteOne({ _id: new ObjectId(id) });
+  return result.deletedCount === 1;
+}

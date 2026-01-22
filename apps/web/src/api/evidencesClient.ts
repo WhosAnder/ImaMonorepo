@@ -6,6 +6,10 @@ export interface PresignUploadParams {
   reportId: string;
   reportType: ReportType;
   file: File;
+  // Optional params for pre-report uploads
+  subsystem?: string;
+  fechaHoraInicio?: string;
+  skipDbRecord?: boolean;
 }
 
 export interface PresignUploadResult {
@@ -43,12 +47,19 @@ export interface ListEvidencesResult {
 
 /**
  * Request a presigned POST URL for direct upload of evidence to S3.
- * Server will lookup report to get subsystem and date for hierarchical path.
+ * Can optionally provide subsystem/date to upload before report exists.
  */
 export async function presignUpload(
   params: PresignUploadParams,
 ): Promise<PresignUploadResult> {
-  const { file, reportId, reportType } = params;
+  const {
+    file,
+    reportId,
+    reportType,
+    subsystem,
+    fechaHoraInicio,
+    skipDbRecord,
+  } = params;
 
   const res = await fetch(`${API_URL}/api/storage/presign-upload`, {
     method: "POST",
@@ -59,6 +70,9 @@ export async function presignUpload(
       originalName: file.name,
       mimeType: file.type,
       size: file.size,
+      subsystem,
+      fechaHoraInicio,
+      skipDbRecord,
     }),
   });
 
@@ -166,7 +180,7 @@ export async function listEvidencesByReport(
 }
 
 /**
- * Upload an evidence with full flow: presign -> upload to S3 -> confirm.
+ * Upload an evidence with full flow: presign -> upload to S3 -> confirm (if DB record exists).
  * Returns evidence info on success.
  */
 export async function uploadEvidence(
@@ -178,12 +192,25 @@ export async function uploadEvidence(
   // 2. Upload directly to S3
   await uploadEvidenceDirect(presigned, params.file);
 
-  // 3. Confirm upload completed
-  const { evidence } = await confirmUpload(presigned.fileId);
+  // 3. Confirm upload completed (only if DB record was created)
+  if (!params.skipDbRecord) {
+    const { evidence } = await confirmUpload(presigned.fileId);
 
-  if (!evidence) {
-    throw new Error("Upload confirmed but evidence info not returned");
+    if (!evidence) {
+      throw new Error("Upload confirmed but evidence info not returned");
+    }
+
+    return evidence;
   }
 
-  return evidence;
+  // For temp uploads (no DB record), return minimal info
+  return {
+    id: presigned.fileId,
+    key: presigned.key,
+    originalName: params.file.name,
+    mimeType: params.file.type,
+    size: params.file.size,
+    status: "uploaded",
+    createdAt: new Date().toISOString(),
+  };
 }

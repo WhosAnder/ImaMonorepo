@@ -20,10 +20,19 @@ export const EvidenceCarousel: React.FC<EvidenceCarouselProps> = ({
   }
 
   const validEvidences = evidences
-    .map((item) => ({
-      item,
-      url: resolveEvidenceUrl(item as any),
-    }))
+    .map((item) => {
+      // If item already has a url property, use it directly (pre-resolved)
+      if (
+        typeof item === "object" &&
+        item !== null &&
+        "url" in item &&
+        item.url
+      ) {
+        return { item, url: item.url as string };
+      }
+      // Otherwise, resolve the URL
+      return { item, url: resolveEvidenceUrl(item as any) };
+    })
     .filter((evidence) => evidence.url);
 
   if (validEvidences.length === 0) {

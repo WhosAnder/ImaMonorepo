@@ -5,9 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/shared/ui/Button";
 import { AppLayout } from "@/shared/layout/AppLayout";
 import { WarehouseReportPreview } from "../components/WarehouseReportPreview";
+import { WarehouseEvidenceGallery } from "../components/WarehouseEvidenceGallery";
 import { generatePDFReport } from "../helpers/generate-pdf";
 import { ArrowLeft, DownloadIcon, Pencil, Trash2 } from "lucide-react";
-import { useWarehouseReportQuery, useDeleteWarehouseReportMutation } from "@/hooks/useWarehouseReports";
+import {
+  useWarehouseReportQuery,
+  useDeleteWarehouseReportMutation,
+} from "@/hooks/useWarehouseReports";
 import { ConfirmDeleteModal } from "@/shared/ui/ConfirmDeleteModal";
 import { useAuth } from "@/auth/AuthContext";
 
@@ -114,6 +118,17 @@ export const WarehouseReportDetailPage: React.FC = () => {
         >
           Descargar PDF <DownloadIcon className="h-4 w-4 ml-2" />
         </Button>
+
+        {/* Evidence Gallery Section */}
+        {((report.herramientas && report.herramientas.length > 0) ||
+          (report.refacciones && report.refacciones.length > 0)) && (
+          <div className="mt-8">
+            <WarehouseEvidenceGallery
+              herramientas={report.herramientas || []}
+              refacciones={report.refacciones || []}
+            />
+          </div>
+        )}
       </div>
 
       <ConfirmDeleteModal

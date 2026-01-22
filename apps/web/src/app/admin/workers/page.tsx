@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/auth/AuthContext";
-import { useWorkers, useCreateWorker, useUpdateWorker, useDeleteWorker } from "@/hooks/useWorkers";
+import { useWorkers, useCreateWorker, useUpdateWorker, useToggleWorkerActive, usePermanentlyDeleteWorker } from "@/hooks/useWorkers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -57,7 +57,8 @@ export default function WorkersPage() {
   const { data: workers, isLoading } = useWorkers(search, showInactive);
   const createMutation = useCreateWorker();
   const updateMutation = useUpdateWorker();
-  const deleteMutation = useDeleteWorker();
+  const toggleActiveMutation = useToggleWorkerActive();
+  const permanentDeleteMutation = usePermanentlyDeleteWorker();
 
   // Create Form
   const createForm = useForm<WorkerFormValues>({
@@ -108,9 +109,13 @@ export default function WorkersPage() {
     setEditingWorker(null);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("¿Estás seguro de desactivar este trabajador?")) {
-      await deleteMutation.mutateAsync(id);
+  const handleToggleActive = async (id: string) => {
+    await toggleActiveMutation.mutateAsync(id);
+  };
+
+  const handlePermanentDelete = async (id: string) => {
+    if (confirm("¿Estás seguro de eliminar a este trabajador?")) {
+      await permanentDeleteMutation.mutateAsync(id);
     }
   };
 
@@ -219,7 +224,21 @@ export default function WorkersPage() {
                         )}
                       </TableCell>
                       <TableCell className="px-6 py-4 text-right">
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-3 items-center">
+                          {/* Toggle Active/Inactive */}
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={worker.active}
+                              onCheckedChange={() => handleToggleActive(worker._id)}
+                              disabled={toggleActiveMutation.isPending}
+                              className={worker.active ? "data-[state=checked]:bg-green-600" : ""}
+                            />
+                            <span className={`text-xs font-medium ${worker.active ? "text-green-700" : "text-gray-500"}`}>
+                              {worker.active ? "Activo" : "Inactivo"}
+                            </span>
+                          </div>
+                          
+                          {/* Edit Button */}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -228,16 +247,17 @@ export default function WorkersPage() {
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
-                          {worker.active && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                              onClick={() => handleDelete(worker._id)}
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          )}
+                          
+                          {/* Permanent Delete Button */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => handlePermanentDelete(worker._id)}
+                            disabled={permanentDeleteMutation.isPending}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

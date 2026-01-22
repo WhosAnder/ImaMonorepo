@@ -6,6 +6,8 @@ import {
   confirmUploadController,
   presignDownloadController,
   listEvidencesController,
+  presignSignatureUploadController,
+  getSignatureDownloadController,
 } from "./storage.controller";
 
 export const storageRoute = new Hono();
@@ -19,3 +21,7 @@ storageRoute.post("/presign-upload", presignUploadController);
 storageRoute.post("/confirm-upload", confirmUploadController);
 storageRoute.post("/presign-download", presignDownloadController);
 storageRoute.get("/report/:reportId", listEvidencesController);
+
+// Signature endpoints
+storageRoute.post("/signatures/presign", presignSignatureUploadController);
+storageRoute.get("/signatures/*", getSignatureDownloadController);

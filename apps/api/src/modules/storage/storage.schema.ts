@@ -12,6 +12,10 @@ export const presignUploadRequestSchema = z.object({
   originalName: z.string().min(1, "File name is required"),
   mimeType: z.string().min(1, "MIME type is required"),
   size: z.number().positive("Size must be positive"),
+  // Optional params for pre-report uploads (when report doesn't exist yet)
+  subsystem: z.string().optional(),
+  fechaHoraInicio: z.string().optional(),
+  skipDbRecord: z.boolean().optional(), // If true, don't create evidence DB record
 });
 
 export const presignDownloadRequestSchema = z

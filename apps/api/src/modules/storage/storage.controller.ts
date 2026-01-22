@@ -4,7 +4,11 @@ import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { Readable } from "node:stream";
 import { createReadStream, existsSync } from "node:fs";
 import { join } from "node:path";
-import { createStorageService } from "./storage.service";
+import {
+  createStorageService,
+  createPresignedSignatureUpload,
+  createPresignedSignatureDownload,
+} from "./storage.service";
 import { storagePolicies } from "./storage.policies";
 import { createMulterAdapter } from "./adapters/multer-adapter";
 import { createS3Adapter } from "./adapters/s3-adapter";
@@ -169,6 +173,9 @@ export async function presignUploadController(c: Context) {
       originalName: data.originalName,
       mimeType: data.mimeType,
       size: data.size,
+      subsystem: data.subsystem,
+      fechaHoraInicio: data.fechaHoraInicio,
+      skipDbRecord: data.skipDbRecord,
     });
 
     return c.json(result);
@@ -428,4 +435,93 @@ export async function getEvidenceController(c: Context) {
   const stream = createReadStream(filePath);
   const headers = buildDownloadHeaders(key);
   return new Response(Readable.toWeb(stream) as ReadableStream, { headers });
+}
+
+// ============================================================================
+// SIGNATURE UPLOAD CONTROLLERS
+// ============================================================================
+
+/**
+ * POST /api/storage/signatures/presign
+ * Generate presigned URL for signature upload
+ */
+export async function presignSignatureUploadController(c: Context) {
+  try {
+    const body = await c.req.json();
+    const {
+      reportId,
+      reportType,
+      signatureType,
+      mimeType,
+      size,
+      subsystem,
+      fechaHoraInicio,
+    } = body;
+
+    if (!reportId || !reportType || !signatureType) {
+      return c.json(
+        { error: "reportId, reportType, and signatureType are required" },
+        400,
+      );
+    }
+
+    // Validate signatureType based on reportType
+    const validWarehouseTypes = [
+      "quien-recibe",
+      "almacenista",
+      "quien-entrega",
+    ];
+    const validWorkTypes = ["responsable"];
+    const allValidTypes = [...validWarehouseTypes, ...validWorkTypes];
+
+    if (!allValidTypes.includes(signatureType)) {
+      return c.json(
+        {
+          error:
+            `Invalid signatureType '${signatureType}'. ` +
+            `For warehouse reports: ${validWarehouseTypes.join(", ")}. ` +
+            `For work reports: ${validWorkTypes.join(", ")}`,
+        },
+        400,
+      );
+    }
+
+    const result = await createPresignedSignatureUpload({
+      reportId,
+      reportType,
+      signatureType,
+      mimeType: mimeType || "image/png",
+      size: size || 0,
+      subsystem,
+      fechaHoraInicio,
+    });
+
+    return c.json(result);
+  } catch (error) {
+    console.error("Error creating presigned signature upload:", error);
+    return c.json({ error: "Failed to create presigned upload" }, 500);
+  }
+}
+
+/**
+ * GET /api/storage/signatures/:key
+ * Get presigned download URL for signature
+ */
+export async function getSignatureDownloadController(c: Context) {
+  try {
+    // Extract key from wildcard path (everything after /signatures/)
+    const fullPath = c.req.path;
+    const key = fullPath.replace("/api/storage/signatures/", "");
+
+    if (!key) {
+      return c.json({ error: "key is required" }, 400);
+    }
+
+    const result = await createPresignedSignatureDownload(key);
+
+    return c.json(result);
+  } catch (error) {
+    console.error("Error creating presigned signature download:", error);
+    return c.json({ error: "Failed to create presigned download" }, 500);
+  }
 }
