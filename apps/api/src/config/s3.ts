@@ -186,13 +186,6 @@ export const getS3SignaturesClient = (): S3Client => {
 
   const credentials = getS3SignaturesCredentials();
 
-  console.log("S3 Signatures credentials check:", {
-    accessKeyId: credentials.accessKeyId?.substring(0, 20) + "...",
-    secretAccessKeyLength: credentials.secretAccessKey?.length,
-    secretAccessKeyStart: credentials.secretAccessKey?.substring(0, 10) + "...",
-    secretAccessKeyEnd: "..." + credentials.secretAccessKey?.slice(-10),
-  });
-
   cachedSignaturesClient = new S3Client({
     region,
     endpoint,
