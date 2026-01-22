@@ -29,8 +29,11 @@ export function S3Image({
       return;
     }
 
+    console.log("[S3Image] Loading image with key:", s3Key);
+
     // If it's already a data URL or http URL, use it directly (for backward compatibility)
     if (s3Key.startsWith("data:") || s3Key.startsWith("http")) {
+      console.log("[S3Image] Using direct URL (base64 or http)");
       setImageUrl(s3Key);
       setIsLoading(false);
       return;
@@ -49,19 +52,26 @@ export function S3Image({
 
         if (isSignature) {
           // For signatures, use the signature endpoint (wildcard route handles slashes)
-          const response = await fetch(
-            `${API_URL}/api/storage/signatures/${s3Key}`,
-            {
-              method: "GET",
-              credentials: "include",
-            },
-          );
+          const fetchUrl = `${API_URL}/api/storage/signatures/${s3Key}`;
+          console.log("[S3Image] Fetching signature URL:", fetchUrl);
+
+          const response = await fetch(fetchUrl, {
+            method: "GET",
+            credentials: "include",
+          });
 
           if (!response.ok) {
-            throw new Error("Failed to get presigned URL");
+            const errorText = await response.text();
+            console.error(
+              "[S3Image] Failed to get presigned URL:",
+              response.status,
+              errorText,
+            );
+            throw new Error(`Failed to get presigned URL: ${response.status}`);
           }
 
           const data = await response.json();
+          console.log("[S3Image] Received presigned URL:", data.url);
           url = data.url;
         } else {
           // For evidences, use the presign-download endpoint
