@@ -465,13 +465,22 @@ export async function presignSignatureUploadController(c: Context) {
       );
     }
 
-    if (
-      !["quien-recibe", "almacenista", "quien-entrega"].includes(signatureType)
-    ) {
+    // Validate signatureType based on reportType
+    const validWarehouseTypes = [
+      "quien-recibe",
+      "almacenista",
+      "quien-entrega",
+    ];
+    const validWorkTypes = ["responsable"];
+    const allValidTypes = [...validWarehouseTypes, ...validWorkTypes];
+
+    if (!allValidTypes.includes(signatureType)) {
       return c.json(
         {
           error:
-            "Invalid signatureType. Must be: quien-recibe, almacenista, or quien-entrega",
+            `Invalid signatureType '${signatureType}'. ` +
+            `For warehouse reports: ${validWarehouseTypes.join(", ")}. ` +
+            `For work reports: ${validWorkTypes.join(", ")}`,
         },
         400,
       );

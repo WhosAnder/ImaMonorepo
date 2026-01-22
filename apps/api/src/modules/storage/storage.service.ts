@@ -429,7 +429,11 @@ export type StorageService = ReturnType<typeof createStorageService>;
 // SIGNATURE UPLOAD FUNCTIONS
 // ============================================================================
 
-export type SignatureType = "quien-recibe" | "almacenista" | "quien-entrega";
+export type SignatureType =
+  | "quien-recibe"
+  | "almacenista"
+  | "quien-entrega"
+  | "responsable"; // For work reports
 
 export interface BuildSignatureKeyParams {
   reportId: string;
