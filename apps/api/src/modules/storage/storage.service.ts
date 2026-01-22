@@ -362,6 +362,11 @@ export const createPresignedDownload = async (
     throw new Error("S3_BUCKET not configured");
   }
 
+  const client = getS3Client();
+  const expiresInSeconds = 300;
+  let s3Key: string;
+
+  // Try to find evidence in database (for tracked evidences)
   let evidenceRecord;
   if (params.fileId) {
     evidenceRecord = await storageRepo.findById(params.fileId);
@@ -369,20 +374,30 @@ export const createPresignedDownload = async (
     evidenceRecord = await storageRepo.findByKey(params.key);
   }
 
-  if (!evidenceRecord) {
+  // If found in database, validate and use its key
+  if (evidenceRecord) {
+    if (evidenceRecord.status === "deleted") {
+      throw new Error("Evidence has been deleted");
+    }
+    s3Key = evidenceRecord.key;
+  }
+  // If not found in database but key provided, use the key directly
+  // This supports pre-report uploads that aren't tracked in DB
+  else if (params.key) {
+    // Validate key format (must start with evidences/)
+    if (!params.key.startsWith("evidences/")) {
+      throw new Error("Invalid S3 key format");
+    }
+    s3Key = params.key;
+  }
+  // No valid evidence found
+  else {
     throw new Error("Evidence not found");
   }
 
-  if (evidenceRecord.status === "deleted") {
-    throw new Error("Evidence has been deleted");
-  }
-
-  const client = getS3Client();
-  const expiresInSeconds = 300;
-
   const command = new GetObjectCommand({
     Bucket: bucket,
-    Key: evidenceRecord.key,
+    Key: s3Key,
   });
 
   const url = await getSignedUrl(client, command, {
