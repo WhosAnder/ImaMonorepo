@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { db } from "../src/db/client";
-import { users, accounts } from "../src/db/schema";
+import { user, account } from "../src/db/schema";
 import { eq } from "drizzle-orm";
 
 async function deleteUser() {
@@ -8,26 +8,26 @@ async function deleteUser() {
 
   try {
     // Find the user
-    const user = await db
+    const foundUser = await db
       .select()
-      .from(users)
-      .where(eq(users.email, email))
+      .from(user)
+      .where(eq(user.email, email))
       .limit(1);
 
-    if (user.length === 0) {
+    if (foundUser.length === 0) {
       console.log(`User with email ${email} does not exist.`);
       return;
     }
 
-    const userId = user[0].id;
+    const userId = foundUser[0].id;
     console.log(`Found user: ${userId}`);
 
     // Delete account (cascade should handle this, but let's be explicit)
-    await db.delete(accounts).where(eq(accounts.userId, userId));
+    await db.delete(account).where(eq(account.userId, userId));
     console.log("Deleted account");
 
     // Delete user
-    await db.delete(users).where(eq(users.id, userId));
+    await db.delete(user).where(eq(user.id, userId));
     console.log("Deleted user");
 
     console.log(

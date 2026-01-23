@@ -113,7 +113,7 @@ authRoute.post("/login", async (c) => {
 
   applySetCookies(c, cookies);
 
-  const mustChangePassword = !found.hasChangedPassword;
+  const mustChangePassword = found.mustChangePassword;
 
   return c.json({
     id: found.id,
@@ -169,7 +169,7 @@ authRoute.post("/admin/users/:id/reset-password", async (c) => {
   await db
     .update(user)
     .set({
-      hasChangedPassword: false,
+      mustChangePassword: true,
       updatedAt: new Date(),
     })
     .where(eq(user.id, userId));
@@ -192,7 +192,10 @@ function generateTemporaryPassword(length = 12) {
   const randomBuffer = randomBytes(length);
   let password = "";
   for (let i = 0; i < length; i++) {
-    password += alphabet[randomBuffer[i] % alphabet.length];
+    const byte = randomBuffer[i];
+    if (byte !== undefined) {
+      password += alphabet[byte % alphabet.length];
+    }
   }
   return password;
 }
