@@ -23,11 +23,43 @@ app.use("*", logger());
 // Enable gzip compression for all responses
 app.use("*", compress());
 
+// Parse CORS allowed origins from environment variable
+const getAllowedOrigins = (): string[] => {
+  const originsEnv = process.env.ALLOWED_ORIGINS;
+  
+  if (!originsEnv) {
+    console.warn("⚠️  ALLOWED_ORIGINS not set, defaulting to http://localhost:3000");
+    return ["http://localhost:3000"];
+  }
+
+  const origins = originsEnv
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter((origin) => {
+      // Validate URL format
+      try {
+        new URL(origin);
+        return true;
+      } catch {
+        console.warn(`⚠️  Invalid origin URL: "${origin}" - skipping`);
+        return false;
+      }
+    });
+
+  if (origins.length === 0) {
+    console.warn("⚠️  No valid origins found in ALLOWED_ORIGINS, defaulting to http://localhost:3000");
+    return ["http://localhost:3000"];
+  }
+
+  console.log(`✅ CORS enabled for origins: ${origins.join(", ")}`);
+  return origins;
+};
+
 // Enable CORS for the web app
 app.use(
   "/*",
   cors({
-    origin: ["http://localhost:3000"],
+    origin: getAllowedOrigins(),
     credentials: true,
   }),
 );
