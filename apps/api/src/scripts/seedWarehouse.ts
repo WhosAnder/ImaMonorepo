@@ -233,6 +233,10 @@ async function seed() {
 
     for (let i = 0; i < itemsToSeed.length; i++) {
       const item = itemsToSeed[i];
+      
+      if (!item) {
+        continue;
+      }
 
       // Check if exists by name to avoid duplicates
       const existing = await collection.findOne({ name: item.equipo });

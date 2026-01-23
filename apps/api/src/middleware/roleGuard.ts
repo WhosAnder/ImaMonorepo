@@ -14,8 +14,8 @@ function parseRole(roleHeader?: string | null): UserRole {
 }
 
 export function resolveUserFromRequest(c: Context): RequestUser {
-  const existing = c.get<RequestUser | undefined>(CONTEXT_USER_KEY);
-  if (existing) {
+  const existing = c.get(CONTEXT_USER_KEY) as RequestUser | undefined;
+  if (existing && existing.role) {
     return existing;
   }
 

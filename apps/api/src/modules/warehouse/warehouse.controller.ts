@@ -56,7 +56,7 @@ export async function createWarehouseItemController(c: Context) {
     return c.json(newItem, 201);
   } catch (error) {
     if (error instanceof ZodError) {
-      return c.json({ error: "Validation Error", details: error.errors }, 400);
+      return c.json({ error: "Validation Error", details: error.issues }, 400);
     }
     if (error instanceof Error && error.message === "SKU_ALREADY_EXISTS") {
       return c.json({ error: "SKU already exists" }, 409);
@@ -80,7 +80,7 @@ export async function updateWarehouseItemController(c: Context) {
     return c.json(updated);
   } catch (error) {
     if (error instanceof ZodError) {
-      return c.json({ error: "Validation Error", details: error.errors }, 400);
+      return c.json({ error: "Validation Error", details: error.issues }, 400);
     }
     console.error("Error updating warehouse item", error);
     return c.json({ error: "Internal Server Error" }, 500);
@@ -119,7 +119,7 @@ export async function createWarehouseAdjustmentController(c: Context) {
     return c.json(result);
   } catch (error) {
     if (error instanceof ZodError) {
-      return c.json({ error: "Validation Error", details: error.errors }, 400);
+      return c.json({ error: "Validation Error", details: error.issues }, 400);
     }
     if (error instanceof Error) {
       if (error.message === "ITEM_NOT_FOUND") {

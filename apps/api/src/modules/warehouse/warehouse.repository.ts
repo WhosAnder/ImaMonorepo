@@ -113,7 +113,7 @@ export async function updateWarehouseItem(
     { $set: updateDoc },
     { returnDocument: "after" },
   );
-  return result.value;
+  return result ?? null;
 }
 
 export async function applyStockAdjustment(
@@ -152,7 +152,7 @@ export async function applyStockAdjustment(
     { returnDocument: "after" },
   );
 
-  if (!updateResult.value) {
+  if (!updateResult) {
     throw new Error("ITEM_NOT_FOUND");
   }
 
@@ -171,7 +171,7 @@ export async function applyStockAdjustment(
   const inserted = await adjustmentsCollection.insertOne(newAdjustment);
 
   return {
-    item: updateResult.value,
+    item: updateResult,
     adjustment: { ...newAdjustment, _id: inserted.insertedId },
   };
 }

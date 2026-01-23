@@ -7,7 +7,7 @@ import {
 export const presignUploadRequestSchema = z.object({
   reportId: z.string().min(1, "reportId is required"),
   reportType: z.enum(["work", "warehouse"], {
-    errorMap: () => ({ message: "reportType must be 'work' or 'warehouse'" }),
+    message: "reportType must be 'work' or 'warehouse'",
   }),
   originalName: z.string().min(1, "File name is required"),
   mimeType: z.string().min(1, "MIME type is required"),
