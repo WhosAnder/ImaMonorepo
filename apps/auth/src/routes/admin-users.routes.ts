@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { db } from "../db/client";
-import { users } from "../db/schema";
+import { user } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { auth } from "../lib/auth";
 import {
@@ -50,15 +50,15 @@ adminUsersRoute.use("*", async (c, next) => {
 adminUsersRoute.get("/users", async (c) => {
   const allUsers = await db
     .select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      role: users.role,
-      active: users.active,
-      mustChangePassword: users.mustChangePassword,
-      createdAt: users.createdAt,
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      active: user.active,
+      mustChangePassword: user.mustChangePassword,
+      createdAt: user.createdAt,
     })
-    .from(users);
+    .from(user);
 
   return c.json(allUsers);
 });
@@ -74,9 +74,9 @@ adminUsersRoute.post("/users", async (c) => {
   const { name, email, role, tempPassword } = parsed.data;
 
   const existing = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.email, email))
+    .select({ id: user.id })
+    .from(user)
+    .where(eq(user.email, email))
     .limit(1);
 
   if (existing.length > 0) {
@@ -98,29 +98,29 @@ adminUsersRoute.post("/users", async (c) => {
   // Get the created user and update role + mustChangePassword
   const [createdUser] = await db
     .select()
-    .from(users)
-    .where(eq(users.email, email))
+    .from(user)
+    .where(eq(user.email, email))
     .limit(1);
 
   if (createdUser) {
     await db
-      .update(users)
+      .update(user)
       .set({ role, mustChangePassword: true })
-      .where(eq(users.id, createdUser.id));
+      .where(eq(user.id, createdUser.id));
   }
 
   const [updated] = await db
     .select({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      role: users.role,
-      active: users.active,
-      mustChangePassword: users.mustChangePassword,
-      createdAt: users.createdAt,
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      active: user.active,
+      mustChangePassword: user.mustChangePassword,
+      createdAt: user.createdAt,
     })
-    .from(users)
-    .where(eq(users.email, email))
+    .from(user)
+    .where(eq(user.email, email))
     .limit(1);
 
   return c.json(updated, 201);
@@ -143,20 +143,20 @@ adminUsersRoute.patch("/users/:id", async (c) => {
   }
 
   const [updated] = await db
-    .update(users)
+    .update(user)
     .set({
       ...updates,
       updatedAt: new Date(),
     })
-    .where(eq(users.id, userId))
+    .where(eq(user.id, userId))
     .returning({
-      id: users.id,
-      name: users.name,
-      email: users.email,
-      role: users.role,
-      active: users.active,
-      mustChangePassword: users.mustChangePassword,
-      createdAt: users.createdAt,
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      active: user.active,
+      mustChangePassword: user.mustChangePassword,
+      createdAt: user.createdAt,
     });
 
   if (!updated) {
@@ -175,10 +175,10 @@ adminUsersRoute.delete("/users/:id", async (c) => {
   }
 
   const [updated] = await db
-    .update(users)
+    .update(user)
     .set({ active: false, updatedAt: new Date() })
-    .where(eq(users.id, userId))
-    .returning({ id: users.id });
+    .where(eq(user.id, userId))
+    .returning({ id: user.id });
 
   if (!updated) {
     return c.json({ error: "User not found" }, 404);

@@ -56,12 +56,12 @@ changePasswordRoute.post("/", async (c) => {
     await db
       .update(user)
       .set({
-        hasChangedPassword: true,
+        mustChangePassword: false,
         updatedAt: new Date(),
       })
       .where(eq(user.id, userId));
 
-    return c.json({ success: true, hasChangedPassword: true });
+    return c.json({ success: true, mustChangePassword: false });
   } catch (error) {
     return c.json({ error: "Failed to change password" }, 500);
   }
