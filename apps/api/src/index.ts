@@ -1,4 +1,23 @@
-import "dotenv/config";
+// Conditional environment variable loading with debug logging
+import { config } from 'dotenv';
+import { join } from 'path';
+
+// Only load .env in non-Railway environments (local development)
+if (!process.env.RAILWAY_ENVIRONMENT) {
+  config({ path: join(__dirname, '../../../apps/api/.env') });
+  console.log('📄 Environment: Local development - loaded from .env file');
+} else {
+  console.log('📄 Environment: Railway production - using injected variables');
+}
+
+// Debug logging for critical environment variables
+console.log('🔍 Environment Variables Debug:');
+console.log('   NODE_ENV:', process.env.NODE_ENV || 'not set');
+console.log('   ALLOWED_ORIGINS:', process.env.ALLOWED_ORIGINS || 'not set');
+console.log('   AWS_REGION:', process.env.AWS_REGION || 'not set');
+console.log('   S3_BUCKET:', process.env.S3_BUCKET || 'not set');
+console.log('   MONGODB_URL:', process.env.MONGODB_URL ? '✓ set' : '✗ not set');
+
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import { cors } from "hono/cors";
@@ -11,7 +30,6 @@ import { storageRoute } from "./modules/storage/storage.route";
 import { reportsRoute } from "./modules/reports/reports.route";
 import { getUploadDir } from "./config/multer";
 import { readFileSync, existsSync } from "fs";
-import { join } from "path";
 import { logger } from "hono/logger";
 
 import { workersRoute } from "./modules/workers/workers.route";
