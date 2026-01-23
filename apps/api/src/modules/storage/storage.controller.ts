@@ -152,7 +152,7 @@ export async function presignUploadController(c: Context) {
 
     const parseResult = presignUploadRequestSchema.safeParse(body);
     if (!parseResult.success) {
-      const firstError = parseResult.error.errors[0];
+      const firstError = parseResult.error.issues[0];
       return c.json({ error: firstError?.message || "Invalid request" }, 400);
     }
 
@@ -194,7 +194,7 @@ export async function confirmUploadController(c: Context) {
 
     const parseResult = confirmUploadRequestSchema.safeParse(body);
     if (!parseResult.success) {
-      const firstError = parseResult.error.errors[0];
+      const firstError = parseResult.error.issues[0];
       return c.json({ error: firstError?.message || "Invalid request" }, 400);
     }
 
@@ -232,7 +232,7 @@ export async function presignDownloadController(c: Context) {
 
     const parseResult = presignDownloadRequestSchema.safeParse(body);
     if (!parseResult.success) {
-      const firstError = parseResult.error.errors[0];
+      const firstError = parseResult.error.issues[0];
       return c.json({ error: firstError?.message || "Invalid request" }, 400);
     }
 

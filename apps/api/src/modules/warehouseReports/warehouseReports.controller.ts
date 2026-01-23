@@ -160,7 +160,7 @@ export async function createWarehouseReportController(c: Context) {
     return c.json(newReport, 201);
   } catch (error) {
     if (error instanceof ZodError) {
-      return c.json({ error: "Validation Error", details: error.errors }, 400);
+      return c.json({ error: "Validation Error", details: error.issues }, 400);
     }
     console.error("Error creating warehouse report:", error);
     return c.json({ error: "Internal Server Error" }, 500);
@@ -197,7 +197,7 @@ export async function updateWarehouseReportController(c: Context) {
     return c.json(mapReportToResponse(updatedReport));
   } catch (error) {
     if (error instanceof ZodError) {
-      return c.json({ error: "Validation Error", details: error.errors }, 400);
+      return c.json({ error: "Validation Error", details: error.issues }, 400);
     }
     console.error("Error updating warehouse report:", error);
     return c.json({ error: "Internal Server Error" }, 500);
