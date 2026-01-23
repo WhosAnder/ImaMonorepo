@@ -21,6 +21,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "@repo/typescript-config": "*",
     "@types/node": "^22.0.0",
     "@types/pg": "^8.10.0",
     "drizzle-kit": "^0.31.7",
