@@ -51,13 +51,20 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
         `}
         >
-          <div className="h-16 flex flex-col justify-center px-6 border-b border-gray-100">
-            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-              IMA Soluciones
-            </span>
-            <span className="text-lg font-bold" style={{ color: themeColor }}>
-              Plataforma
-            </span>
+          <div className="h-16 flex items-center justify-between gap-3 px-4 border-b border-gray-100">
+            <div className="flex flex-col justify-center">
+              <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                IMA Soluciones
+              </span>
+              <span className="text-lg font-bold" style={{ color: themeColor }}>
+                Plataforma
+              </span>
+            </div>
+            <img
+              src="/assets/ima-logo.png"
+              alt="IMA Logo"
+              className="h-9 w-auto object-contain"
+            />
           </div>
 
           <nav className="p-4 space-y-1">
@@ -70,19 +77,18 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                   href={item.href}
                   className={`
                                     w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors
-                                    ${
-                                      isActive
-                                        ? "bg-gray-100 text-gray-900"
-                                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                                    }
+                                    ${isActive
+                      ? "bg-gray-100 text-gray-900"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    }
                                 `}
                   style={
                     isActive
                       ? {
-                          borderLeft: `4px solid ${themeColor}`,
-                          backgroundColor: `${themeColor}10`,
-                          color: themeColor,
-                        }
+                        borderLeft: `4px solid ${themeColor}`,
+                        backgroundColor: `${themeColor}10`,
+                        color: themeColor,
+                      }
                       : {}
                   }
                 >

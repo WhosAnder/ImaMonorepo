@@ -57,13 +57,20 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-blue-600 mb-2">
-            IMA Soluciones
-          </h1>
-          <h2 className="text-xl font-semibold text-gray-800">
-            Acceso a IMA Cloud
-          </h2>
+        <div className="flex flex-col items-center justify-center gap-4 mb-8">
+          <img
+            src="/assets/ima-logo.png"
+            alt="IMA Logo"
+            className="h-12 w-auto"
+          />
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-blue-600 mb-1">
+              IMA Soluciones
+            </h1>
+            <h2 className="text-lg font-semibold text-gray-700">
+              Acceso a IMA Cloud
+            </h2>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -82,9 +89,8 @@ export const LoginPage: React.FC = () => {
                 setEmail(e.target.value);
                 if (errors.email) setErrors({ ...errors, email: undefined });
               }}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
-                errors.email ? "border-red-500" : "border-gray-300"
-              }`}
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.email ? "border-red-500" : "border-gray-300"
+                }`}
               placeholder="usuario@imasoluciones.com"
             />
             {errors.email && (
@@ -109,9 +115,8 @@ export const LoginPage: React.FC = () => {
                   if (errors.password)
                     setErrors({ ...errors, password: undefined });
                 }}
-                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10 ${
-                  errors.password ? "border-red-500" : "border-gray-300"
-                }`}
+                className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10 ${errors.password ? "border-red-500" : "border-gray-300"
+                  }`}
                 placeholder="••••••••"
               />
               <button
