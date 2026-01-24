@@ -1,11 +1,13 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "ui": "tui",
+  "globalPassThroughEnv": ["NODE_ENV", "RAILWAY_*"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": [".next/**", "!.next/cache/**"],
+      "passThroughEnv": ["*"]
     },
     "lint": {
       "dependsOn": ["^lint"]
@@ -20,7 +22,8 @@
     "start": {
       "cache": false,
       "persistent": true,
-      "dependsOn": ["build"]
+      "dependsOn": ["build"],
+      "passThroughEnv": ["*"]
     }
   }
 }
