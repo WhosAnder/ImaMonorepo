@@ -25,6 +25,11 @@ app.route("/", router);
 serve({
   fetch: app.fetch,
   port,
-}).on("listening", () => {
-  console.log(`[Auth] service running on http://127.0.0.1:${port}`);
-});
+})
+  .on("listening", () => {
+    console.log(`[Auth] ✅ service running on http://127.0.0.1:${port}`);
+  })
+  .on("error", (err) => {
+    console.error("[Auth] ❌ Server error:", err);
+    process.exit(1);
+  });
