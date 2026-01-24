@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-import { authRoute } from "./routes/auth.routes";
-import { changePasswordRoute } from "./routes/change-password.routes";
+import { authRoute } from "./routes/auth.routes.js";
+import { changePasswordRoute } from "./routes/change-password.routes.js";
 
 export const router = new Hono();
 

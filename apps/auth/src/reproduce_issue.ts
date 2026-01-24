@@ -1,4 +1,4 @@
-import { auth } from "./lib/auth";
+import { auth } from "./lib/auth.js";
 import { APIError } from "better-auth/api";
 
 async function test() {

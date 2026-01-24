@@ -1,5 +1,5 @@
 import { Context } from "hono";
-import { auth } from "./auth";
+import { auth } from "./auth.js";
 
 export type SessionUser = {
   id: string;

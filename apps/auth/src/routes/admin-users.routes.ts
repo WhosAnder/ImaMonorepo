@@ -1,15 +1,15 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { db } from "../db/client";
-import { user } from "../db/schema";
+import { db } from "../db/client.js";
+import { user } from "../db/schema.js";
 import { eq } from "drizzle-orm";
-import { auth } from "../lib/auth";
+import { auth } from "../lib/auth.js";
 import {
   applySetCookies,
   getSessionFromRequest,
   hasAdminRole,
   SessionUser,
-} from "../lib/session";
+} from "../lib/session.js";
 
 const roleSchema = z.enum(["admin", "supervisor", "warehouse"]);
 
