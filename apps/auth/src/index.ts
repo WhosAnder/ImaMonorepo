@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import { router } from "./router";
+import { router } from "./router.js";
 import { logger } from "hono/logger";
 import { cors } from "hono/cors";
 

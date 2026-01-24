@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { auth } from "../lib/auth";
-import { getSessionFromRequest } from "../lib/session";
-import { db } from "../db/client";
-import { user } from "../db/schema";
+import { auth } from "../lib/auth.js";
+import { getSessionFromRequest } from "../lib/session.js";
+import { db } from "../db/client.js";
+import { user } from "../db/schema.js";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),

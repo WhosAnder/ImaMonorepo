@@ -1,15 +1,15 @@
 import { Hono } from "hono";
 import { and, eq, inArray } from "drizzle-orm";
-import { auth } from "../lib/auth";
-import { db } from "../db/client";
-import { account, user } from "../db/schema";
-import { loginSchema, registerSchema } from "../schemas/auth.schema";
+import { auth } from "../lib/auth.js";
+import { db } from "../db/client.js";
+import { account, user } from "../db/schema.js";
+import { loginSchema, registerSchema } from "../schemas/auth.schema.js";
 import {
   applySetCookies,
   collectSetCookies,
   getSessionFromRequest,
   hasAdminRole,
-} from "../lib/session";
+} from "../lib/session.js";
 import { hashPassword } from "better-auth/crypto";
 import { randomBytes } from "crypto";
 
