@@ -4,7 +4,9 @@ import { Pool } from "pg";
 const DB_URL = process.env.DATABASE_URL;
 
 if (!DB_URL) {
-  throw new Error("DATABASE_URL environment variable is required");
+  console.error("[Database] ❌ DATABASE_URL environment variable is required");
+  console.error("[Database] Please set DATABASE_URL in your Railway environment variables");
+  process.exit(1);
 }
 
 const pool = new Pool({
