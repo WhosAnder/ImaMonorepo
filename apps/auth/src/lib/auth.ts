@@ -9,8 +9,12 @@ const BETTER_AUTH_SECRET = process.env.BETTER_AUTH_SECRET;
 
 if (!BETTER_AUTH_SECRET) {
   console.error("[Auth] BETTER_AUTH_SECRET environment variable is required");
-  console.error("[Auth] Please set BETTER_AUTH_SECRET in your Railway environment variables");
-  console.error("[Auth] Generate a secure random string (at least 32 characters) for production");
+  process.exit(1);
+}
+
+if (BETTER_AUTH_SECRET.length < 32) {
+  console.error("[Auth] BETTER_AUTH_SECRET must be at least 32 characters long for adequate security");
+  console.error(`[Auth] Current length: ${BETTER_AUTH_SECRET.length} characters`);
   process.exit(1);
 }
 
