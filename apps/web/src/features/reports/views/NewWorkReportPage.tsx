@@ -137,6 +137,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
 
   const initialFormValues = {
     subsistema: "",
+    cliente: "AEROTREN AICM",
     ubicacion: "",
     fechaHoraInicio: new Date().toISOString().slice(0, 16),
     turno: "",
@@ -817,6 +818,20 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                       </p>
                     )}
                   </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cliente">Cliente</Label>
+                    <Input
+                      id="cliente"
+                      {...register("cliente")}
+                      placeholder="Nombre del cliente"
+                    />
+                    {errors.cliente && (
+                      <p className="text-sm text-red-500">
+                        {errors.cliente.message}
+                      </p>
+                    )}
+                  </div>
                   <div className="space-y-2">
                     <Label htmlFor="frecuencia">Frecuencia</Label>
                     {isOtrosSelected ? (
@@ -1031,11 +1046,10 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                         {activitiesState.map((activity) => (
                           <div
                             key={activity.id}
-                            className={`p-4 rounded-lg border transition-all duration-200 relative group ${
-                              activity.isSelected
-                                ? "bg-blue-50/50 border-blue-200 shadow-sm"
-                                : "bg-gray-50/50 border-gray-100 hover:bg-gray-100/50"
-                            }`}
+                            className={`p-4 rounded-lg border transition-all duration-200 relative group ${activity.isSelected
+                              ? "bg-blue-50/50 border-blue-200 shadow-sm"
+                              : "bg-gray-50/50 border-gray-100 hover:bg-gray-100/50"
+                              }`}
                           >
                             {/* Header: Checkbox + Name */}
                             <div className="flex items-start gap-3">
