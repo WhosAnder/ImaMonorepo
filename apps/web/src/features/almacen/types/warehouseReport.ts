@@ -26,4 +26,5 @@ export type WarehouseReport = {
   firmaQuienRecibe?: string; // dataURL from SignaturePad (optional for now)
   firmaAlmacenista?: string;
   firmaQuienEntrega?: string;
+  folio: string
 };
