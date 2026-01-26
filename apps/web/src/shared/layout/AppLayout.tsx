@@ -145,7 +145,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 <Menu className="w-6 h-6" />
               </button>
               <div>
-                <h1 className="text-xl font-semibold text-gray-800">{title}</h1>
+                <h1 className="text-xl font-semibold text-gray-800 truncate max-w-[200px] md:max-w-none">
+                  {title}
+                </h1>
                 <div
                   className="lg:hidden text-xs text-gray-500"
                   style={{ color: themeColor }}
