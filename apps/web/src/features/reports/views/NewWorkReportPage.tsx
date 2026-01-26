@@ -12,7 +12,7 @@ import {
   useWorkReportQuery,
 } from "@/hooks/useWorkReports";
 import { useWarehouseItems } from "@/hooks/useWarehouse";
-import { useForm, Controller, useFieldArray } from "react-hook-form";
+import { useForm, Controller } from "react-hook-form";
 import { useWorkers } from "@/hooks/useWorkers";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -53,7 +53,7 @@ import {
   workReportSchema,
   WorkReportFormValues,
 } from "../schemas/workReportSchema";
-import { Save, Plus, Trash2, Wrench } from "lucide-react";
+import { Save, Plus, Trash2 } from "lucide-react";
 import { Template } from "@/types/template";
 import { WorkReportPreview } from "../components/WorkReportPreview";
 import { useAuth } from "@/auth/AuthContext";
@@ -732,7 +732,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
 
   return (
     <div className="min-h-screen bg-white pb-12 font-sans text-gray-900">
-      <div className="max-w-[1600px] mx-auto px-6 py-8">
+      <div className="max-w-[1600px] mx-auto px-0 sm:px-6 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">
@@ -1031,11 +1031,10 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                         {activitiesState.map((activity) => (
                           <div
                             key={activity.id}
-                            className={`p-4 rounded-lg border transition-all duration-200 relative group ${
-                              activity.isSelected
+                            className={`p-4 rounded-lg border transition-all duration-200 relative group ${activity.isSelected
                                 ? "bg-blue-50/50 border-blue-200 shadow-sm"
                                 : "bg-gray-50/50 border-gray-100 hover:bg-gray-100/50"
-                            }`}
+                              }`}
                           >
                             {/* Header: Checkbox + Name */}
                             <div className="flex items-start gap-3">
@@ -1235,12 +1234,12 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
               )}
 
               {/* Submit */}
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-end pt-4 sm:flex-row flex-col gap-4">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleSaveDraft}
-                  className="mr-4 border-[#153A7A] text-[#153A7A] hover:bg-[#153A7A]/10"
+                  className="w-auto border-[#153A7A] text-[#153A7A] hover:bg-[#153A7A]/10"
                 >
                   <Save className="w-5 h-5 mr-2" />
                   Guardar Borrador
