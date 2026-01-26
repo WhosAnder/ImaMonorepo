@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Camera, X, Image as ImageIcon, Loader2 } from "lucide-react";
+import { applyWatermarkToImage } from "../utils/image-watermark";
 
 const generateLocalId = () => {
   if (
@@ -93,23 +94,51 @@ const normalizeEvidence = (input: IncomingEvidence): LocalEvidence => {
   };
 };
 
-const fileToEvidence = (file: File): Promise<LocalEvidence> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      resolve({
-        id: generateLocalId(),
-        previewUrl: result,
-        base64: result,
-        name: file.name,
-        size: file.size,
-      });
-    };
-    reader.onerror = () =>
-      reject(reader.error || new Error("No se pudo leer el archivo"));
-    reader.readAsDataURL(file);
-  });
+const fileToEvidence = async (file: File): Promise<LocalEvidence> => {
+  try {
+    // Apply watermark to the image
+    const watermarkedFile = await applyWatermarkToImage(file, {
+      timestamp: new Date(),
+    });
+
+    // Convert watermarked file to base64 for preview
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = typeof reader.result === "string" ? reader.result : "";
+        resolve({
+          id: generateLocalId(),
+          previewUrl: result,
+          base64: result,
+          name: watermarkedFile.name,
+          size: watermarkedFile.size,
+        });
+      };
+      reader.onerror = () =>
+        reject(reader.error || new Error("No se pudo leer el archivo"));
+      reader.readAsDataURL(watermarkedFile);
+    });
+  } catch (error) {
+    console.error("Failed to apply watermark, using original file:", error);
+    
+    // Fallback: Use original file without watermark
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = typeof reader.result === "string" ? reader.result : "";
+        resolve({
+          id: generateLocalId(),
+          previewUrl: result,
+          base64: result,
+          name: file.name,
+          size: file.size,
+        });
+      };
+      reader.onerror = () =>
+        reject(reader.error || new Error("No se pudo leer el archivo"));
+      reader.readAsDataURL(file);
+    });
+  }
 };
 
 interface ImageUploadProps {

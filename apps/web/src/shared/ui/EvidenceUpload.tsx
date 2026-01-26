@@ -8,6 +8,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { uploadEvidence, EvidenceInfo } from "@/api/evidencesClient";
+import { applyWatermarkToImage } from "../utils/image-watermark";
 
 export interface EvidenceFile {
   id: string;
@@ -114,39 +115,62 @@ export const EvidenceUpload: React.FC<EvidenceUploadProps> = ({
 
     setIsProcessing(true);
 
-    // Create preview objects
-    const newFiles: EvidenceFile[] = await Promise.all(
-      selectedFiles.map(async (file) => {
-        const previewUrl = URL.createObjectURL(file);
-        return {
-          id: "",
-          localId: generateLocalId(),
-          file,
-          previewUrl,
-          status: "pending" as const,
-          originalName: file.name,
-        };
-      }),
-    );
+    try {
+      // Process each file with watermark
+      const newFiles: EvidenceFile[] = await Promise.all(
+        selectedFiles.map(async (file) => {
+          try {
+            // Apply watermark to the file
+            const watermarkedFile = await applyWatermarkToImage(file, {
+              timestamp: new Date(),
+            });
 
-    const updatedFiles = [...files, ...newFiles];
-    updateFiles(updatedFiles);
+            const previewUrl = URL.createObjectURL(watermarkedFile);
+            return {
+              id: "",
+              localId: generateLocalId(),
+              file: watermarkedFile, // Use watermarked file
+              previewUrl,
+              status: "pending" as const,
+              originalName: watermarkedFile.name,
+            };
+          } catch (error) {
+            console.error("Failed to watermark file, using original:", error);
+            // Fallback: use original file
+            const previewUrl = URL.createObjectURL(file);
+            return {
+              id: "",
+              localId: generateLocalId(),
+              file,
+              previewUrl,
+              status: "pending" as const,
+              originalName: file.name,
+            };
+          }
+        }),
+      );
 
-    // Auto-upload if enabled and reportId is valid
-    if (autoUpload && reportId) {
-      const uploadPromises = newFiles.map((ef) => uploadSingleFile(ef));
-      const results = await Promise.all(uploadPromises);
+      const updatedFiles = [...files, ...newFiles];
+      updateFiles(updatedFiles);
 
-      // Merge results back
-      const finalFiles = updatedFiles.map((f) => {
-        const uploaded = results.find((r) => r.localId === f.localId);
-        return uploaded || f;
-      });
+      // Auto-upload if enabled and reportId is valid
+      if (autoUpload && reportId) {
+        const uploadPromises = newFiles.map((ef) => uploadSingleFile(ef));
+        const results = await Promise.all(uploadPromises);
 
-      updateFiles(finalFiles);
+        // Merge results back
+        const finalFiles = updatedFiles.map((f) => {
+          const uploaded = results.find((r) => r.localId === f.localId);
+          return uploaded || f;
+        });
+
+        updateFiles(finalFiles);
+      }
+    } catch (error) {
+      console.error("Error processing files:", error);
+    } finally {
+      setIsProcessing(false);
     }
-
-    setIsProcessing(false);
   };
 
   /**
@@ -237,7 +261,7 @@ export const EvidenceUpload: React.FC<EvidenceUploadProps> = ({
                 className={`${compact ? "w-3 h-3 mr-1" : "w-4 h-4 mr-2"}`}
               />
             )}
-            {isProcessing ? "Subiendo..." : compact ? "Foto" : "Tomar foto"}
+            {isProcessing ? "Procesando..." : compact ? "Foto" : "Tomar foto"}
           </label>
 
           <span className="text-xs text-gray-500">

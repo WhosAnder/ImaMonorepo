@@ -1,4 +1,5 @@
 import { uploadEvidence } from "@/api/evidencesClient";
+import { applyWatermarkToImage } from "@/shared/utils/image-watermark";
 
 export interface EvidenceUploadResult {
   id: string;
@@ -53,16 +54,31 @@ export async function uploadEvidencesForItem(
       continue; // Skip invalid data
     }
 
-    // Convert base64 to File
-    const file = base64ToFile(
-      dataUrl,
-      evidence.originalName || `evidence-${i}.jpg`,
-    );
-
     try {
+      // Check if image is already watermarked (filename contains '_wm')
+      const isAlreadyWatermarked = evidence.originalName?.includes('_wm');
+      
+      let fileToUpload: File;
+      
+      if (isAlreadyWatermarked) {
+        // Already watermarked (came from EvidenceUpload component), just convert to File
+        fileToUpload = base64ToFile(
+          dataUrl,
+          evidence.originalName || `evidence-${i}.jpg`,
+        );
+      } else {
+        // Not watermarked yet, apply watermark before upload
+        console.log(`[WarehouseReport] Applying watermark to evidence ${i}`);
+        const watermarkedFile = await applyWatermarkToImage(
+          dataUrl,
+          { timestamp: new Date() }
+        );
+        fileToUpload = watermarkedFile;
+      }
+
       // Upload using existing evidence client with subsystem for pre-report upload
       const result = await uploadEvidence({
-        file,
+        file: fileToUpload,
         reportId,
         reportType,
         subsystem, // Pass subsystem so backend doesn't need to lookup report
