@@ -60,6 +60,7 @@ import { useAuth } from "@/auth/AuthContext";
 import type { WarehouseItem } from "@/api/warehouseClient";
 import { uploadEvidence } from "@/api/evidencesClient";
 import { uploadWorkReportSignature } from "../helpers/upload-signature";
+import { applyWatermarkToImage } from "@/shared/utils/image-watermark";
 
 const WORK_REPORT_DRAFT_KEY = "work_report_draft";
 
@@ -504,17 +505,32 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           continue;
         }
 
-        // Convert base64 to File
-        const file = base64ToFile(
-          dataUrl,
-          evidence.name || `evidence-${i}.jpg`,
-        );
-
         try {
+          // Check if image is already watermarked (filename contains '_wm')
+          const isAlreadyWatermarked = evidence.name?.includes('_wm');
+          
+          let fileToUpload: File;
+          
+          if (isAlreadyWatermarked) {
+            // Already watermarked (came from ImageUpload component), just convert to File
+            fileToUpload = base64ToFile(
+              dataUrl,
+              evidence.name || `evidence-${i}.jpg`,
+            );
+          } else {
+            // Not watermarked yet, apply watermark before upload
+            console.log(`[WorkReport] Applying watermark to evidence ${i}`);
+            const watermarkedFile = await applyWatermarkToImage(
+              dataUrl,
+              { timestamp: new Date() }
+            );
+            fileToUpload = watermarkedFile;
+          }
+
           const evidenceInfo = await uploadEvidence({
             reportId,
             reportType: "work",
-            file,
+            file: fileToUpload,
             subsystem,
             fechaHoraInicio,
             skipDbRecord: true,
