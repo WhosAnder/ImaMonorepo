@@ -55,6 +55,12 @@ export const EvidenceUpload: React.FC<EvidenceUploadProps> = ({
   compact = false,
   autoUpload = true,
 }) => {
+  // Generate unique ID for file input to avoid conflicts when multiple instances are rendered
+  const inputId = React.useMemo(
+    () => `evidence-upload-${generateLocalId()}`,
+    []
+  );
+  
   const [isProcessing, setIsProcessing] = useState(false);
   const effectiveMaxFiles = Math.min(Math.max(maxFiles, 1), 10);
 
@@ -240,12 +246,12 @@ export const EvidenceUpload: React.FC<EvidenceUploadProps> = ({
             capture="environment"
             multiple={effectiveMaxFiles > 1}
             className="hidden"
-            id={`evidence-upload-${label || "default"}`}
+            id={inputId}
             onChange={handleFileChange}
             disabled={!canAddMore}
           />
           <label
-            htmlFor={`evidence-upload-${label || "default"}`}
+            htmlFor={inputId}
             className={`
               flex items-center justify-center border border-gray-300 shadow-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 cursor-pointer
               ${!canAddMore ? "opacity-50 cursor-not-allowed" : ""}
