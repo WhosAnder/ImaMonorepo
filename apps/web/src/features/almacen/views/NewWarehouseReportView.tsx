@@ -419,7 +419,7 @@ export const NewWarehouseReportPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white pb-12 font-sans text-gray-900">
-      <div className="max-w-[1600px] mx-auto px-6 py-8">
+      <div className="max-w-[1600px] mx-auto px-0 sm:px-6 py-8">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">
@@ -884,12 +884,12 @@ export const NewWarehouseReportPage: React.FC = () => {
               </Card>
 
               {/* Submit */}
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-end pt-4 sm:flex-row flex-col gap-4">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={handleSaveDraft}
-                  className="mr-4 border-[#153A7A] text-[#153A7A] hover:bg-[#153A7A]/10"
+                  className="border-[#153A7A] text-[#153A7A] hover:bg-[#153A7A]/10"
                 >
                   <Save className="w-5 h-5 mr-2" />
                   Guardar Borrador

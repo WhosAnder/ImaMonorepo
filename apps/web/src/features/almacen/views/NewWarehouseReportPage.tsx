@@ -21,7 +21,6 @@ import {
 import { Save, Plus, Trash2, Package, Wrench } from "lucide-react";
 import { createReport } from "../helpers/create-report";
 import { generatePDFReport } from "../helpers/generate-pdf";
-import { uploadEvidence as uploadEvidencePresigned } from "@/api/evidencesClient";
 import { useAuth } from "@/auth/AuthContext";
 import { uploadSignaturesToS3 } from "../helpers/upload-signatures";
 import { uploadEvidencesForItem } from "../helpers/upload-evidences";
@@ -567,9 +566,8 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
             </div>
 
             {/* Submit */}
-            <div className="flex justify-end">
-              <Button
-                type="submit"
+            <div className="hidden ">
+               type="submit"
                 isLoading={isSubmitting || updateMutation.isPending}
                 className="px-8 py-3"
               >
