@@ -167,7 +167,7 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   const [internalFiles, setInternalFiles] = useState<LocalEvidence[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingError, setProcessingError] = useState<string | null>(null);
-  const effectiveMaxFiles = Math.min(Math.max(maxFiles, 1), 5);
+  const effectiveMaxFiles = Math.min(Math.max(maxFiles, 1), 3);
   const isControlled = value !== undefined;
   const files = useMemo(() => {
     if (isControlled) {
