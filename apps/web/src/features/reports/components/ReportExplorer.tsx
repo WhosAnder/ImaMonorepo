@@ -132,13 +132,13 @@ const Breadcrumbs: React.FC<{
   }
 
   return (
-    <nav className="flex items-center text-sm text-gray-600 mb-6 bg-gray-50 p-3 rounded-lg border border-gray-100">
+    <nav className="flex items-center text-sm text-gray-600 mb-6 bg-gray-50 p-3 rounded-lg border border-gray-100 overflow-x-auto whitespace-nowrap">
       {items.map((item, index) => (
         <React.Fragment key={index}>
-          {index > 0 && <ChevronRight className="w-4 h-4 mx-2 text-gray-400" />}
+          {index > 0 && <ChevronRight className="w-4 h-4 mx-2 text-gray-400 shrink-0" />}
           <button
             onClick={() => onNavigate(buildExplorerUrl(pathname, item.path))}
-            className={`hover:text-blue-600 transition-colors px-2 py-1 rounded-md hover:bg-white ${
+            className={`hover:text-blue-600 transition-colors px-2 py-1 rounded-md hover:bg-white shrink-0 ${
               index === items.length - 1
                 ? "font-semibold text-gray-900 bg-white shadow-sm border border-gray-100"
                 : ""
