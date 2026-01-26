@@ -2,7 +2,7 @@ import { Context, Next } from "hono";
 import { RequestUser, UserRole } from "../types/auth";
 
 const CONTEXT_USER_KEY = "requestUser";
-const VALID_ROLES: UserRole[] = ["admin", "warehouse_admin", "user"];
+const VALID_ROLES: UserRole[] = ["admin", "warehouse_admin", "warehouse", "user"];
 
 function parseRole(roleHeader?: string | null): UserRole {
   if (!roleHeader) {

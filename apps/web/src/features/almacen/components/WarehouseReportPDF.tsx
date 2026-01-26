@@ -13,10 +13,10 @@ import { themes } from "@/shared/theme/colors";
 // Helper types
 type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends Array<infer U>
-    ? Array<DeepPartial<U>>
-    : T[P] extends object
-      ? DeepPartial<T[P]>
-      : T[P];
+  ? Array<DeepPartial<U>>
+  : T[P] extends object
+  ? DeepPartial<T[P]>
+  : T[P];
 };
 
 export type WarehouseReportPDFProps = {
@@ -268,6 +268,7 @@ export const WarehouseReportPDF = ({ values }: WarehouseReportPDFProps) => {
     firmaQuienRecibe,
     firmaAlmacenista,
     firmaQuienEntrega,
+    cliente,
   } = values;
 
   return (
@@ -286,7 +287,9 @@ export const WarehouseReportPDF = ({ values }: WarehouseReportPDFProps) => {
               <Text style={styles.headerTitle}>
                 Formato de almacén proyecto
               </Text>
-              <Text style={styles.headerSubtitle}>AEROTREN AICM</Text>
+              <Text style={styles.headerSubtitle}>
+                {values.cliente || "AEROTREN AICM"}
+              </Text>
             </View>
           </View>
           <View style={styles.divider} />
@@ -354,7 +357,7 @@ export const WarehouseReportPDF = ({ values }: WarehouseReportPDFProps) => {
             <View style={[styles.sectionContent, { minHeight: 40 }]}>
               <Text style={{ fontSize: 9, color: primaryColor }}>
                 {observacionesGenerales &&
-                observacionesGenerales.trim().length > 0
+                  observacionesGenerales.trim().length > 0
                   ? observacionesGenerales
                   : "—"}
               </Text>

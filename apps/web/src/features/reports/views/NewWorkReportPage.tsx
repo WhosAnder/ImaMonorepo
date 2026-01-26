@@ -138,6 +138,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
 
   const initialFormValues = {
     subsistema: "",
+    cliente: "AEROTREN AICM",
     ubicacion: "",
     fechaHoraInicio: new Date().toISOString().slice(0, 16),
     turno: "",
@@ -830,6 +831,20 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                     {errors.subsistema && (
                       <p className="text-red-500 text-xs mt-1">
                         {errors.subsistema.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cliente">Cliente</Label>
+                    <Input
+                      id="cliente"
+                      {...register("cliente")}
+                      placeholder="Nombre del cliente"
+                    />
+                    {errors.cliente && (
+                      <p className="text-sm text-red-500">
+                        {errors.cliente.message}
                       </p>
                     )}
                   </div>

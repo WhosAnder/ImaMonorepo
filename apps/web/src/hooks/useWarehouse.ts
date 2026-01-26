@@ -10,6 +10,7 @@ import {
   CreateWarehouseItemInput,
   UpdateWarehouseItemInput,
   AdjustmentInput,
+  deleteWarehouseItem,
 } from "@/api/warehouseClient";
 
 const WAREHOUSE_KEY = ["warehouse"];
@@ -96,4 +97,15 @@ export function useWarehouseItemsByCategory(category: string) {
 
 export function useActiveWarehouseItems() {
   return useWarehouseItems({ status: "active" });
+}
+
+export function useDeleteWarehouseItem() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => deleteWarehouseItem(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEY });
+    },
+  });
 }
