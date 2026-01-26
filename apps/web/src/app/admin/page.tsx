@@ -37,7 +37,7 @@ export default function AdminDashboardPage() {
         </Link>
 
         <Link
-          href="/warehouse"
+          href="/almacen"
           className="bg-white p-6 rounded-lg shadow hover:shadow-md transition-shadow flex flex-col items-center justify-center text-center space-y-4"
         >
           <div className="p-4 bg-orange-100 rounded-full text-orange-600">
