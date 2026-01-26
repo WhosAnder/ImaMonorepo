@@ -132,13 +132,13 @@ const Breadcrumbs: React.FC<{
   }
 
   return (
-    <nav className="flex items-center text-sm text-gray-600 mb-6 bg-gray-50 p-3 rounded-lg border border-gray-100">
+    <nav className="flex items-center text-sm text-gray-600 mb-6 bg-gray-50 p-3 rounded-lg border border-gray-100 overflow-x-auto whitespace-nowrap">
       {items.map((item, index) => (
         <React.Fragment key={index}>
-          {index > 0 && <ChevronRight className="w-4 h-4 mx-2 text-gray-400" />}
+          {index > 0 && <ChevronRight className="w-4 h-4 mx-2 text-gray-400 shrink-0" />}
           <button
             onClick={() => onNavigate(buildExplorerUrl(pathname, item.path))}
-            className={`hover:text-blue-600 transition-colors px-2 py-1 rounded-md hover:bg-white ${
+            className={`hover:text-blue-600 transition-colors px-2 py-1 rounded-md hover:bg-white shrink-0 ${
               index === items.length - 1
                 ? "font-semibold text-gray-900 bg-white shadow-sm border border-gray-100"
                 : ""
@@ -244,43 +244,53 @@ const ReportRow: React.FC<{
   return (
     <div
       onClick={onClick}
-      className="group flex items-center justify-between p-4 bg-white rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md cursor-pointer transition-all duration-200"
+      className="group flex items-center justify-between p-3 md:p-4 bg-white rounded-lg md:rounded-xl border border-gray-200 hover:border-blue-300 hover:shadow-md cursor-pointer transition-all duration-200"
     >
-      <div className="flex items-center gap-5 flex-1 min-w-0">
+      <div className="flex items-center gap-3 md:gap-5 flex-1 min-w-0">
         <div
-          className={`p-3 rounded-xl ${type === "work" ? "bg-blue-50 text-blue-600 group-hover:bg-blue-100" : "bg-purple-50 text-purple-600 group-hover:bg-purple-100"} transition-colors`}
+          className={`p-2 md:p-3 rounded-lg md:rounded-xl shrink-0 ${type === "work" ? "bg-blue-50 text-blue-600 group-hover:bg-blue-100" : "bg-purple-50 text-purple-600 group-hover:bg-purple-100"} transition-colors`}
         >
-          <FileText className="w-6 h-6" />
+          <FileText className="w-5 h-5 md:w-6 md:h-6" />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-3 mb-1">
-            <span className="font-bold text-gray-900 text-lg">
-              Folio: {report.folio}
+          <div className="flex items-center gap-2 mb-0.5 md:mb-1">
+            <span className="font-semibold md:font-bold text-gray-900 text-sm md:text-lg truncate">
+              <span className="md:hidden">{report.folio}</span>
+              <span className="hidden md:inline">Folio: {report.folio}</span>
             </span>
             <span
-              className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${getStatusColor(report.status)}`}
+              className={`px-1.5 py-0.5 md:px-2.5 rounded-full text-[10px] md:text-xs font-semibold border ${getStatusColor(report.status)} whitespace-nowrap`}
             >
               {report.status === "completed" ? "Completado" : report.status}
             </span>
           </div>
-          <p className="text-sm text-gray-600 truncate font-medium">
+          <p className="text-xs md:text-sm text-gray-500 md:text-gray-600 truncate font-medium">
             {report.description}
           </p>
-          <div className="flex items-center gap-6 mt-2 text-xs text-gray-500">
-            <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-md">
+          
+          {/* Desktop Meta */}
+          <div className="hidden md:flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6 mt-2 text-xs text-gray-500">
+            <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-md w-fit">
               <Clock className="w-3.5 h-3.5" />
               {formatDate(report.date)}
             </span>
-            <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-md">
+            <span className="flex items-center gap-1.5 bg-gray-50 px-2 py-1 rounded-md w-fit">
               <User className="w-3.5 h-3.5" />
               {report.author}
             </span>
           </div>
+
+          {/* Mobile Meta (Simple Text) */}
+          <div className="md:hidden mt-0.5 text-[10px] text-gray-400 flex items-center gap-2 truncate">
+             <span>{new Date(report.date).toLocaleDateString("es-MX", { day: 'numeric', month: 'short' })}</span>
+             <span>•</span>
+             <span className="truncate">{report.author}</span>
+          </div>
         </div>
       </div>
-      <div className="pl-4">
-        <div className="p-2 rounded-full bg-gray-50 group-hover:bg-blue-50 text-gray-400 group-hover:text-blue-500 transition-colors">
-          <ChevronRight className="w-5 h-5" />
+      <div className="pl-2 md:pl-4">
+        <div className="p-1.5 md:p-2 rounded-full bg-gray-50 group-hover:bg-blue-50 text-gray-400 group-hover:text-blue-500 transition-colors">
+          <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
         </div>
       </div>
     </div>

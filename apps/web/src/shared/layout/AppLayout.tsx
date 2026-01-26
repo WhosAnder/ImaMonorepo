@@ -68,6 +68,15 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           </div>
 
           <nav className="p-4 space-y-1">
+            {user.role === "admin" && (
+              <Link
+                href="/admin"
+                className="w-full flex items-center px-4 py-3 mb-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+              >
+                <ShieldCheck className="w-5 h-5 mr-3" />
+                Panel Admin
+              </Link>
+            )}
             {roleNav.main.map((item) => {
               const isActive =
                 pathname === item.href || pathname.startsWith(item.href + "/");
@@ -145,7 +154,9 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
                 <Menu className="w-6 h-6" />
               </button>
               <div>
-                <h1 className="text-xl font-semibold text-gray-800">{title}</h1>
+                <h1 className="text-xl font-semibold text-gray-800 truncate max-w-[200px] md:max-w-none">
+                  {title}
+                </h1>
                 <div
                   className="lg:hidden text-xs text-gray-500"
                   style={{ color: themeColor }}
@@ -156,16 +167,6 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
             </div>
 
             <div className="flex items-center space-x-4">
-              {user.role === "admin" && (
-                <Link
-                  href="/admin"
-                  className="hidden md:flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-                >
-                  <ShieldCheck className="w-4 h-4 mr-2" />
-                  Panel Admin
-                </Link>
-              )}
-
               <div className="flex items-center pl-4 border-l border-gray-200">
                 <div
                   className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm"
