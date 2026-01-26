@@ -8,6 +8,7 @@ import {
   useWarehouseItems,
   useCreateWarehouseItem,
   useAdjustWarehouseStock,
+  useDeleteWarehouseItem,
 } from "@/hooks/useWarehouse";
 import {
   Plus,
@@ -18,11 +19,13 @@ import {
   TrendingUp,
   X,
   Filter,
+  Trash,
 } from "lucide-react";
 
 export default function InventarioPage() {
   const [search, setSearch] = useState("");
   const [showLowStock, setShowLowStock] = useState(false);
+  const [hideEmpty, setHideEmpty] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
@@ -34,10 +37,12 @@ export default function InventarioPage() {
   } = useWarehouseItems({
     search: search || undefined,
     lowStock: showLowStock || undefined,
+    hideEmpty: hideEmpty || undefined,
   });
 
   const createMutation = useCreateWarehouseItem();
   const adjustMutation = useAdjustWarehouseStock();
+  const deleteMutation = useDeleteWarehouseItem();
 
   // Form state for create modal
   const [newItem, setNewItem] = useState({
@@ -74,7 +79,7 @@ export default function InventarioPage() {
         minQuantity: 0,
       });
     } catch (err) {
-      alert("Error al crear item");
+      alert(err instanceof Error ? err.message : "Error al crear item");
     }
   };
 
@@ -94,13 +99,22 @@ export default function InventarioPage() {
     }
   };
 
+  const handleDeleteItem = async (id: string) => {
+    if (!confirm("¿Estás seguro de que deseas eliminar este item?")) return;
+    try {
+      await deleteMutation.mutateAsync(id);
+    } catch (err) {
+      alert("Error al eliminar item");
+    }
+  };
+
   const openAdjustModal = (itemId: string) => {
     setSelectedItemId(itemId);
     setIsAdjustModalOpen(true);
   };
 
   return (
-    <RequireRole allowedRoles={["admin", "warehouse"]}>
+    <RequireRole allowedRoles={["admin", "warehouse_admin", "warehouse"]}>
       <AppLayout title="Inventario">
         <div className="space-y-6">
           {/* Header */}
@@ -132,14 +146,23 @@ export default function InventarioPage() {
               </div>
               <button
                 onClick={() => setShowLowStock(!showLowStock)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${
-                  showLowStock
-                    ? "bg-red-50 border-red-300 text-red-700"
-                    : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${showLowStock
+                  ? "bg-red-50 border-red-300 text-red-700"
+                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                  }`}
               >
                 <AlertTriangle className="h-4 w-4" />
                 Stock bajo
+              </button>
+              <button
+                onClick={() => setHideEmpty(!hideEmpty)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-colors ${hideEmpty
+                  ? "bg-gray-100 border-gray-400 text-gray-900"
+                  : "bg-white border-gray-300 text-gray-700 hover:bg-gray-50"
+                  }`}
+              >
+                <Filter className="h-4 w-4" />
+                Ocultar Agotados
               </button>
             </div>
           </div>
@@ -221,11 +244,11 @@ export default function InventarioPage() {
                         </td>
                         <td className="px-6 py-4 text-center">
                           <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
-                              item.isBelowMinimum
-                                ? "bg-red-100 text-red-800"
-                                : "bg-green-100 text-green-800"
-                            }`}
+                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${item.isBelowMinimum || item.quantityOnHand === 0
+                              ? "bg-red-100 text-red-800"
+                              : "bg-green-100 text-green-800"
+                              }`}
+
                           >
                             {item.quantityOnHand} {item.unit || "pza"}
                           </span>
@@ -237,11 +260,10 @@ export default function InventarioPage() {
                         </td>
                         <td className="px-6 py-4">
                           <span
-                            className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                              item.status === "active"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-gray-100 text-gray-600"
-                            }`}
+                            className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${item.status === "active"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-100 text-gray-600"
+                              }`}
                           >
                             {item.status === "active" ? "Activo" : "Inactivo"}
                           </span>
@@ -254,6 +276,13 @@ export default function InventarioPage() {
                               title="Ajustar stock"
                             >
                               <TrendingUp className="h-4 w-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteItem(item._id)}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Eliminar"
+                            >
+                              <Trash className="h-4 w-4" />
                             </button>
                           </div>
                         </td>
@@ -348,15 +377,21 @@ export default function InventarioPage() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Ubicación
                     </label>
-                    <input
-                      type="text"
+                    <select
                       value={newItem.location}
                       onChange={(e) =>
                         setNewItem({ ...newItem, location: e.target.value })
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
-                      placeholder="Ej: Estante A-1"
-                    />
+                    >
+                      <option value="">Seleccionar...</option>
+                      <option value="Nebrasca64">Nebrasca64</option>
+                      <option value="Permanencia/Observatorio">
+                        Permanencia/Observatorio
+                      </option>
+                      <option value="Talleres Zaragoza">Talleres Zaragoza</option>
+                      <option value="Cuernavaca">Cuernavaca</option>
+                    </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
