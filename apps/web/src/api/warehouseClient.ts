@@ -35,12 +35,12 @@ export interface WarehouseAdjustment {
   itemId: string;
   delta: number;
   reason:
-    | "initial"
-    | "increase"
-    | "decrease"
-    | "correction"
-    | "damage"
-    | "audit";
+  | "initial"
+  | "increase"
+  | "decrease"
+  | "correction"
+  | "damage"
+  | "audit";
   note?: string;
   actorId?: string;
   actorName?: string;
@@ -55,6 +55,7 @@ export interface WarehouseFilters {
   status?: "active" | "inactive";
   search?: string;
   lowStock?: boolean;
+  hideEmpty?: boolean;
 }
 
 export interface CreateWarehouseItemInput {
@@ -90,13 +91,30 @@ export interface UpdateWarehouseItemInput {
 export interface AdjustmentInput {
   delta: number;
   reason:
-    | "initial"
-    | "increase"
-    | "decrease"
-    | "correction"
-    | "damage"
-    | "audit";
+  | "initial"
+  | "increase"
+  | "decrease"
+  | "correction"
+  | "damage"
+  | "audit";
   note?: string;
+}
+
+// Helper to get auth headers
+function getAuthHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  try {
+    const stored = localStorage.getItem("ima_auth_user");
+    if (!stored) return {};
+    const user = JSON.parse(stored);
+    return {
+      "x-user-id": String(user.id || ""),
+      "x-user-role": String(user.role || ""),
+      "x-user-name": String(user.name || ""),
+    };
+  } catch (e) {
+    return {};
+  }
 }
 
 // API Functions
@@ -111,6 +129,8 @@ export async function fetchWarehouseItems(
   if (filters.search) params.append("search", filters.search);
   if (filters.lowStock !== undefined)
     params.append("lowStock", String(filters.lowStock));
+  if (filters.hideEmpty !== undefined)
+    params.append("hideEmpty", String(filters.hideEmpty));
 
   const response = await fetch(`${API_URL}/api/warehouse?${params.toString()}`);
   if (!response.ok) {
@@ -129,12 +149,29 @@ export async function fetchWarehouseItemById(
   return response.json();
 }
 
+export async function deleteWarehouseItem(id: string): Promise<WarehouseItem> {
+  const response = await fetch(`${API_URL}/api/warehouse/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+  });
+  if (!response.ok) {
+    throw new Error("Failed to delete warehouse item");
+  }
+  return response.json();
+}
+
 export async function createWarehouseItem(
   data: CreateWarehouseItemInput,
 ): Promise<WarehouseItem> {
   const response = await fetch(`${API_URL}/api/warehouse`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -153,7 +190,10 @@ export async function updateWarehouseItem(
 ): Promise<WarehouseItem> {
   const response = await fetch(`${API_URL}/api/warehouse/${id}`, {
     method: "PATCH",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -168,7 +208,10 @@ export async function adjustWarehouseStock(
 ): Promise<{ item: WarehouseItem; adjustment: WarehouseAdjustment }> {
   const response = await fetch(`${API_URL}/api/warehouse/${id}/adjustments`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
     body: JSON.stringify(adjustment),
   });
   if (!response.ok) {
