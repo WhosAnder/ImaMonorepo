@@ -155,113 +155,115 @@ export default function InventarioPage() {
                 Error al cargar inventario
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left font-medium text-gray-700">
-                      SKU
-                    </th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-700">
-                      Nombre
-                    </th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-700">
-                      Categoría
-                    </th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-700">
-                      Ubicación
-                    </th>
-                    <th className="px-6 py-3 text-center font-medium text-gray-700">
-                      Cantidad
-                    </th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-700">
-                      Estado
-                    </th>
-                    <th className="px-6 py-3 text-right font-medium text-gray-700">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {items?.length === 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-[900px] w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <td
-                        colSpan={7}
-                        className="px-6 py-8 text-center text-gray-500"
-                      >
-                        No hay items en el inventario
-                      </td>
+                      <th className="px-6 py-3 text-left font-medium text-gray-700">
+                        SKU
+                      </th>
+                      <th className="px-6 py-3 text-left font-medium text-gray-700">
+                        Nombre
+                      </th>
+                      <th className="px-6 py-3 text-left font-medium text-gray-700">
+                        Categoría
+                      </th>
+                      <th className="px-6 py-3 text-left font-medium text-gray-700">
+                        Ubicación
+                      </th>
+                      <th className="px-6 py-3 text-center font-medium text-gray-700">
+                        Cantidad
+                      </th>
+                      <th className="px-6 py-3 text-left font-medium text-gray-700">
+                        Estado
+                      </th>
+                      <th className="px-6 py-3 text-right font-medium text-gray-700">
+                        Acciones
+                      </th>
                     </tr>
-                  ) : (
-                    items?.map((item) => (
-                      <tr
-                        key={item._id}
-                        className="hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="px-6 py-4 font-mono text-sm text-gray-900">
-                          {item.sku}
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-gray-400" />
-                            <span className="font-medium text-gray-900">
-                              {item.name}
-                            </span>
-                          </div>
-                          {item.description && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              {item.description}
-                            </p>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-gray-500">
-                          {item.category || "-"}
-                        </td>
-                        <td className="px-6 py-4 text-gray-500">
-                          {item.location || "-"}
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
-                              item.isBelowMinimum
-                                ? "bg-red-100 text-red-800"
-                                : "bg-green-100 text-green-800"
-                            }`}
-                          >
-                            {item.quantityOnHand} {item.unit || "pza"}
-                          </span>
-                          {item.isBelowMinimum && (
-                            <div className="text-xs text-red-500 mt-1">
-                              Mín: {item.minQuantity}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                              item.status === "active"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-gray-100 text-gray-600"
-                            }`}
-                          >
-                            {item.status === "active" ? "Activo" : "Inactivo"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => openAdjustModal(item._id)}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Ajustar stock"
-                            >
-                              <TrendingUp className="h-4 w-4" />
-                            </button>
-                          </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {items?.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="px-6 py-8 text-center text-gray-500"
+                        >
+                          No hay items en el inventario
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      items?.map((item) => (
+                        <tr
+                          key={item._id}
+                          className="hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="px-6 py-4 font-mono text-sm text-gray-900">
+                            {item.sku}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <Package className="h-4 w-4 text-gray-400" />
+                              <span className="font-medium text-gray-900">
+                                {item.name}
+                              </span>
+                            </div>
+                            {item.description && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {item.description}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-gray-500">
+                            {item.category || "-"}
+                          </td>
+                          <td className="px-6 py-4 text-gray-500">
+                            {item.location || "-"}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
+                                item.isBelowMinimum
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-green-100 text-green-800"
+                              }`}
+                            >
+                              {item.quantityOnHand} {item.unit || "pza"}
+                            </span>
+                            {item.isBelowMinimum && (
+                              <div className="text-xs text-red-500 mt-1">
+                                Mín: {item.minQuantity}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                item.status === "active"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-gray-100 text-gray-600"
+                              }`}
+                            >
+                              {item.status === "active" ? "Activo" : "Inactivo"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => openAdjustModal(item._id)}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Ajustar stock"
+                              >
+                                <TrendingUp className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
