@@ -54,4 +54,5 @@ export interface WarehouseStockFilters {
   location?: string;
   status?: WarehouseItemStatus;
   lowStock?: boolean;
+  hideEmpty?: boolean;
 }

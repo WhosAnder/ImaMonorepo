@@ -566,7 +566,7 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
             </div>
 
             {/* Submit */}
-            <div className="hidden ">
+            <div className="flex justify-end pt-6">
               <Button
                 type="submit"
                 isLoading={isSubmitting || updateMutation.isPending}

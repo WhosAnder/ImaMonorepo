@@ -47,12 +47,20 @@ export async function findWarehouseItems(
   if (filters.category) query.category = filters.category;
   if (filters.location) query.location = filters.location;
   if (filters.status) query.status = filters.status;
+  if (filters.hideEmpty) {
+    query.quantityOnHand = { $gt: 0 };
+  }
   if (filters.lowStock) {
     query.$expr = {
-      $and: [
-        { $ne: ["$minQuantity", null] },
+      $or: [
         {
-          $lt: ["$quantityOnHand", "$minQuantity"],
+          $and: [
+            { $ne: ["$minQuantity", null] },
+            { $lte: ["$quantityOnHand", "$minQuantity"] },
+          ],
+        },
+        {
+          $lte: ["$quantityOnHand", 1],
         },
       ],
     };
