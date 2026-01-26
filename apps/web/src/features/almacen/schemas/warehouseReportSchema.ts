@@ -13,6 +13,7 @@ const warehouseItemSchema = z.object({
 export const warehouseReportSchema = z.object({
   // Encabezado
   subsistema: z.string().min(1, "Selecciona el subsistema"),
+  cliente: z.string().default("AEROTREN AICM"),
   fechaHoraEntrega: z.string().min(1, "Fecha de entrega requerida"),
   turno: z.string(),
   trabajadores: z.array(z.string()).optional(),

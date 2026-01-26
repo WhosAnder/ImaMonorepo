@@ -11,6 +11,7 @@ export type ActivityPreview = {
 export type WorkReportPreviewProps = {
   values: {
     subsistema?: string;
+    cliente?: string;
     ubicacion?: string;
     fechaHoraInicio?: string;
     turno?: string;
@@ -117,7 +118,7 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
               <div className="text-right text-[11px] leading-tight text-[#153A7A]">
                 <div className="font-semibold">Formato de trabajo proyecto</div>
                 <div className="uppercase text-[10px] tracking-wide">
-                  AEROTREN AICM
+                  {values.cliente || "AEROTREN AICM"}
                 </div>
               </div>
             </div>
@@ -166,20 +167,18 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                     actividadesRealizadas.map((act, idx) => (
                       <div
                         key={idx}
-                        className={`flex text-[9px] text-[#153A7A] ${
-                          idx > 0 ? "border-t border-[#d0d5ee]" : ""
-                        }`}
+                        className={`flex text-[9px] text-[#153A7A] ${idx > 0 ? "border-t border-[#d0d5ee]" : ""
+                          }`}
                       >
                         <div className="flex-[2] px-2 py-2 font-medium">
                           {act.nombre}
                         </div>
                         <div className="w-12 px-1 py-2 flex items-center justify-center border-l border-[#d0d5ee]">
                           <span
-                            className={`px-1 py-0.5 rounded text-[8px] font-bold ${
-                              act.realizado
-                                ? "bg-green-100 text-green-700"
-                                : "bg-gray-100 text-gray-500"
-                            }`}
+                            className={`px-1 py-0.5 rounded text-[8px] font-bold ${act.realizado
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-100 text-gray-500"
+                              }`}
                           >
                             {act.realizado ? "SÍ" : "NO"}
                           </span>
@@ -254,7 +253,7 @@ export function WorkReportPreview({ values }: WorkReportPreviewProps) {
                 </div>
                 <div className="min-h-[50px] rounded-b-md border border-[#153A7A] bg-white px-3 py-2 text-[10px] text-[#153A7A] whitespace-pre-wrap">
                   {observacionesGenerales &&
-                  observacionesGenerales.trim().length > 0 ? (
+                    observacionesGenerales.trim().length > 0 ? (
                     observacionesGenerales
                   ) : (
                     <span className="text-gray-400 italic">—</span>

@@ -6,10 +6,10 @@ import { S3Image } from "@/shared/components/S3Image";
 // ???
 type DeepPartial<T> = {
   [P in keyof T]?: T[P] extends Array<infer U>
-    ? Array<DeepPartial<U>>
-    : T[P] extends object
-      ? DeepPartial<T[P]>
-      : T[P];
+  ? Array<DeepPartial<U>>
+  : T[P] extends object
+  ? DeepPartial<T[P]>
+  : T[P];
 };
 
 export type WarehouseReportPreviewProps = {
@@ -107,7 +107,7 @@ export function WarehouseReportPreview({
               >
                 <div className="font-semibold">Formato de almacén proyecto</div>
                 <div className="uppercase text-[10px] tracking-wide">
-                  AEROTREN AICM
+                  {values.cliente || "AEROTREN AICM"}
                 </div>
               </div>
             </div>
@@ -279,7 +279,7 @@ export function WarehouseReportPreview({
                   }}
                 >
                   {observacionesGenerales &&
-                  observacionesGenerales.trim().length > 0
+                    observacionesGenerales.trim().length > 0
                     ? observacionesGenerales
                     : "—"}
                 </div>

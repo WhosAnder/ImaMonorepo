@@ -78,6 +78,7 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
     resolver: zodResolver(warehouseReportSchema) as any,
     defaultValues: {
       subsistema: "",
+      cliente: "AEROTREN AICM",
       fechaHoraEntrega: new Date(
         new Date().getTime() - new Date().getTimezoneOffset() * 60000,
       )
@@ -232,6 +233,22 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             {/* Header Section */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              {/* Cliente Field - Full Width */}
+              <div className="mb-4">
+                <label className={labelClass}>Cliente</label>
+                <input
+                  type="text"
+                  {...register("cliente")}
+                  className={inputClass}
+                  placeholder="Nombre del cliente (ej. AEROTREN AICM)"
+                />
+                {errors.cliente && (
+                  <p className="text-red-500 text-xs mt-1">
+                    {errors.cliente.message}
+                  </p>
+                )}
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className={labelClass}>Subsistema</label>
@@ -249,6 +266,8 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
                     </p>
                   )}
                 </div>
+
+
                 {/* Hidden Date Field (Auto-set on submit) */}
                 <input type="hidden" {...register("fechaHoraEntrega")} />
 

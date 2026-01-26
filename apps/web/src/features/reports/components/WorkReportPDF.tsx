@@ -18,6 +18,7 @@ export type ActivityPDFItem = {
 export type WorkReportPDFProps = {
   values: {
     subsistema?: string;
+    cliente?: string;
     ubicacion?: string;
     fechaHoraInicio?: string;
     turno?: string;
@@ -255,6 +256,7 @@ export const WorkReportPDF = ({ values }: WorkReportPDFProps) => {
     nombreResponsable,
     fechaHoraTermino,
     firmaResponsable,
+    cliente,
   } = values;
 
   const workersString = trabajadores?.map(formatName).join(", ") || "—";
@@ -277,7 +279,9 @@ export const WorkReportPDF = ({ values }: WorkReportPDFProps) => {
               <Text style={styles.headerTitle}>
                 Formato de trabajo proyecto
               </Text>
-              <Text style={styles.headerSubtitle}>AEROTREN AICM</Text>
+              <Text style={styles.headerSubtitle}>
+                {values.cliente || "AEROTREN AICM"}
+              </Text>
             </View>
           </View>
           <View style={styles.divider} />
@@ -457,7 +461,7 @@ export const WorkReportPDF = ({ values }: WorkReportPDFProps) => {
             <View style={[styles.sectionContent, { minHeight: 40 }]}>
               <Text style={{ fontSize: 9, color: primaryColor }}>
                 {observacionesGenerales &&
-                observacionesGenerales.trim().length > 0
+                  observacionesGenerales.trim().length > 0
                   ? observacionesGenerales
                   : "—"}
               </Text>

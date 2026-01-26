@@ -10,6 +10,7 @@ export const activityDetailSchema = z.object({
 
 export const workReportSchema = z.object({
   subsistema: z.string().min(1, "El subsistema es obligatorio"),
+  cliente: z.string().default("AEROTREN AICM"),
   ubicacion: z.string().min(1, "La ubicación es obligatoria"),
   fechaHoraInicio: z
     .string()
