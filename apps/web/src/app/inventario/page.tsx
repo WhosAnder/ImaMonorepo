@@ -138,7 +138,7 @@ export default function InventarioPage() {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Buscar por SKU, nombre o descripción..."
+                  placeholder="Buscar por SKU, nombre, descripción o ubicación..."
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -214,77 +214,85 @@ export default function InventarioPage() {
                         >
                           No hay items en el inventario
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4 text-gray-400" />
-                            <span className="font-medium text-gray-900">
-                              {item.name}
-                            </span>
-                          </div>
-                          {item.description && (
-                            <p className="text-xs text-gray-500 mt-1">
-                              {item.description}
-                            </p>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-gray-500">
-                          {item.category || "-"}
-                        </td>
-                        <td className="px-6 py-4 text-gray-500">
-                          {item.location || "-"}
-                        </td>
-                        <td className="px-6 py-4 text-center">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${item.isBelowMinimum || item.quantityOnHand === 0
-                              ? "bg-red-100 text-red-800"
-                              : "bg-green-100 text-green-800"
-                              }`}
-
-                          >
-                            {item.quantityOnHand} {item.unit || "pza"}
-                          </span>
-                          {item.isBelowMinimum && (
-                            <div className="text-xs text-red-500 mt-1">
-                              Mín: {item.minQuantity}
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-6 py-4">
-                          <span
-                            className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${item.status === "active"
-                              ? "bg-green-100 text-green-700"
-                              : "bg-gray-100 text-gray-600"
-                              }`}
-                          >
-                            {item.status === "active" ? "Activo" : "Inactivo"}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              onClick={() => openAdjustModal(item._id)}
-                              className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                              title="Ajustar stock"
-                            >
-                              <TrendingUp className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteItem(item._id)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Eliminar"
-                            >
-                              <Trash className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
+                    ) : (
+                      items?.map((item) => (
+                        <tr key={item._id}>
+                          <td className="px-6 py-4 font-mono text-sm text-gray-900">
+                            {item.sku}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-2">
+                              <Package className="h-4 w-4 text-gray-400" />
+                              <span className="font-medium text-gray-900">
+                                {item.name}
+                              </span>
+                            </div>
+                            {item.description && (
+                              <p className="text-xs text-gray-500 mt-1">
+                                {item.description}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-gray-500">
+                            {item.category || "-"}
+                          </td>
+                          <td className="px-6 py-4 text-gray-500">
+                            {item.location || "-"}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span
+                              className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
+                                item.isBelowMinimum || item.quantityOnHand === 0
+                                  ? "bg-red-100 text-red-800"
+                                  : "bg-green-100 text-green-800"
+                              }`}
+                            >
+                              {item.quantityOnHand} {item.unit || "pza"}
+                            </span>
+                            {item.isBelowMinimum && (
+                              <div className="text-xs text-red-500 mt-1">
+                                Mín: {item.minQuantity}
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-6 py-4">
+                            <span
+                              className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                item.status === "active"
+                                  ? "bg-green-100 text-green-700"
+                                  : "bg-gray-100 text-gray-600"
+                              }`}
+                            >
+                              {item.status === "active" ? "Activo" : "Inactivo"}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex justify-end gap-2">
+                              <button
+                                onClick={() => openAdjustModal(item._id)}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                title="Ajustar stock"
+                              >
+                                <TrendingUp className="h-4 w-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteItem(item._id)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Eliminar"
+                              >
+                                <Trash className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
-        </div>
 
         {/* Create Item Modal */}
         {isCreateModalOpen && (
@@ -539,6 +547,7 @@ export default function InventarioPage() {
             </div>
           </div>
         )}
+        </div>
       </AppLayout>
     </RequireRole>
   );
