@@ -71,6 +71,7 @@ export async function findWarehouseItems(
       { name: { $regex: filters.search, $options: "i" } },
       { sku: { $regex: filters.search, $options: "i" } },
       { description: { $regex: filters.search, $options: "i" } },
+      { location: { $regex: filters.search, $options: "i" } },
     ];
   }
 
