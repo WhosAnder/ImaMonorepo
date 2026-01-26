@@ -178,50 +178,41 @@ export default function InventarioPage() {
                 Error al cargar inventario
               </div>
             ) : (
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50 border-b border-gray-200">
-                  <tr>
-                    <th className="px-6 py-3 text-left font-medium text-gray-700">
-                      SKU
-                    </th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-700">
-                      Nombre
-                    </th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-700">
-                      Categoría
-                    </th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-700">
-                      Ubicación
-                    </th>
-                    <th className="px-6 py-3 text-center font-medium text-gray-700">
-                      Cantidad
-                    </th>
-                    <th className="px-6 py-3 text-left font-medium text-gray-700">
-                      Estado
-                    </th>
-                    <th className="px-6 py-3 text-right font-medium text-gray-700">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200">
-                  {items?.length === 0 ? (
+              <div className="overflow-x-auto">
+                <table className="min-w-[900px] w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <td
-                        colSpan={7}
-                        className="px-6 py-8 text-center text-gray-500"
-                      >
-                        No hay items en el inventario
-                      </td>
+                      <th className="px-6 py-3 text-left font-medium text-gray-700">
+                        SKU
+                      </th>
+                      <th className="px-6 py-3 text-left font-medium text-gray-700">
+                        Nombre
+                      </th>
+                      <th className="px-6 py-3 text-left font-medium text-gray-700">
+                        Categoría
+                      </th>
+                      <th className="px-6 py-3 text-left font-medium text-gray-700">
+                        Ubicación
+                      </th>
+                      <th className="px-6 py-3 text-center font-medium text-gray-700">
+                        Cantidad
+                      </th>
+                      <th className="px-6 py-3 text-left font-medium text-gray-700">
+                        Estado
+                      </th>
+                      <th className="px-6 py-3 text-right font-medium text-gray-700">
+                        Acciones
+                      </th>
                     </tr>
-                  ) : (
-                    items?.map((item) => (
-                      <tr
-                        key={item._id}
-                        className="hover:bg-gray-50 transition-colors"
-                      >
-                        <td className="px-6 py-4 font-mono text-sm text-gray-900">
-                          {item.sku}
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {items?.length === 0 ? (
+                      <tr>
+                        <td
+                          colSpan={7}
+                          className="px-6 py-8 text-center text-gray-500"
+                        >
+                          No hay items en el inventario
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
