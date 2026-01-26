@@ -7,6 +7,7 @@ import {
   listWarehouseItems,
   updateWarehouseItemDetails,
   adjustWarehouseItemStock,
+  archiveWarehouseItem,
 } from "./warehouse.service";
 import {
   CreateWarehouseItemSchema,
@@ -23,12 +24,14 @@ export async function listWarehouseItemsController(c: Context) {
   const status = c.req.query("status");
   const search = c.req.query("search");
   const lowStock = c.req.query("lowStock");
+  const hideEmpty = c.req.query("hideEmpty");
 
   if (category) filters.category = category;
   if (location) filters.location = location;
   if (status === "active" || status === "inactive") filters.status = status;
   if (search) filters.search = search;
   if (lowStock) filters.lowStock = lowStock === "true";
+  if (hideEmpty) filters.hideEmpty = hideEmpty === "true";
 
   const items = await listWarehouseItems(filters);
   return c.json(items);
@@ -83,6 +86,20 @@ export async function updateWarehouseItemController(c: Context) {
       return c.json({ error: "Validation Error", details: error.issues }, 400);
     }
     console.error("Error updating warehouse item", error);
+    return c.json({ error: "Internal Server Error" }, 500);
+  }
+}
+
+export async function archiveWarehouseItemController(c: Context) {
+  const id = c.req.param("id");
+  try {
+    const archived = await archiveWarehouseItem(id);
+    if (!archived) {
+      return c.json({ error: "Item not found" }, 404);
+    }
+    return c.json(archived);
+  } catch (error) {
+    console.error("Error archiving warehouse item", error);
     return c.json({ error: "Internal Server Error" }, 500);
   }
 }
