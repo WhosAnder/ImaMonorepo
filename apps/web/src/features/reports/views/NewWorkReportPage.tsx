@@ -124,8 +124,6 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   );
   const [draftStatus, setDraftStatus] = useState<"empty" | "loaded">("empty");
   const draftRestorationGuardRef = useRef(false);
-  const [customSubsistema, setCustomSubsistema] = useState("");
-  const [customFrecuencia, setCustomFrecuencia] = useState("");
   const [customActivities, setCustomActivities] = useState<
     ActivityWithDetails[]
   >([]);
@@ -138,11 +136,13 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
 
   const initialFormValues = {
     subsistema: "",
+    customSubsistema: "",
     cliente: "AEROTREN AICM",
     ubicacion: "",
     fechaHoraInicio: new Date().toISOString().slice(0, 16),
     turno: "",
     frecuencia: "",
+    customFrecuencia: "",
     trabajadores: [],
     actividadesRealizadas: [],
     herramientas: [],
@@ -170,6 +170,8 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   const fechaHoraInicio = watch("fechaHoraInicio");
   const subsistema = watch("subsistema");
   const frecuencia = watch("frecuencia");
+  const customSubsistema = watch("customSubsistema");
+  const customFrecuencia = watch("customFrecuencia");
 
   const { data: filtersData, isLoading: isLoadingFilters } =
     useTemplateFilters("work");
@@ -280,7 +282,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   useEffect(() => {
     if (draftRestorationGuardRef.current) return;
     setActivitiesState([]);
-  }, [subsistema, frecuencia]);
+  }, [effectiveSubsistema, effectiveFrecuencia]);
 
   useEffect(() => {
     if (draftRestorationGuardRef.current) return;
@@ -315,14 +317,6 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
       selected.map((a) => a.template._id || a.id),
     );
   }, [activitiesState, setValue]);
-
-  // Sync custom frequency with form field when "Otros" is selected
-  useEffect(() => {
-    if (isOtrosSelected) {
-      if (customSubsistema) setValue("subsistema", customSubsistema);
-      if (customFrecuencia) setValue("frecuencia", customFrecuencia);
-    }
-  }, [isOtrosSelected, customSubsistema, customFrecuencia, setValue]);
 
   // Load draft on mount
   useEffect(() => {
@@ -619,7 +613,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           const signatureResult = await uploadWorkReportSignature(
             data.firmaResponsable,
             isEditMode && reportId ? reportId : tempReportId,
-            effectiveSubsistema,
+            effectiveSubsistema || data.subsistema,
             data.fechaHoraInicio || localISOTime,
           );
 
@@ -632,8 +626,9 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
       }
 
       // Step 2: Prepare payload with S3 signature key
+      const { customSubsistema: _, customFrecuencia: __, ...restData } = data;
       const payload = {
-        ...data,
+        ...restData,
         firmaResponsable: firmaResponsableKey, // Use S3 key instead of base64
         subsistema: effectiveSubsistema, // Use custom subsystem if "Otros" is selected
         frecuencia: effectiveFrecuencia, // Use custom frequency if "Otros" is selected
@@ -664,7 +659,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           try {
             const evidenceMap = await uploadAllEvidences(
               reportIdFromResponse,
-              data.subsistema,
+              effectiveSubsistema || data.subsistema,
               data.fechaHoraInicio,
               activitiesState,
             );
@@ -794,8 +789,8 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                             onValueChange={(value) => {
                               field.onChange(value);
                               if (value !== "Otros") {
-                                setCustomSubsistema("");
-                                setCustomFrecuencia("");
+                                setValue("customSubsistema", "");
+                                setValue("customFrecuencia", "");
                               }
                             }}
                             value={field.value}
@@ -817,12 +812,14 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                             <div className="mt-2">
                               <Input
                                 placeholder="Especifica el subsistema..."
-                                value={customSubsistema}
-                                onChange={(e) =>
-                                  setCustomSubsistema(e.target.value)
-                                }
+                                {...register("customSubsistema")}
                                 className="w-full"
                               />
+                              {errors.customSubsistema && (
+                                <p className="text-red-500 text-xs mt-1">
+                                  {errors.customSubsistema.message}
+                                </p>
+                              )}
                             </div>
                           )}
                         </>
@@ -850,15 +847,21 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="frecuencia">Frecuencia</Label>
-                    {isOtrosSelected ? (
-                      // Show text input when "Otros" is selected
-                      <Input
-                        placeholder="Especifica la frecuencia..."
-                        value={customFrecuencia}
-                        onChange={(e) => setCustomFrecuencia(e.target.value)}
-                        className="w-full"
-                      />
-                    ) : (
+                      {isOtrosSelected ? (
+                        // Show text input when "Otros" is selected
+                        <div>
+                          <Input
+                            placeholder="Especifica la frecuencia..."
+                            {...register("customFrecuencia")}
+                            className="w-full"
+                          />
+                          {errors.customFrecuencia && (
+                            <p className="text-red-500 text-xs mt-1">
+                              {errors.customFrecuencia.message}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
                       // Show dropdown for regular subsystems
                       <Controller
                         name="frecuencia"
