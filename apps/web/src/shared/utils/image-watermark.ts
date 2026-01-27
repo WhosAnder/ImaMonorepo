@@ -36,7 +36,7 @@ const DEFAULT_OPTIONS: Required<WatermarkOptions> = {
   maxWidth: 1920,
   maxHeight: 1920,
   quality: 0.8,
-  logoPath: '/assets/ima-logo.png',
+  logoPath: '/logo-ima.png',
   opacity: 0.7,
   position: 'bottom-right',
   padding: 20,

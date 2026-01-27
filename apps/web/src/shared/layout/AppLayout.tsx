@@ -61,7 +61,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
               </span>
             </div>
             <img
-              src="/assets/ima-logo.png"
+              src="/logo-ima.png"
               alt="IMA Logo"
               className="h-9 w-auto object-contain"
             />
