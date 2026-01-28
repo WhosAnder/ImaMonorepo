@@ -194,9 +194,9 @@ async function drawWatermark(
   const lineHeight = 20;
   const textHeight = textLines.length * lineHeight;
   
-  // Calculate watermark box dimensions
-  const watermarkWidth = Math.max(logoWidth, textWidth) + padding * 2;
-  const watermarkHeight = (logo ? logoHeight + 10 : 0) + textHeight + padding * 2;
+  // Calculate watermark box dimensions (text only, logo is separate)
+  const watermarkWidth = textWidth + padding * 2;
+  const watermarkHeight = textHeight + padding * 2;
   
   // Calculate position
   let x: number, y: number;
@@ -226,14 +226,14 @@ async function drawWatermark(
   ctx.fillStyle = `rgba(0, 0, 0, ${opacity * 0.6})`;
   ctx.fillRect(x, y, watermarkWidth, watermarkHeight);
   
-  // Draw logo if available
+  // Draw logo if available - positioned at bottom-left of image
   let currentY = y + padding;
   if (logo) {
-    const logoX = x + (watermarkWidth - logoWidth) / 2;
+    const logoX = padding; // Absolute left of image
+    const logoY = canvas.height - logoHeight - padding; // Absolute bottom of image
     ctx.globalAlpha = opacity;
-    ctx.drawImage(logo, logoX, currentY, logoWidth, logoHeight);
+    ctx.drawImage(logo, logoX, logoY, logoWidth, logoHeight);
     ctx.globalAlpha = 1.0;
-    currentY += logoHeight + 10;
   }
   
   // Draw text (phase label + timestamp)
