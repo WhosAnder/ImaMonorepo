@@ -13,6 +13,7 @@
 
 export interface WatermarkOptions {
   timestamp?: string | Date;
+  phaseLabel?: string; // e.g., "ANTES", "DURANTE", "DESPUÉS"
   maxWidth?: number;
   maxHeight?: number;
   quality?: number;
@@ -31,8 +32,9 @@ interface ProcessedImageResult {
   compressionRatio: number;
 }
 
-const DEFAULT_OPTIONS: Required<WatermarkOptions> = {
+const DEFAULT_OPTIONS: Required<Omit<WatermarkOptions, 'phaseLabel'>> & { phaseLabel?: string } = {
   timestamp: new Date(),
+  phaseLabel: undefined,
   maxWidth: 1920,
   maxHeight: 1920,
   quality: 0.8,
@@ -154,10 +156,10 @@ function calculateResizedDimensions(
 async function drawWatermark(
   ctx: CanvasRenderingContext2D,
   canvas: HTMLCanvasElement,
-  options: Required<WatermarkOptions>,
+  options: Required<Omit<WatermarkOptions, 'phaseLabel'>> & { phaseLabel?: string },
   useFallbackText: boolean = false
 ): Promise<void> {
-  const { padding, opacity, position } = options;
+  const { padding, opacity, position, phaseLabel } = options;
   const formattedTimestamp = formatTimestamp(options.timestamp);
   
   // Try to load and draw logo
@@ -179,12 +181,18 @@ async function drawWatermark(
   ctx.font = '16px system-ui, -apple-system, sans-serif';
   ctx.textAlign = 'left';
   
+  // Prepare text lines (phase label + timestamp)
+  const textLines: string[] = [];
+  if (phaseLabel) {
+    textLines.push(phaseLabel.toUpperCase());
+  }
+  textLines.push(...formattedTimestamp.split('\n'));
+  
   // Measure text dimensions
-  const lines = formattedTimestamp.split('\n');
-  const textMetrics = lines.map(line => ctx.measureText(line));
+  const textMetrics = textLines.map(line => ctx.measureText(line));
   const textWidth = Math.max(...textMetrics.map(m => m.width));
   const lineHeight = 20;
-  const textHeight = lines.length * lineHeight;
+  const textHeight = textLines.length * lineHeight;
   
   // Calculate watermark box dimensions
   const watermarkWidth = Math.max(logoWidth, textWidth) + padding * 2;
@@ -228,10 +236,17 @@ async function drawWatermark(
     currentY += logoHeight + 10;
   }
   
-  // Draw timestamp text
+  // Draw text (phase label + timestamp)
   ctx.fillStyle = '#ffffff';
   ctx.globalAlpha = opacity;
-  lines.forEach((line, index) => {
+  
+  // Make phase label bold if present
+  textLines.forEach((line, index) => {
+    if (index === 0 && phaseLabel) {
+      ctx.font = 'bold 16px system-ui, -apple-system, sans-serif';
+    } else {
+      ctx.font = '16px system-ui, -apple-system, sans-serif';
+    }
     const textX = x + (watermarkWidth - ctx.measureText(line).width) / 2;
     ctx.fillText(line, textX, currentY + index * lineHeight);
   });

@@ -755,15 +755,19 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
               const dataUrl = evidence.base64 || evidence.previewUrl;
               
               if (dataUrl && dataUrl.startsWith("data:")) {
-                const fileToUpload = base64ToFile(
+                // Apply watermark with phase label
+                const watermarkedFile = await applyWatermarkToImage(
                   dataUrl,
-                  evidence.name || `antes-${i}.jpg`,
+                  { 
+                    timestamp: new Date(),
+                    phaseLabel: "Antes"
+                  }
                 );
                 
                 const evidenceInfo = await uploadEvidence({
                   reportId: reportIdFromResponse,
                   reportType: "work",
-                  file: fileToUpload,
+                  file: watermarkedFile,
                   subsystem: effectiveSubsistema || data.subsistema,
                   fechaHoraInicio: data.fechaHoraInicio,
                   skipDbRecord: true,
@@ -782,15 +786,19 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
               const dataUrl = evidence.base64 || evidence.previewUrl;
               
               if (dataUrl && dataUrl.startsWith("data:")) {
-                const fileToUpload = base64ToFile(
+                // Apply watermark with phase label
+                const watermarkedFile = await applyWatermarkToImage(
                   dataUrl,
-                  evidence.name || `durante-${i}.jpg`,
+                  { 
+                    timestamp: new Date(),
+                    phaseLabel: "Durante"
+                  }
                 );
                 
                 const evidenceInfo = await uploadEvidence({
                   reportId: reportIdFromResponse,
                   reportType: "work",
-                  file: fileToUpload,
+                  file: watermarkedFile,
                   subsystem: effectiveSubsistema || data.subsistema,
                   fechaHoraInicio: data.fechaHoraInicio,
                   skipDbRecord: true,
@@ -809,15 +817,19 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
               const dataUrl = evidence.base64 || evidence.previewUrl;
               
               if (dataUrl && dataUrl.startsWith("data:")) {
-                const fileToUpload = base64ToFile(
+                // Apply watermark with phase label
+                const watermarkedFile = await applyWatermarkToImage(
                   dataUrl,
-                  evidence.name || `despues-${i}.jpg`,
+                  { 
+                    timestamp: new Date(),
+                    phaseLabel: "Después"
+                  }
                 );
                 
                 const evidenceInfo = await uploadEvidence({
                   reportId: reportIdFromResponse,
                   reportType: "work",
-                  file: fileToUpload,
+                  file: watermarkedFile,
                   subsystem: effectiveSubsistema || data.subsistema,
                   fechaHoraInicio: data.fechaHoraInicio,
                   skipDbRecord: true,
