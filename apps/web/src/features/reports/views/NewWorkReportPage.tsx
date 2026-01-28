@@ -56,6 +56,7 @@ import {
 import { Save, Plus, Trash2 } from "lucide-react";
 import { Template } from "@/types/template";
 import { WorkReportPreview } from "../components/WorkReportPreview";
+import { EvidencePhaseSection } from "../components/EvidencePhaseSection";
 import { useAuth } from "@/auth/AuthContext";
 import type { WarehouseItem } from "@/api/warehouseClient";
 import { uploadEvidence } from "@/api/evidencesClient";
@@ -127,6 +128,21 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   const [customActivities, setCustomActivities] = useState<
     ActivityWithDetails[]
   >([]);
+
+  // Three-phase evidence system state
+  const [evidencePhases, setEvidencePhases] = useState<{
+    antes: { evidences: LocalEvidence[]; isLocked: boolean };
+    durante: { evidences: LocalEvidence[]; isLocked: boolean };
+    despues: { evidences: LocalEvidence[]; isLocked: boolean };
+  }>({
+    antes: { evidences: [], isLocked: false },
+    durante: { evidences: [], isLocked: false },
+    despues: { evidences: [], isLocked: false },
+  });
+
+  const [activePhase, setActivePhase] = useState<
+    "antes" | "durante" | "despues"
+  >("antes");
 
   const isEditMode = Boolean(reportId);
 
@@ -348,6 +364,16 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
     }
   }, [reset]);
 
+  // Load evidence phases from localStorage on mount
+  useEffect(() => {
+    loadEvidencePhasesFromLocalStorage();
+  }, []);
+
+  // Save evidence phases to localStorage whenever they change
+  useEffect(() => {
+    saveEvidencePhasesToLocalStorage();
+  }, [evidencePhases]);
+
   const toggleActivity = (id: string) => {
     setActivitiesState((prev) =>
       prev.map((a) =>
@@ -411,6 +437,70 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
       prev.map((a) => (a.id === id ? { ...a, evidencias: files } : a)),
     );
   };
+
+  // Evidence phase handlers
+  const handleEvidencePhaseChange = (
+    phase: "antes" | "durante" | "despues",
+    files: LocalEvidence[],
+  ) => {
+    setEvidencePhases((prev) => ({
+      ...prev,
+      [phase]: { ...prev[phase], evidences: files },
+    }));
+  };
+
+  const handleSavePhase = (phase: "antes" | "durante" | "despues") => {
+    // Lock current phase
+    setEvidencePhases((prev) => ({
+      ...prev,
+      [phase]: { ...prev[phase], isLocked: true },
+    }));
+
+    // Unlock next phase
+    if (phase === "antes") {
+      setActivePhase("durante");
+    } else if (phase === "durante") {
+      setActivePhase("despues");
+    }
+
+    // Save to localStorage
+    saveEvidencePhasesToLocalStorage();
+  };
+
+  const saveEvidencePhasesToLocalStorage = () => {
+    if (typeof window === "undefined") return;
+    try {
+      localStorage.setItem(
+        "work_report_evidence_phases",
+        JSON.stringify(evidencePhases),
+      );
+    } catch (error) {
+      console.error("Error saving evidence phases to localStorage:", error);
+    }
+  };
+
+  const loadEvidencePhasesFromLocalStorage = () => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = localStorage.getItem("work_report_evidence_phases");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setEvidencePhases(parsed);
+        
+        // Set active phase based on locked states
+        if (!parsed.antes.isLocked) {
+          setActivePhase("antes");
+        } else if (!parsed.durante.isLocked) {
+          setActivePhase("durante");
+        } else if (!parsed.despues.isLocked) {
+          setActivePhase("despues");
+        }
+      }
+    } catch (error) {
+      console.error("Error loading evidence phases from localStorage:", error);
+    }
+  };
+
 
   const handleSaveDraft = async () => {
     if (typeof window === "undefined") return;
@@ -655,25 +745,100 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
         const reportIdFromResponse = (result as any)._id;
 
         if (reportIdFromResponse) {
-          // Upload evidences to S3 with the new reportId
+          // Upload three-phase evidences to S3
           try {
-            const evidenceMap = await uploadAllEvidences(
-              reportIdFromResponse,
-              effectiveSubsistema || data.subsistema,
-              data.fechaHoraInicio,
-              activitiesState,
-            );
+            const allPhaseEvidences: any[] = [];
+            
+            // Upload Antes phase
+            for (let i = 0; i < evidencePhases.antes.evidences.length; i++) {
+              const evidence = evidencePhases.antes.evidences[i];
+              const dataUrl = evidence.base64 || evidence.previewUrl;
+              
+              if (dataUrl && dataUrl.startsWith("data:")) {
+                const fileToUpload = base64ToFile(
+                  dataUrl,
+                  evidence.name || `antes-${i}.jpg`,
+                );
+                
+                const evidenceInfo = await uploadEvidence({
+                  reportId: reportIdFromResponse,
+                  reportType: "work",
+                  file: fileToUpload,
+                  subsystem: effectiveSubsistema || data.subsistema,
+                  fechaHoraInicio: data.fechaHoraInicio,
+                  skipDbRecord: true,
+                });
+                
+                allPhaseEvidences.push({
+                  ...evidenceInfo,
+                  phase: "antes",
+                });
+              }
+            }
+            
+            // Upload Durante phase
+            for (let i = 0; i < evidencePhases.durante.evidences.length; i++) {
+              const evidence = evidencePhases.durante.evidences[i];
+              const dataUrl = evidence.base64 || evidence.previewUrl;
+              
+              if (dataUrl && dataUrl.startsWith("data:")) {
+                const fileToUpload = base64ToFile(
+                  dataUrl,
+                  evidence.name || `durante-${i}.jpg`,
+                );
+                
+                const evidenceInfo = await uploadEvidence({
+                  reportId: reportIdFromResponse,
+                  reportType: "work",
+                  file: fileToUpload,
+                  subsystem: effectiveSubsistema || data.subsistema,
+                  fechaHoraInicio: data.fechaHoraInicio,
+                  skipDbRecord: true,
+                });
+                
+                allPhaseEvidences.push({
+                  ...evidenceInfo,
+                  phase: "durante",
+                });
+              }
+            }
+            
+            // Upload Después phase
+            for (let i = 0; i < evidencePhases.despues.evidences.length; i++) {
+              const evidence = evidencePhases.despues.evidences[i];
+              const dataUrl = evidence.base64 || evidence.previewUrl;
+              
+              if (dataUrl && dataUrl.startsWith("data:")) {
+                const fileToUpload = base64ToFile(
+                  dataUrl,
+                  evidence.name || `despues-${i}.jpg`,
+                );
+                
+                const evidenceInfo = await uploadEvidence({
+                  reportId: reportIdFromResponse,
+                  reportType: "work",
+                  file: fileToUpload,
+                  subsystem: effectiveSubsistema || data.subsistema,
+                  fechaHoraInicio: data.fechaHoraInicio,
+                  skipDbRecord: true,
+                });
+                
+                allPhaseEvidences.push({
+                  ...evidenceInfo,
+                  phase: "despues",
+                });
+              }
+            }
 
             // Update the report with evidence references
-            const updatedActividades = selectedActivitiesData.map((act) => {
-              const evidences =
-                evidenceMap.get(act.template._id || act.id) || [];
+            // Store all evidences in the first activity for now (backend compatibility)
+            const updatedActividades = selectedActivitiesData.map((act, index) => {
               return {
                 templateId: act.template._id || act.id,
                 nombre: act.name,
                 realizado: true,
                 observaciones: act.observaciones,
-                evidencias: evidences,
+                evidencias: index === 0 ? allPhaseEvidences : [],
               };
             });
 
@@ -695,6 +860,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
 
         if (typeof window !== "undefined") {
           localStorage.removeItem(WORK_REPORT_DRAFT_KEY);
+          localStorage.removeItem("work_report_evidence_phases");
         }
 
         alert("Reporte generado exitosamente");
@@ -741,6 +907,19 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   };
 
   const hasSelectedActivities = selectedActivities.length > 0;
+  
+  // Validation for three-phase evidence
+  const allPhasesCompleted =
+    evidencePhases.antes.isLocked &&
+    evidencePhases.durante.isLocked &&
+    evidencePhases.despues.isLocked;
+    
+  const totalEvidenceCount =
+    evidencePhases.antes.evidences.length +
+    evidencePhases.durante.evidences.length +
+    evidencePhases.despues.evidences.length;
+    
+  const hasValidEvidenceCount = totalEvidenceCount >= 3 && totalEvidenceCount <= 9;
 
   return (
     <div className="min-h-screen bg-white pb-12 font-sans text-gray-900">
@@ -1153,6 +1332,75 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                 </Card>
               )}
 
+              {/* Section 2.5: Evidencias Fotográficas (Three-Phase) */}
+              {hasSelectedActivities && (
+                <Card className="p-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-100 text-blue-600 font-bold text-sm">
+                      2.5
+                    </div>
+                    <h2 className="text-xl font-semibold text-gray-900">
+                      Evidencias Fotográficas
+                    </h2>
+                  </div>
+
+                  <p className="text-sm text-gray-600 mb-6">
+                    Sube fotos de cada fase del mantenimiento. Mínimo 1 y máximo 3 fotos por fase.
+                    Total requerido: entre 3 y 9 fotos.
+                  </p>
+
+                  <div className="space-y-6">
+                    {/* Fase: Antes */}
+                    <EvidencePhaseSection
+                      phase="antes"
+                      title="Antes del Mantenimiento"
+                      description="Fotos del estado inicial antes de comenzar el trabajo"
+                      evidences={evidencePhases.antes.evidences}
+                      isLocked={evidencePhases.antes.isLocked}
+                      isActive={activePhase === "antes"}
+                      onEvidencesChange={(files) =>
+                        handleEvidencePhaseChange("antes", files)
+                      }
+                      onSave={() => handleSavePhase("antes")}
+                      minPhotos={1}
+                      maxPhotos={3}
+                    />
+
+                    {/* Fase: Durante */}
+                    <EvidencePhaseSection
+                      phase="durante"
+                      title="Durante el Mantenimiento"
+                      description="Fotos del proceso de trabajo en ejecución"
+                      evidences={evidencePhases.durante.evidences}
+                      isLocked={evidencePhases.durante.isLocked}
+                      isActive={activePhase === "durante"}
+                      onEvidencesChange={(files) =>
+                        handleEvidencePhaseChange("durante", files)
+                      }
+                      onSave={() => handleSavePhase("durante")}
+                      minPhotos={1}
+                      maxPhotos={3}
+                    />
+
+                    {/* Fase: Después */}
+                    <EvidencePhaseSection
+                      phase="despues"
+                      title="Después del Mantenimiento"
+                      description="Fotos del resultado final del trabajo completado"
+                      evidences={evidencePhases.despues.evidences}
+                      isLocked={evidencePhases.despues.isLocked}
+                      isActive={activePhase === "despues"}
+                      onEvidencesChange={(files) =>
+                        handleEvidencePhaseChange("despues", files)
+                      }
+                      onSave={() => handleSavePhase("despues")}
+                      minPhotos={1}
+                      maxPhotos={3}
+                    />
+                  </div>
+                </Card>
+              )}
+
               {/* Section 3: Herramientas y refacciones */}
               {hasSelectedActivities && (
                 <Card className="p-6">
@@ -1283,7 +1531,9 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                   disabled={
                     isSubmitting ||
                     updateReportMutation.isPending ||
-                    !hasSelectedActivities
+                    !hasSelectedActivities ||
+                    !allPhasesCompleted ||
+                    !hasValidEvidenceCount
                   }
                   className="px-8 bg-[#153A7A] hover:bg-[#153A7A]/90 text-white disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={(e) => {
@@ -1291,6 +1541,8 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                       isSubmitting,
                       isPending: updateReportMutation.isPending,
                       hasSelectedActivities,
+                      allPhasesCompleted,
+                      hasValidEvidenceCount,
                       errors: Object.keys(errors),
                     });
                     if (!hasSelectedActivities) {
