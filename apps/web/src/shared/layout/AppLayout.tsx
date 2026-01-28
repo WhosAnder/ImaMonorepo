@@ -54,10 +54,10 @@ export const AppLayout: React.FC<AppLayoutProps> = ({
           <div className="h-16 flex items-center justify-between gap-3 px-4 border-b border-gray-100">
             <div className="flex flex-col justify-center">
               <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
-                IMA Soluciones
+                IMA
               </span>
               <span className="text-lg font-bold" style={{ color: themeColor }}>
-                Plataforma
+                Cloud
               </span>
             </div>
             <img
