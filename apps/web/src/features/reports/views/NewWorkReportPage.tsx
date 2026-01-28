@@ -1204,24 +1204,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                               />
                             </div>
 
-                            {/* Evidences */}
-                            <div className="space-y-2">
-                              <Label className="text-xs font-semibold text-blue-900">
-                                Evidencias Fotográficas (máx. 5)
-                              </Label>
-                              <div className="bg-white p-3 rounded-lg border border-blue-100">
-                                <ImageUpload
-                                  label=""
-                                  onChange={(files) =>
-                                    updateCustomActivityEvidencias(
-                                      activity.id,
-                                      files,
-                                    )
-                                  }
-                                  compact
-                                />
-                              </div>
-                            </div>
+
                           </div>
                         ))}
 
@@ -1300,24 +1283,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                                   />
                                 </div>
 
-                                {/* Evidences - Bottom */}
-                                <div className="space-y-2">
-                                  <Label className="text-xs font-semibold text-blue-900">
-                                    Evidencias Fotográficas (máx. 5)
-                                  </Label>
-                                  <div className="bg-white p-3 rounded-lg border border-blue-100">
-                                    <ImageUpload
-                                      label=""
-                                      onChange={(files) =>
-                                        updateActivityEvidencias(
-                                          activity.id,
-                                          files,
-                                        )
-                                      }
-                                      compact
-                                    />
-                                  </div>
-                                </div>
+
                               </div>
                             )}
                           </div>
