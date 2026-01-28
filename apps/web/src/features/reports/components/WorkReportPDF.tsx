@@ -211,7 +211,11 @@ const formatDate = (dateStr?: string) => {
 };
 
 const formatName = (name: string) => {
-  return name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  return name
+    .replace(/_/g, " ")
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 };
 
 const formatFrecuencia = (code?: string) => {
