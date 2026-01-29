@@ -132,7 +132,11 @@ export async function createWarehouseReportController(c: Context) {
     // Validate no base64 data
     validateNoBase64Data(validatedData);
 
-    const actor = getRequestUser(c);
+    const actor = await getRequestUser(c);
+
+    if (!actor) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
 
     type WarehouseItemInput = Partial<WarehouseItem> &
       Pick<WarehouseItem, "id" | "name" | "units">;
@@ -228,8 +232,12 @@ export async function deleteWarehouseReportController(c: Context) {
 export async function processWarehouseReportReturnController(c: Context) {
   try {
     const id = c.req.param("id");
-    const actor = getRequestUser(c);
+    const actor = await getRequestUser(c);
     let fechaHoraRecepcion: string | undefined;
+
+    if (!actor) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
 
     try {
       const body = await c.req.json();

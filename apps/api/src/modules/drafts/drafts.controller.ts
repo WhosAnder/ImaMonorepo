@@ -18,9 +18,9 @@ function mapDraftToResponse(draft: any) {
 
 export async function getDraftController(c: Context) {
   const reportType = c.req.query("reportType");
-  const user = getRequestUser(c);
+  const user = await getRequestUser(c);
 
-  if (!user.id) {
+  if (!user || !user.id) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
@@ -41,8 +41,8 @@ export async function getDraftController(c: Context) {
 }
 
 export async function createDraftController(c: Context) {
-  const user = getRequestUser(c);
-  if (!user.id) {
+  const user = await getRequestUser(c);
+  if (!user || !user.id) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
@@ -60,8 +60,8 @@ export async function createDraftController(c: Context) {
 }
 
 export async function updateDraftController(c: Context) {
-  const user = getRequestUser(c);
-  if (!user.id) {
+  const user = await getRequestUser(c);
+  if (!user || !user.id) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 
@@ -83,8 +83,8 @@ export async function updateDraftController(c: Context) {
 }
 
 export async function deleteDraftController(c: Context) {
-  const user = getRequestUser(c);
-  if (!user.id) {
+  const user = await getRequestUser(c);
+  if (!user || !user.id) {
     return c.json({ error: "Unauthorized" }, 401);
   }
 

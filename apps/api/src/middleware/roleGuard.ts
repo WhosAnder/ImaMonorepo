@@ -2,27 +2,49 @@ import { Context, Next } from "hono";
 import { RequestUser, UserRole } from "../types/auth";
 
 const CONTEXT_USER_KEY = "requestUser";
-const VALID_ROLES: UserRole[] = ["admin", "warehouse_admin", "warehouse", "user"];
+const VALID_ROLES: UserRole[] = ["admin", "supervisor", "warehouse"];
+const AUTH_SERVICE_URL = process.env.AUTH_SERVICE_URL || "http://localhost:5001";
 
-function parseRole(roleHeader?: string | null): UserRole {
-  if (!roleHeader) {
-    return "user";
+function normalizeRole(roleValue?: string | null): UserRole | null {
+  if (!roleValue) return null;
+  const roles = roleValue
+    .split(",")
+    .map((role) => role.trim().toLowerCase())
+    .filter(Boolean);
+
+  for (const role of VALID_ROLES) {
+    if (roles.includes(role)) return role;
   }
-  const normalized = roleHeader.toLowerCase();
-  const matched = VALID_ROLES.find((role) => role === normalized);
-  return matched ?? "user";
+
+  return null;
 }
 
-export function resolveUserFromRequest(c: Context): RequestUser {
+async function fetchSessionUser(c: Context): Promise<RequestUser | null> {
   const existing = c.get(CONTEXT_USER_KEY) as RequestUser | undefined;
-  if (existing && existing.role) {
-    return existing;
+  if (existing?.role) return existing;
+
+  const cookieHeader = c.req.header("Cookie") || "";
+  const response = await fetch(`${AUTH_SERVICE_URL}/auth/get-session`, {
+    headers: {
+      Cookie: cookieHeader,
+    },
+  }).catch(() => null);
+
+  if (!response || !response.ok) {
+    return null;
   }
 
-  const role = parseRole(c.req.header("x-user-role"));
+  const payload = await response.json().catch(() => null);
+  const sessionUser = payload?.user;
+  const role = normalizeRole(sessionUser?.role);
+
+  if (!sessionUser?.id || !role) {
+    return null;
+  }
+
   const user: RequestUser = {
-    id: c.req.header("x-user-id") || undefined,
-    name: c.req.header("x-user-name") || undefined,
+    id: sessionUser.id,
+    name: sessionUser.name || undefined,
     role,
   };
 
@@ -30,13 +52,16 @@ export function resolveUserFromRequest(c: Context): RequestUser {
   return user;
 }
 
-export function getRequestUser(c: Context): RequestUser {
-  return resolveUserFromRequest(c);
+export async function getRequestUser(c: Context): Promise<RequestUser | null> {
+  return fetchSessionUser(c);
 }
 
 export function requireRole(roles: UserRole[]) {
   return async (c: Context, next: Next) => {
-    const user = resolveUserFromRequest(c);
+    const user = await fetchSessionUser(c);
+    if (!user) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
     if (!roles.includes(user.role)) {
       return c.json({ error: "Forbidden" }, 403);
     }

@@ -11,12 +11,33 @@ import { requireRole } from "../../middleware/roleGuard";
 
 export const warehouseReportsRoute = new Hono();
 
-warehouseReportsRoute.get("/", listWarehouseReportsController);
-warehouseReportsRoute.get("/:id", getWarehouseReportByIdController);
-warehouseReportsRoute.post("/", createWarehouseReportController);
-warehouseReportsRoute.put("/:id", requireRole(["admin"]), updateWarehouseReportController);
-warehouseReportsRoute.delete("/:id", requireRole(["admin"]), deleteWarehouseReportController);
+warehouseReportsRoute.get(
+  "/",
+  requireRole(["admin", "supervisor", "warehouse"]),
+  listWarehouseReportsController,
+);
+warehouseReportsRoute.get(
+  "/:id",
+  requireRole(["admin", "supervisor", "warehouse"]),
+  getWarehouseReportByIdController,
+);
+warehouseReportsRoute.post(
+  "/",
+  requireRole(["admin", "supervisor", "warehouse"]),
+  createWarehouseReportController,
+);
+warehouseReportsRoute.put(
+  "/:id",
+  requireRole(["admin", "warehouse"]),
+  updateWarehouseReportController,
+);
+warehouseReportsRoute.delete(
+  "/:id",
+  requireRole(["admin", "warehouse"]),
+  deleteWarehouseReportController,
+);
 warehouseReportsRoute.patch(
   "/:id/return",
+  requireRole(["admin", "warehouse"]),
   processWarehouseReportReturnController,
 );

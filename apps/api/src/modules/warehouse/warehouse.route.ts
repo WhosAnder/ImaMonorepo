@@ -12,27 +12,39 @@ import { requireRole } from "../../middleware/roleGuard";
 
 export const warehouseRoute = new Hono();
 
-warehouseRoute.get("/", listWarehouseItemsController);
-warehouseRoute.get("/:id", getWarehouseItemController);
-warehouseRoute.get("/:id/adjustments", listWarehouseAdjustmentsController);
+warehouseRoute.get(
+  "/",
+  requireRole(["admin", "supervisor", "warehouse"]),
+  listWarehouseItemsController,
+);
+warehouseRoute.get(
+  "/:id",
+  requireRole(["admin", "supervisor", "warehouse"]),
+  getWarehouseItemController,
+);
+warehouseRoute.get(
+  "/:id/adjustments",
+  requireRole(["admin", "supervisor", "warehouse"]),
+  listWarehouseAdjustmentsController,
+);
 warehouseRoute.post(
   "/",
-  requireRole(["admin", "warehouse_admin", "warehouse"]),
+  requireRole(["admin", "warehouse"]),
   createWarehouseItemController,
 );
 warehouseRoute.patch(
   "/:id",
-  requireRole(["admin", "warehouse_admin", "warehouse"]),
+  requireRole(["admin", "warehouse"]),
   updateWarehouseItemController,
 );
 warehouseRoute.post(
   "/:id/adjustments",
-  requireRole(["admin", "warehouse_admin", "warehouse"]),
+  requireRole(["admin", "warehouse"]),
   createWarehouseAdjustmentController,
 );
 
 warehouseRoute.delete(
   "/:id",
-  requireRole(["admin", "warehouse_admin"]),
+  requireRole(["admin"]),
   archiveWarehouseItemController,
 );

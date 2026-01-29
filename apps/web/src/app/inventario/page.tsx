@@ -114,7 +114,7 @@ export default function InventarioPage() {
   };
 
   return (
-    <RequireRole allowedRoles={["admin", "warehouse_admin", "warehouse"]}>
+    <RequireRole allowedRoles={["admin", "warehouse"]}>
       <AppLayout title="Inventario">
         <div className="space-y-6">
           {/* Header */}

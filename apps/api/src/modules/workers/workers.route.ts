@@ -9,16 +9,14 @@ import {
   permanentlyDeleteWorker,
 } from "./workers.repository";
 import { requireAdmin } from "../../middleware/requireAdmin";
+import { requireRole } from "../../middleware/roleGuard";
 import { ObjectId } from "mongodb";
 import { getWorkersCollection } from "../../db/mongo";
 
 const app = new Hono();
 
-// Protect all routes with admin check
-app.use("*", requireAdmin);
-
 // GET /api/workers
-app.get("/", async (c) => {
+app.get("/", requireRole(["admin", "supervisor"]), async (c) => {
   const search = c.req.query("q");
   const includeInactive = c.req.query("includeInactive") === "true";
   const workers = await listWorkers(search, includeInactive);
@@ -26,14 +24,18 @@ app.get("/", async (c) => {
 });
 
 // POST /api/workers
-app.post("/", zValidator("json", CreateWorkerSchema), async (c) => {
+app.post("/", requireAdmin, zValidator("json", CreateWorkerSchema), async (c) => {
   const body = c.req.valid("json");
   const worker = await createWorker(body.name);
   return c.json(worker, 201);
 });
 
 // PATCH /api/workers/:id
-app.patch("/:id", zValidator("json", UpdateWorkerSchema), async (c) => {
+app.patch(
+  "/:id",
+  requireAdmin,
+  zValidator("json", UpdateWorkerSchema),
+  async (c) => {
   const id = c.req.param("id");
   const body = c.req.valid("json");
   const worker = await updateWorker(id, body);
@@ -41,10 +43,11 @@ app.patch("/:id", zValidator("json", UpdateWorkerSchema), async (c) => {
     return c.json({ error: "Worker not found" }, 404);
   }
   return c.json(worker);
-});
+  },
+);
 
 // PATCH /api/workers/:id/toggle - Toggle active status
-app.patch("/:id/toggle", async (c) => {
+app.patch("/:id/toggle", requireAdmin, async (c) => {
   const id = c.req.param("id");
   const collection = await getWorkersCollection();
   const worker = await collection.findOne({ _id: new ObjectId(id) });
@@ -58,7 +61,7 @@ app.patch("/:id/toggle", async (c) => {
 });
 
 // DELETE /api/workers/:id - Permanent delete
-app.delete("/:id", async (c) => {
+app.delete("/:id", requireAdmin, async (c) => {
   const id = c.req.param("id");
   const permanentParam = c.req.query("permanent");
   const permanent = permanentParam === "true";

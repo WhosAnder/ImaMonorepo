@@ -132,7 +132,9 @@ export async function fetchWarehouseItems(
   if (filters.hideEmpty !== undefined)
     params.append("hideEmpty", String(filters.hideEmpty));
 
-  const response = await fetch(`${API_URL}/api/warehouse?${params.toString()}`);
+  const response = await fetch(`${API_URL}/api/warehouse?${params.toString()}`, {
+    credentials: "include",
+  });
   if (!response.ok) {
     throw new Error("Failed to fetch warehouse items");
   }
@@ -142,7 +144,9 @@ export async function fetchWarehouseItems(
 export async function fetchWarehouseItemById(
   id: string,
 ): Promise<WarehouseItem> {
-  const response = await fetch(`${API_URL}/api/warehouse/${id}`);
+  const response = await fetch(`${API_URL}/api/warehouse/${id}`, {
+    credentials: "include",
+  });
   if (!response.ok) {
     throw new Error("Failed to fetch warehouse item");
   }
@@ -156,6 +160,7 @@ export async function deleteWarehouseItem(id: string): Promise<WarehouseItem> {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
+    credentials: "include",
   });
   if (!response.ok) {
     throw new Error("Failed to delete warehouse item");
@@ -172,6 +177,7 @@ export async function createWarehouseItem(
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
+    credentials: "include",
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -194,6 +200,7 @@ export async function updateWarehouseItem(
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
+    credentials: "include",
     body: JSON.stringify(data),
   });
   if (!response.ok) {
@@ -212,6 +219,7 @@ export async function adjustWarehouseStock(
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
+    credentials: "include",
     body: JSON.stringify(adjustment),
   });
   if (!response.ok) {
@@ -230,6 +238,9 @@ export async function fetchWarehouseAdjustments(
 
   const response = await fetch(
     `${API_URL}/api/warehouse/${id}/adjustments?${params.toString()}`,
+    {
+      credentials: "include",
+    },
   );
   if (!response.ok) {
     throw new Error("Failed to fetch adjustments");

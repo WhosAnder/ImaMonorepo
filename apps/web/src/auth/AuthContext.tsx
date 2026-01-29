@@ -1,11 +1,12 @@
 "use client";
 import React, { createContext, useContext, useEffect, useState } from "react";
+import type { UserRole } from "@/features/auth/types/roles";
 import { usePathname, useRouter } from "next/navigation";
 
 export type AuthUser = {
   id: string;
   email: string;
-  role: string;
+  role: UserRole;
   name: string;
   active: boolean;
   mustChangePassword: boolean;

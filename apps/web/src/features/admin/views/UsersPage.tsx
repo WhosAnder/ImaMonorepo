@@ -60,7 +60,7 @@ export const UsersPage: React.FC = () => {
   // Form state
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<string>("warehouse");
+  const [role, setRole] = useState<UserRole>("warehouse");
   const [password, setPassword] = useState("");
 
   const handleOpenModal = (user?: BetterAuthUser) => {
@@ -68,7 +68,7 @@ export const UsersPage: React.FC = () => {
       setCurrentUser(user);
       setName(user.name);
       setEmail(user.email);
-      setRole(user.role || "warehouse");
+      setRole((user.role as UserRole) || "warehouse");
       setPassword("");
     } else {
       setCurrentUser(null);
@@ -345,7 +345,7 @@ export const UsersPage: React.FC = () => {
                 </label>
                 <select
                   value={role}
-                  onChange={(e) => setRole(e.target.value)}
+                  onChange={(e) => setRole(e.target.value as UserRole)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="admin">Administrador</option>
