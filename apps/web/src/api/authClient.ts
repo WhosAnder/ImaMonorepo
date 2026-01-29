@@ -1,4 +1,5 @@
 import { AUTH_URL } from "../config/env";
+import type { UserRole } from "@/features/auth/types/roles";
 
 export type LoginRequest = {
   email: string;
@@ -8,7 +9,7 @@ export type LoginRequest = {
 export type LoginResponse = {
   id: string;
   email: string;
-  role: string;
+  role: UserRole;
   name: string;
   active: boolean;
   mustChangePassword: boolean;
@@ -17,7 +18,7 @@ export type LoginResponse = {
 export type RegisterRequest = {
   email: string;
   password: string;
-  role: string;
+  role: UserRole;
 };
 
 export async function login(payload: LoginRequest): Promise<LoginResponse> {

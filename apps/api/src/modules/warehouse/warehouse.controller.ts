@@ -124,7 +124,11 @@ export async function createWarehouseAdjustmentController(c: Context) {
   try {
     const body = await c.req.json();
     const validated = WarehouseAdjustmentSchema.parse(body);
-    const user = getRequestUser(c);
+    const user = await getRequestUser(c);
+
+    if (!user) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
 
     const result = await adjustWarehouseItemStock(id, {
       ...validated,

@@ -18,7 +18,7 @@ function getAuthHeaders(): Record<string, string> {
     return {
       "x-user-id": user.id || "",
       "x-user-name": user.name || "",
-      "x-user-role": user.role || "user",
+      "x-user-role": user.role || "warehouse",
     };
   } catch {
     return {};
@@ -48,7 +48,9 @@ export async function fetchWorkReports(
   if (pagination?.offset)
     url.searchParams.set("offset", String(pagination.offset));
 
-  const res = await fetch(url.toString());
+  const res = await fetch(url.toString(), {
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Error fetching work reports");
 
   const result: PaginatedResponse<WorkReportListItem> = await res.json();
@@ -64,14 +66,18 @@ export async function fetchWorkReportsPaginated(
   if (pagination?.offset)
     url.searchParams.set("offset", String(pagination.offset));
 
-  const res = await fetch(url.toString());
+  const res = await fetch(url.toString(), {
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Error fetching work reports");
 
   return res.json();
 }
 
 export async function fetchWorkReportById(id: string): Promise<WorkReport> {
-  const res = await fetch(`${API_URL}/api/reports/${id}`);
+  const res = await fetch(`${API_URL}/api/reports/${id}`, {
+    credentials: "include",
+  });
   if (!res.ok) {
     if (res.status === 404) throw new Error("NOT_FOUND");
     throw new Error("Error fetching work report");
@@ -85,6 +91,7 @@ export async function createWorkReport(data: any): Promise<WorkReport> {
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include",
     body: JSON.stringify(data),
   });
 
@@ -121,6 +128,7 @@ export async function updateWorkReport(
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
+    credentials: "include",
     body: JSON.stringify(data),
   });
 
@@ -142,6 +150,7 @@ export async function deleteWorkReport(id: string): Promise<void> {
   const res = await fetch(`${API_URL}/api/reports/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
+    credentials: "include",
   });
 
   if (!res.ok) {
@@ -160,7 +169,9 @@ export async function fetchWarehouseReports(
   if (pagination?.offset)
     url.searchParams.set("offset", String(pagination.offset));
 
-  const res = await fetch(url.toString());
+  const res = await fetch(url.toString(), {
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Error fetching warehouse reports");
 
   const result: PaginatedResponse<WarehouseReportListItem> = await res.json();
@@ -176,7 +187,9 @@ export async function fetchWarehouseReportsPaginated(
   if (pagination?.offset)
     url.searchParams.set("offset", String(pagination.offset));
 
-  const res = await fetch(url.toString());
+  const res = await fetch(url.toString(), {
+    credentials: "include",
+  });
   if (!res.ok) throw new Error("Error fetching warehouse reports");
 
   return res.json();
@@ -185,7 +198,9 @@ export async function fetchWarehouseReportsPaginated(
 export async function fetchWarehouseReportById(
   id: string,
 ): Promise<WarehouseReport> {
-  const res = await fetch(`${API_URL}/api/warehouse-reports/${id}`);
+  const res = await fetch(`${API_URL}/api/warehouse-reports/${id}`, {
+    credentials: "include",
+  });
   if (!res.ok) {
     if (res.status === 404) throw new Error("NOT_FOUND");
     throw new Error("Error fetching warehouse report");
@@ -201,6 +216,7 @@ export async function createWarehouseReport(
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include",
     body: JSON.stringify(data),
   });
 
@@ -221,6 +237,7 @@ export async function updateWarehouseReport(
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
+    credentials: "include",
     body: JSON.stringify(data),
   });
 
@@ -235,6 +252,7 @@ export async function deleteWarehouseReport(id: string): Promise<void> {
   const res = await fetch(`${API_URL}/api/warehouse-reports/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
+    credentials: "include",
   });
 
   if (!res.ok) {

@@ -23,12 +23,12 @@ export type CreateUserPayload = {
   name: string;
   email: string;
   password: string;
-  role?: string;
+  role?: UserRole;
 };
 
 export type UpdateUserPayload = {
   name?: string;
-  role?: string;
+  role?: UserRole;
 };
 
 export function useAdminUsers() {
@@ -51,11 +51,12 @@ export function useCreateUser() {
 
   return useMutation({
     mutationFn: async (payload: CreateUserPayload) => {
+      const role = payload.role || "warehouse";
       const response = await authClient.admin.createUser({
         email: payload.email,
         password: payload.password,
         name: payload.name,
-        role: (payload.role || "warehouse") as "admin" | "user",
+        role: role as unknown as "admin" | "user",
       });
       if (response.error) {
         throw new Error(response.error.message || "Error creating user");
@@ -98,10 +99,10 @@ export function useSetUserRole() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ userId, role }: { userId: string; role: string }) => {
+    mutationFn: async ({ userId, role }: { userId: string; role: UserRole }) => {
       const response = await authClient.admin.setRole({
         userId,
-        role: role as "admin" | "user",
+        role: role as unknown as "admin" | "user",
       });
       if (response.error) {
         throw new Error(response.error.message || "Error setting role");

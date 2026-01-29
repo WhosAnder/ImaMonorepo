@@ -14,7 +14,7 @@ function getAuthHeaders(): Record<string, string> {
     return {
       "x-user-id": user.id || "",
       "x-user-name": user.name || "",
-      "x-user-role": user.role || "user",
+      "x-user-role": user.role || "warehouse",
     };
   } catch {
     return {};

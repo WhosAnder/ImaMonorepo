@@ -20,24 +20,26 @@ function ensureEvidenceImmutability(
   existing: DraftRecord | null,
   incomingEvidenceRefs: DraftEvidenceRef[] | undefined,
   user: RequestUser,
-): void {
-  if (!existing || user.role === "admin") return;
+): DraftEvidenceRef[] | undefined {
+  if (!existing || user.role === "admin") return incomingEvidenceRefs;
 
   const existingLocked = flattenEvidenceRefs(existing.evidenceRefs).filter(
     (ref) => ref.isLocked,
   );
-  if (existingLocked.length === 0) return;
+  if (existingLocked.length === 0) return incomingEvidenceRefs;
 
   const incoming = flattenEvidenceRefs(incomingEvidenceRefs);
   const incomingMap = new Map(
     incoming.filter((ref) => ref.id).map((ref) => [ref.id as string, ref]),
   );
+  const merged = [...incoming];
 
   for (const locked of existingLocked) {
     if (!locked.id) continue;
     const next = incomingMap.get(locked.id);
     if (!next) {
-      throw new Error("Locked evidence cannot be removed");
+      merged.push(locked);
+      continue;
     }
     if (next.s3Key && locked.s3Key && next.s3Key !== locked.s3Key) {
       throw new Error("Locked evidence cannot be replaced");
@@ -46,6 +48,8 @@ function ensureEvidenceImmutability(
       throw new Error("Locked evidence cannot be unlocked");
     }
   }
+
+  return merged;
 }
 
 export async function getDraftByUserAndType(
@@ -62,11 +66,15 @@ export async function createOrUpdateDraftByUser(
   const parsed = DraftSchema.parse(payload);
   const reportType = parsed.reportType;
   const existing = await findDraftByUserAndType(user.id || "", reportType);
-  ensureEvidenceImmutability(existing, parsed.evidenceRefs, user);
+  const evidenceRefs = ensureEvidenceImmutability(
+    existing,
+    parsed.evidenceRefs,
+    user,
+  );
 
   return upsertDraftByUserAndType(user.id || "", reportType, {
     formData: parsed.formData,
-    evidenceRefs: parsed.evidenceRefs,
+    evidenceRefs,
     signatureRefs: parsed.signatureRefs,
     status: parsed.status || "active",
   });
@@ -79,11 +87,15 @@ export async function updateDraft(
 ): Promise<DraftRecord | null> {
   const parsed = DraftSchema.parse(payload);
   const existing = await findDraftByUserAndType(user.id || "", parsed.reportType);
-  ensureEvidenceImmutability(existing, parsed.evidenceRefs, user);
+  const evidenceRefs = ensureEvidenceImmutability(
+    existing,
+    parsed.evidenceRefs,
+    user,
+  );
 
   return updateDraftById(draftId, user.id || "", {
     formData: parsed.formData,
-    evidenceRefs: parsed.evidenceRefs,
+    evidenceRefs,
     signatureRefs: parsed.signatureRefs,
     status: parsed.status || "active",
   });

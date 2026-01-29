@@ -30,7 +30,7 @@ function getAuthHeaders(): Record<string, string> {
     return {
       "x-user-id": user.id || "",
       "x-user-name": user.name || "",
-      "x-user-role": user.role || "user",
+      "x-user-role": user.role || "warehouse",
     };
   } catch {
     return {};
@@ -46,6 +46,7 @@ export async function fetchDraft(
     headers: {
       ...getAuthHeaders(),
     },
+    credentials: "include",
   });
 
   if (res.status === 404) return null;
@@ -63,6 +64,7 @@ export async function createDraft(payload: DraftPayload): Promise<DraftResponse>
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
+    credentials: "include",
     body: JSON.stringify(payload),
   });
 
@@ -84,6 +86,7 @@ export async function updateDraft(
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
+    credentials: "include",
     body: JSON.stringify(payload),
   });
 
@@ -101,6 +104,7 @@ export async function deleteDraft(id: string): Promise<void> {
     headers: {
       ...getAuthHeaders(),
     },
+    credentials: "include",
   });
 
   if (!res.ok) {
