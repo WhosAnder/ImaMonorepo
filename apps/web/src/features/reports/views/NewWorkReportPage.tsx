@@ -73,7 +73,7 @@ import {
   saveDraftBlob,
   saveDraftRecord,
 } from "@/features/reports/drafts/draftStorage";
-import { createDraft, fetchDraft, updateDraft } from "@/api/draftsClient";
+import { createDraft, fetchDraft, updateDraft, deleteDraft } from "@/api/draftsClient";
 import { presignDownload } from "@/api/evidencesClient";
 import { API_URL } from "@/config/env";
 import { uploadWorkReportSignature } from "../helpers/upload-signature";
@@ -141,6 +141,8 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   );
   const [draftStatus, setDraftStatus] = useState<"empty" | "loaded">("empty");
   const draftRestorationGuardRef = useRef(false);
+  const draftLoadedRef = useRef(false); // Prevent duplicate draft load prompts
+
   const [customActivities, setCustomActivities] = useState<
     ActivityWithDetails[]
   >([]);
@@ -446,10 +448,19 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
         const draftData = localDraft?.data || serverDraft?.formData;
 
         if (draftData?.formValues) {
+          // Prevent duplicate prompts (React Strict Mode runs effects twice)
+          if (draftLoadedRef.current) {
+            console.log("⏭️ Draft already loaded, skipping duplicate prompt");
+            return;
+          }
+          
           const shouldLoad = window.confirm(
             "Se encontró un borrador guardado. ¿Deseas cargarlo?",
           );
-          if (!shouldLoad) return;
+          if (!shouldLoad) {
+            draftLoadedRef.current = true; // Mark as handled even if user cancels
+            return;
+          }
 
           draftRestorationGuardRef.current = true;
           reset(draftData.formValues);
@@ -488,6 +499,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           setTimeout(() => {
             draftRestorationGuardRef.current = false;
           }, 500);
+          draftLoadedRef.current = true; // Mark draft as loaded
           setDraftStatus("loaded");
         }
       } catch (e) {
@@ -1291,9 +1303,23 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
 
         if (typeof window !== "undefined" && user?.id) {
           const draftId = buildDraftId(user.id, "work");
+          
+          // Delete local IndexedDB draft
           await deleteDraftRecord(draftId);
           const blobs = await listDraftBlobs(draftId);
           await Promise.all(blobs.map((blob) => deleteDraftBlob(blob.id)));
+          
+          // Delete server-side draft
+          try {
+            const serverDraft = await fetchDraft("work");
+            if (serverDraft?.id) {
+              await deleteDraft(serverDraft.id);
+              console.log("✅ Server draft deleted successfully");
+            }
+          } catch (error) {
+            console.error("Failed to delete server draft:", error);
+            // Don't block user - local draft is already deleted
+          }
         }
 
         alert("Reporte generado exitosamente");
