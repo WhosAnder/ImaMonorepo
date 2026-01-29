@@ -325,14 +325,29 @@ function LabeledPill({ label, value }: { label: string; value?: string }) {
 // Helpers
 function workersToString(workers: string[]) {
   return workers
-    .map((w) => w.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()))
+    .map((w) => {
+      // Replace underscores with spaces and capitalize each word properly
+      return w
+        .replace(/_/g, " ")
+        .split(" ")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(" ");
+    })
     .join(", ");
 }
 
 function formatToolName(tool: string) {
-  return tool.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  return tool
+    .replace(/_/g, " ")
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }
 
 function formatPartName(part: string) {
-  return part.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
+  return part
+    .replace(/_/g, " ")
+    .split(" ")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
 }

@@ -7,6 +7,7 @@ import { ArrowLeft, DownloadIcon, Pencil, Trash2 } from "lucide-react";
 import { WorkReportPreview } from "../components/WorkReportPreview";
 import { WorkReportEvidenceGallery } from "../components/WorkReportEvidenceGallery";
 import { generateWorkReportPDF } from "../helpers/generate-pdf";
+import { downloadReportImages } from "../helpers/download-images";
 import {
   useWorkReportQuery,
   useDeleteWorkReportMutation,
@@ -20,6 +21,7 @@ export const WorkReportDetailPage: React.FC = () => {
   const { user } = useAuth();
   const id = params?.id as string;
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDownloadingImages, setIsDownloadingImages] = useState(false);
 
   const { data: report, isLoading, error } = useWorkReportQuery(id || "");
   const deleteMutation = useDeleteWorkReportMutation();
@@ -91,12 +93,34 @@ export const WorkReportDetailPage: React.FC = () => {
         </div>
 
         <WorkReportPreview values={report} />
-        <Button
-          variant="secondary"
-          onClick={() => generateWorkReportPDF(report as any)}
-        >
-          Descargar PDF <DownloadIcon className="h-4 w-4 ml-2" />
-        </Button>
+        
+        <div className="flex gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => generateWorkReportPDF(report as any)}
+          >
+            Descargar PDF <DownloadIcon className="h-4 w-4 ml-2" />
+          </Button>
+          
+          <Button
+            variant="secondary"
+            onClick={async () => {
+              setIsDownloadingImages(true);
+              try {
+                await downloadReportImages(
+                  report.actividadesRealizadas || [],
+                  report.folio
+                );
+              } finally {
+                setIsDownloadingImages(false);
+              }
+            }}
+            disabled={isDownloadingImages || !report.actividadesRealizadas?.some(a => a.evidencias && a.evidencias.length > 0)}
+          >
+            {isDownloadingImages ? "Descargando..." : "Descargar Imágenes"}
+            <DownloadIcon className="h-4 w-4 ml-2" />
+          </Button>
+        </div>
 
         {/* Evidence Gallery Section */}
         {report.actividadesRealizadas &&
