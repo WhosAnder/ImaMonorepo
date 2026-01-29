@@ -141,6 +141,8 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   );
   const [draftStatus, setDraftStatus] = useState<"empty" | "loaded">("empty");
   const draftRestorationGuardRef = useRef(false);
+  const draftLoadedRef = useRef(false); // Prevent duplicate draft load prompts
+
   const [customActivities, setCustomActivities] = useState<
     ActivityWithDetails[]
   >([]);
@@ -446,10 +448,19 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
         const draftData = localDraft?.data || serverDraft?.formData;
 
         if (draftData?.formValues) {
+          // Prevent duplicate prompts (React Strict Mode runs effects twice)
+          if (draftLoadedRef.current) {
+            console.log("⏭️ Draft already loaded, skipping duplicate prompt");
+            return;
+          }
+          
           const shouldLoad = window.confirm(
             "Se encontró un borrador guardado. ¿Deseas cargarlo?",
           );
-          if (!shouldLoad) return;
+          if (!shouldLoad) {
+            draftLoadedRef.current = true; // Mark as handled even if user cancels
+            return;
+          }
 
           draftRestorationGuardRef.current = true;
           reset(draftData.formValues);
@@ -488,6 +499,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           setTimeout(() => {
             draftRestorationGuardRef.current = false;
           }, 500);
+          draftLoadedRef.current = true; // Mark draft as loaded
           setDraftStatus("loaded");
         }
       } catch (e) {
