@@ -64,6 +64,7 @@ export async function getWarehouseAdjustmentsCollection(): Promise<
 }
 
 import { WorkerRecord } from "../modules/workers/workers.types";
+import { DraftRecord } from "../modules/drafts/drafts.types";
 
 export async function getWorkersCollection(): Promise<
   Collection<WorkerRecord>
@@ -71,4 +72,12 @@ export async function getWorkersCollection(): Promise<
   const client = await getClient();
   const db = client.db(dbName);
   return db.collection<WorkerRecord>("workers");
+}
+
+export async function getDraftsCollection(): Promise<
+  Collection<DraftRecord>
+> {
+  const client = await getClient();
+  const db = client.db(dbName);
+  return db.collection<DraftRecord>("drafts");
 }

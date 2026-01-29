@@ -11,10 +11,12 @@ interface EvidencePhaseSectionProps {
   evidences: LocalEvidence[];
   isLocked: boolean;
   isActive: boolean;
+  isSaving?: boolean;
   onEvidencesChange: (files: LocalEvidence[]) => void;
   onSave: () => void;
   minPhotos: number;
   maxPhotos: number;
+  allowLockedEdits?: boolean;
 }
 
 export const EvidencePhaseSection: React.FC<EvidencePhaseSectionProps> = ({
@@ -24,13 +26,17 @@ export const EvidencePhaseSection: React.FC<EvidencePhaseSectionProps> = ({
   evidences,
   isLocked,
   isActive,
+  isSaving = false,
   onEvidencesChange,
   onSave,
   minPhotos,
   maxPhotos,
+  allowLockedEdits = false,
 }) => {
   const canSave = evidences.length >= minPhotos && evidences.length <= maxPhotos;
   const photoCount = evidences.length;
+  const showReadOnly = isLocked && !allowLockedEdits;
+  const canEdit = isActive || allowLockedEdits;
 
   return (
     <div
@@ -94,7 +100,7 @@ export const EvidencePhaseSection: React.FC<EvidencePhaseSectionProps> = ({
       </div>
 
       {/* Image Upload Area */}
-      {isLocked ? (
+      {showReadOnly ? (
         // Locked state - show saved photos in read-only mode
         <div className="grid grid-cols-3 gap-4">
           {evidences.map((evidence, index) => (
@@ -110,14 +116,15 @@ export const EvidencePhaseSection: React.FC<EvidencePhaseSectionProps> = ({
             </div>
           ))}
         </div>
-      ) : isActive ? (
+      ) : canEdit ? (
         // Active state - allow upload
         <div>
           <ImageUpload
             value={evidences}
             onChange={onEvidencesChange}
             maxFiles={maxPhotos}
-            disabled={false}
+            disabled={!isActive && !allowLockedEdits}
+            allowLockedEdits={allowLockedEdits}
           />
 
           {/* Save Button */}
@@ -125,12 +132,14 @@ export const EvidencePhaseSection: React.FC<EvidencePhaseSectionProps> = ({
             <Button
               type="button"
               onClick={onSave}
-              disabled={!canSave}
+              disabled={!canSave || isSaving}
               className="bg-green-600 hover:bg-green-700"
             >
-              {canSave
-                ? `Guardar ${title}`
-                : `Sube al menos ${minPhotos} foto${minPhotos > 1 ? "s" : ""}`}
+              {isSaving
+                ? "Guardando..."
+                : canSave
+                  ? `Guardar ${title}`
+                  : `Sube al menos ${minPhotos} foto${minPhotos > 1 ? "s" : ""}`}
             </Button>
           </div>
         </div>

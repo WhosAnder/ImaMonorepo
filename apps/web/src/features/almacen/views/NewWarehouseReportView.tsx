@@ -18,6 +18,26 @@ import { Save, Plus, Trash2, Check, ChevronsUpDown } from "lucide-react";
 import { useAuth } from "@/auth/AuthContext";
 import { uploadSignaturesToS3 } from "../helpers/upload-signatures";
 import { uploadEvidencesForItem } from "../helpers/upload-evidences";
+import {
+  blobToDataUrl,
+  buildBlobId,
+  buildDraftId,
+  dataUrlToBlob,
+  deleteDraftBlob,
+  deleteDraftRecord,
+  getDraftBlob,
+  getDraftRecord,
+  listDraftBlobs,
+  saveDraftBlob,
+  saveDraftRecord,
+} from "@/features/reports/drafts/draftStorage";
+import {
+  createDraft,
+  fetchDraft,
+  updateDraft,
+} from "@/api/draftsClient";
+import { presignDownload } from "@/api/evidencesClient";
+import { API_URL } from "@/config/env";
 
 const SUBSYSTEMS = [
   "EQUIPO DE GUIA/ TRABAJO DE GUIA",
@@ -31,7 +51,6 @@ const SUBSYSTEMS = [
   "EQUIPO DE MANTENIMIENTO",
 ];
 
-const WAREHOUSE_REPORT_DRAFT_KEY = "warehouse_report_draft";
 
 const convertSignatureToBase64 = async (
   signatureUrl: string | null,
@@ -159,6 +178,7 @@ Textarea.displayName = "Textarea";
 export const NewWarehouseReportPage: React.FC = () => {
   const router = useRouter();
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [draftStatus, setDraftStatus] = useState<"empty" | "loaded">("empty");
   const draftRestorationGuardRef = useRef(false);
 
@@ -237,47 +257,198 @@ export const NewWarehouseReportPage: React.FC = () => {
     }
   }, [user?.name, setValue]);
 
+  const hydrateEvidenceList = async (
+    draftId: string,
+    evidences: any[],
+  ): Promise<any[]> => {
+    const buildFallbackUrl = (key: string) =>
+      `${API_URL}/api/storage/evidences/${encodeURIComponent(key)}`;
+
+    return Promise.all(
+      (evidences || []).map(async (evidence) => {
+        if (evidence?.s3Key) {
+          try {
+            const { url } = await presignDownload({ key: evidence.s3Key });
+            return {
+              ...evidence,
+              previewUrl: url,
+            };
+          } catch (error) {
+            console.error("Error presigning evidence:", error);
+            return {
+              ...evidence,
+              previewUrl: buildFallbackUrl(evidence.s3Key),
+            };
+          }
+        }
+        if (evidence?.previewUrl) {
+          if (
+            typeof evidence.previewUrl === "string" &&
+            !evidence.previewUrl.startsWith("data:") &&
+            !evidence.previewUrl.startsWith("http")
+          ) {
+            try {
+              const { url } = await presignDownload({
+                key: evidence.previewUrl,
+              });
+              return {
+                ...evidence,
+                previewUrl: url,
+              };
+            } catch (error) {
+              console.error("Error presigning evidence:", error);
+              return {
+                ...evidence,
+                previewUrl: buildFallbackUrl(evidence.previewUrl),
+              };
+            }
+          }
+          return evidence;
+        }
+        if (!evidence?.blobId) return evidence;
+        const blobRecord = await getDraftBlob(evidence.blobId);
+        if (!blobRecord?.blob) return evidence;
+        const dataUrl = await blobToDataUrl(blobRecord.blob);
+        return {
+          ...evidence,
+          previewUrl: dataUrl,
+          base64: dataUrl,
+        };
+      }),
+    );
+  };
+
+  const hydrateFormValues = async (draftId: string, formValues: any) => {
+    const herramientas = await Promise.all(
+      (formValues.herramientas || []).map(async (tool: any) => ({
+        ...tool,
+        evidences: await hydrateEvidenceList(draftId, tool.evidences || []),
+      })),
+    );
+    const refacciones = await Promise.all(
+      (formValues.refacciones || []).map(async (part: any) => ({
+        ...part,
+        evidences: await hydrateEvidenceList(draftId, part.evidences || []),
+      })),
+    );
+
+    return {
+      ...formValues,
+      herramientas,
+      refacciones,
+    };
+  };
+
   // Load draft on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const savedDraft = localStorage.getItem(WAREHOUSE_REPORT_DRAFT_KEY);
-    if (savedDraft) {
-      const shouldLoad = window.confirm(
-        "Se encontró un borrador guardado. ¿Deseas cargarlo?",
-      );
-      if (shouldLoad) {
-        try {
-          const parsed = JSON.parse(savedDraft);
-          if (parsed.formValues) {
-            draftRestorationGuardRef.current = true;
-            reset(parsed.formValues);
-            setDraftStatus("loaded");
-            setTimeout(() => {
-              draftRestorationGuardRef.current = false;
-            }, 500);
+    if (!user?.id) return;
+
+    const loadDraft = async () => {
+      try {
+        const localDraft = await getDraftRecord<any>(user.id, "warehouse");
+        const serverDraft = localDraft ? null : await fetchDraft("warehouse");
+        const draftData = localDraft?.data || serverDraft?.formData;
+
+        if (draftData?.formValues) {
+          const shouldLoad = window.confirm(
+            "Se encontró un borrador guardado. ¿Deseas cargarlo?",
+          );
+          if (!shouldLoad) return;
+
+          draftRestorationGuardRef.current = true;
+          const draftId = buildDraftId(user.id, "warehouse");
+          const hydratedValues = await hydrateFormValues(
+            draftId,
+            draftData.formValues,
+          );
+          reset(hydratedValues);
+          if (draftData.formValues?.subsistema) {
+            setValue("subsistema", draftData.formValues.subsistema, {
+              shouldDirty: false,
+              shouldValidate: true,
+            });
           }
-        } catch (e) {
-          console.error("Error loading draft", e);
+          setDraftStatus("loaded");
+          setTimeout(() => {
+            draftRestorationGuardRef.current = false;
+          }, 500);
         }
-      } else {
-        localStorage.removeItem(WAREHOUSE_REPORT_DRAFT_KEY);
+      } catch (e) {
+        console.error("Error loading draft", e);
       }
-    }
-  }, [reset]);
+    };
+
+    loadDraft();
+  }, [reset, user?.id]);
 
   const handleSaveDraft = async () => {
     if (typeof window === "undefined") return;
+    if (!user?.id) {
+      alert("No se pudo guardar el borrador. Sesión no encontrada.");
+      return;
+    }
+
+    const draftId = buildDraftId(user.id, "warehouse");
+    const uploadId = draftId.replace(/[:]/g, "-");
+
+    const ensureEvidenceBlob = async (evidence: any) => {
+      const dataUrl = evidence.base64 || evidence.previewUrl;
+      if (!dataUrl || !dataUrl.startsWith("data:")) {
+        return evidence;
+      }
+      const blobId = evidence.blobId || buildBlobId(draftId, evidence.id);
+      if (!evidence.blobId) {
+        const blob = dataUrlToBlob(dataUrl);
+        await saveDraftBlob({
+          id: blobId,
+          draftId,
+          evidenceId: evidence.id,
+          blob,
+          name: evidence.name || evidence.originalName,
+          type: blob.type,
+          size: blob.size,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      return {
+        ...evidence,
+        blobId,
+        syncState: evidence.syncState || "pending",
+      };
+    };
+
+    const hydrateEvidenceFromBlob = async (evidence: any) => {
+      if (evidence.base64 || !evidence.blobId) {
+        return evidence;
+      }
+      const blobRecord = await getDraftBlob(evidence.blobId);
+      if (!blobRecord?.blob) return evidence;
+      const dataUrl = await blobToDataUrl(blobRecord.blob);
+      return {
+        ...evidence,
+        previewUrl: dataUrl,
+        base64: dataUrl,
+      };
+    };
+
+    const processItems = async (items: any[]) => {
+      const processed = await Promise.all(
+        (items || []).map(async (item) => {
+          const evidences = await Promise.all(
+            (item.evidences || []).map(ensureEvidenceBlob),
+          );
+          return { ...item, evidences };
+        }),
+      );
+      return processed;
+    };
 
     try {
       const currentValues = getValues();
 
-      // Process evidences
-      const herramientas = await prepareWarehouseItemsEvidence(
-        currentValues.herramientas || [],
-      );
-      const refacciones = await prepareWarehouseItemsEvidence(
-        currentValues.refacciones || [],
-      );
+      const herramientas = await processItems(currentValues.herramientas || []);
+      const refacciones = await processItems(currentValues.refacciones || []);
 
       // Process signatures
       const firmaQuienRecibe = await convertSignatureToBase64(
@@ -290,11 +461,90 @@ export const NewWarehouseReportPage: React.FC = () => {
         currentValues.firmaQuienEntrega || null,
       );
 
+      // Upload evidences on save (draft mode)
+      const uploadedHerramientas = await Promise.all(
+        herramientas.map(async (tool) => {
+          const hydratedEvidences = await Promise.all(
+            (tool.evidences || []).map(hydrateEvidenceFromBlob),
+          );
+          const uploaded = await uploadEvidencesForItem(
+            hydratedEvidences,
+            uploadId,
+            currentValues.subsistema,
+            "warehouse",
+          );
+          const uploadedMap = new Map(uploaded.map((u) => [u.id, u]));
+          const lockedEvidences = (tool.evidences || []).map((ev: any) => {
+            const match = uploadedMap.get(ev.id);
+            if (!match) return ev;
+            return {
+              ...ev,
+              s3Key: match.s3Key,
+              syncState: "synced",
+              isLocked: true,
+            };
+          });
+          return { ...tool, evidences: lockedEvidences };
+        }),
+      );
+
+      const uploadedRefacciones = await Promise.all(
+        refacciones.map(async (part) => {
+          const hydratedEvidences = await Promise.all(
+            (part.evidences || []).map(hydrateEvidenceFromBlob),
+          );
+          const uploaded = await uploadEvidencesForItem(
+            hydratedEvidences,
+            uploadId,
+            currentValues.subsistema,
+            "warehouse",
+          );
+          const uploadedMap = new Map(uploaded.map((u) => [u.id, u]));
+          const lockedEvidences = (part.evidences || []).map((ev: any) => {
+            const match = uploadedMap.get(ev.id);
+            if (!match) return ev;
+            return {
+              ...ev,
+              s3Key: match.s3Key,
+              syncState: "synced",
+              isLocked: true,
+            };
+          });
+          return { ...part, evidences: lockedEvidences };
+        }),
+      );
+
+      setValue("herramientas", uploadedHerramientas, { shouldDirty: true });
+      setValue("refacciones", uploadedRefacciones, { shouldDirty: true });
+
+      const stripEvidence = (evidence: any) => {
+        if (typeof evidence?.previewUrl === "string" && evidence.previewUrl.startsWith("data:")) {
+          return {
+            ...evidence,
+            previewUrl: "",
+            base64: "",
+          };
+        }
+        return {
+          ...evidence,
+          base64: "",
+        };
+      };
+
+      const storedHerramientas = uploadedHerramientas.map((tool: any) => ({
+        ...tool,
+        evidences: (tool.evidences || []).map(stripEvidence),
+      }));
+      const storedRefacciones = uploadedRefacciones.map((part: any) => ({
+        ...part,
+        evidences: (part.evidences || []).map(stripEvidence),
+      }));
+
       const draftPayload = {
         formValues: {
           ...currentValues,
-          herramientas,
-          refacciones,
+          herramientas: storedHerramientas,
+          refacciones: storedRefacciones,
           firmaQuienRecibe,
           firmaAlmacenista,
           firmaQuienEntrega,
@@ -302,10 +552,32 @@ export const NewWarehouseReportPage: React.FC = () => {
         timestamp: new Date().toISOString(),
       };
 
-      localStorage.setItem(
-        WAREHOUSE_REPORT_DRAFT_KEY,
-        JSON.stringify(draftPayload),
-      );
+      await saveDraftRecord({
+        id: draftId,
+        userId: user.id,
+        reportType: "warehouse",
+        data: draftPayload,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+
+      const serverPayload = {
+        reportType: "warehouse" as const,
+        formData: draftPayload,
+        evidenceRefs: [
+          ...storedHerramientas.flatMap((tool: any) => tool.evidences || []),
+          ...storedRefacciones.flatMap((part: any) => part.evidences || []),
+        ],
+        status: "active" as const,
+      };
+
+      const existingDraft = await fetchDraft("warehouse");
+      if (existingDraft?.id) {
+        await updateDraft(existingDraft.id, serverPayload);
+      } else {
+        await createDraft(serverPayload);
+      }
+
       alert("Borrador guardado correctamente");
     } catch (error) {
       console.error("Error saving draft:", error);
@@ -315,6 +587,21 @@ export const NewWarehouseReportPage: React.FC = () => {
 
   const onSubmit = async (data: WarehouseReportFormValues) => {
     try {
+      const allEvidences = [
+        ...(data.herramientas || []).flatMap((tool) => tool.evidences || []),
+        ...(data.refacciones || []).flatMap((part) => part.evidences || []),
+      ];
+      const hasPending = allEvidences.some(
+        (evidence: any) =>
+          !(evidence?.isLocked || evidence?.s3Key || evidence?.syncState === "synced"),
+      );
+      if (hasPending) {
+        alert(
+          "Antes de generar el reporte, guarda el borrador para subir las evidencias.",
+        );
+        return;
+      }
+
       console.log("Starting warehouse report submission...");
 
       // Generate temp UUID for S3 paths
@@ -400,8 +687,11 @@ export const NewWarehouseReportPage: React.FC = () => {
       console.log("Warehouse report created successfully:", result);
 
       // Clear draft on success
-      if (typeof window !== "undefined") {
-        localStorage.removeItem(WAREHOUSE_REPORT_DRAFT_KEY);
+      if (typeof window !== "undefined" && user?.id) {
+        const draftId = buildDraftId(user.id, "warehouse");
+        await deleteDraftRecord(draftId);
+        const blobs = await listDraftBlobs(draftId);
+        await Promise.all(blobs.map((blob) => deleteDraftBlob(blob.id)));
       }
 
       // Redirect to reports list on success
@@ -615,6 +905,7 @@ export const NewWarehouseReportPage: React.FC = () => {
                                 onChange={field.onChange}
                                 maxFiles={3}
                                 compact
+                                allowLockedEdits={isAdmin}
                               />
                             )}
                           />
@@ -765,6 +1056,7 @@ export const NewWarehouseReportPage: React.FC = () => {
                                 onChange={field.onChange}
                                 maxFiles={3}
                                 compact
+                                allowLockedEdits={isAdmin}
                               />
                             )}
                           />

@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Camera, X, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Camera, X, Image as ImageIcon, Loader2, Lock } from "lucide-react";
 import { applyWatermarkToImage } from "../utils/image-watermark";
 
 const generateLocalId = () => {
@@ -20,12 +20,17 @@ export interface LocalEvidence {
   size?: number;
   url?: string;
   key?: string;
+  blobId?: string;
+  s3Key?: string;
+  syncState?: "pending" | "synced" | "failed";
+  isLocked?: boolean;
+  originalName?: string;
 }
 
 type IncomingEvidence =
   | LocalEvidence
   | string
-  | {
+    | {
       id?: string;
       previewUrl?: string;
       url?: string;
@@ -33,6 +38,11 @@ type IncomingEvidence =
       name?: string;
       size?: number;
       key?: string;
+      blobId?: string;
+      s3Key?: string;
+      syncState?: "pending" | "synced" | "failed";
+      isLocked?: boolean;
+      originalName?: string;
     };
 
 const normalizeEvidence = (input: IncomingEvidence): LocalEvidence => {
@@ -59,6 +69,11 @@ const normalizeEvidence = (input: IncomingEvidence): LocalEvidence => {
       size: candidate.size,
       url: candidate.url,
       key: candidate.key,
+      blobId: candidate.blobId,
+      s3Key: candidate.s3Key,
+      syncState: candidate.syncState,
+      isLocked: candidate.isLocked,
+      originalName: candidate.originalName,
     };
   }
 
@@ -71,6 +86,11 @@ const normalizeEvidence = (input: IncomingEvidence): LocalEvidence => {
       name?: string;
       size?: number;
       key?: string;
+      blobId?: string;
+      s3Key?: string;
+      syncState?: "pending" | "synced" | "failed";
+      isLocked?: boolean;
+      originalName?: string;
     };
 
     const preview =
@@ -84,6 +104,11 @@ const normalizeEvidence = (input: IncomingEvidence): LocalEvidence => {
       size: candidate.size,
       url: candidate.url,
       key: candidate.key,
+      blobId: candidate.blobId,
+      s3Key: candidate.s3Key,
+      syncState: candidate.syncState,
+      isLocked: candidate.isLocked,
+      originalName: candidate.originalName,
     };
   }
 
@@ -148,6 +173,8 @@ interface ImageUploadProps {
   error?: string;
   maxFiles?: number;
   compact?: boolean;
+  disabled?: boolean;
+  allowLockedEdits?: boolean;
 }
 
 export const ImageUpload: React.FC<ImageUploadProps> = ({
@@ -157,6 +184,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
   error,
   maxFiles = 3,
   compact = false,
+  disabled = false,
+  allowLockedEdits = false,
 }) => {
   // Generate unique ID for file input to avoid conflicts when multiple instances are rendered
   const inputId = React.useMemo(
@@ -220,7 +249,8 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
     updateFiles(updated);
   };
 
-  const canAddMore = files.length < effectiveMaxFiles && !isProcessing;
+  const canAddMore =
+    files.length < effectiveMaxFiles && !isProcessing && !disabled;
 
   return (
     <div className="w-full">
@@ -280,10 +310,20 @@ export const ImageUpload: React.FC<ImageUploadProps> = ({
                   alt={`Evidencia ${index + 1}`}
                   className="w-full h-full object-cover"
                 />
+                {file.isLocked && !allowLockedEdits && (
+                  <div className="absolute top-1 left-1 bg-black/60 text-white rounded-full p-1">
+                    <Lock className="w-3 h-3" />
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => removeImage(index)}
-                  className="absolute top-1 right-1 p-1 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors"
+                  disabled={Boolean(file.isLocked && !allowLockedEdits)}
+                  className={`absolute top-1 right-1 p-1 rounded-full transition-colors ${
+                    file.isLocked && !allowLockedEdits
+                      ? "bg-black/30 text-white/50 cursor-not-allowed"
+                      : "bg-black/50 text-white hover:bg-black/70"
+                  }`}
                 >
                   <X className="w-3 h-3" />
                 </button>

@@ -48,7 +48,7 @@ import {
 // Custom components
 import { MultiSelect } from "@/shared/ui/MultiSelect";
 import { SignaturePad } from "@/shared/ui/SignaturePad";
-import { ImageUpload, LocalEvidence } from "@/shared/ui/ImageUpload";
+import { LocalEvidence } from "@/shared/ui/ImageUpload";
 import {
   workReportSchema,
   WorkReportFormValues,
@@ -60,10 +60,25 @@ import { EvidencePhaseSection } from "../components/EvidencePhaseSection";
 import { useAuth } from "@/auth/AuthContext";
 import type { WarehouseItem } from "@/api/warehouseClient";
 import { uploadEvidence } from "@/api/evidencesClient";
+import {
+  blobToDataUrl,
+  buildBlobId,
+  buildDraftId,
+  dataUrlToBlob,
+  deleteDraftBlob,
+  deleteDraftRecord,
+  getDraftBlob,
+  getDraftRecord,
+  listDraftBlobs,
+  saveDraftBlob,
+  saveDraftRecord,
+} from "@/features/reports/drafts/draftStorage";
+import { createDraft, fetchDraft, updateDraft } from "@/api/draftsClient";
+import { presignDownload } from "@/api/evidencesClient";
+import { API_URL } from "@/config/env";
 import { uploadWorkReportSignature } from "../helpers/upload-signature";
 import { applyWatermarkToImage } from "@/shared/utils/image-watermark";
 
-const WORK_REPORT_DRAFT_KEY = "work_report_draft";
 
 interface ActivityWithDetails {
   id: string;
@@ -120,6 +135,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
 }) => {
   const router = useRouter();
   const { user } = useAuth();
+  const isAdmin = user?.role === "admin";
   const [activitiesState, setActivitiesState] = useState<ActivityWithDetails[]>(
     [],
   );
@@ -143,6 +159,9 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   const [activePhase, setActivePhase] = useState<
     "antes" | "durante" | "despues"
   >("antes");
+  const [savingPhase, setSavingPhase] = useState<
+    "antes" | "durante" | "despues" | null
+  >(null);
 
   const isEditMode = Boolean(reportId);
 
@@ -334,45 +353,150 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
     );
   }, [activitiesState, setValue]);
 
+  const hydrateEvidenceList = async (
+    draftId: string,
+    evidences: LocalEvidence[],
+  ): Promise<LocalEvidence[]> => {
+    const buildFallbackUrl = (key: string) =>
+      `${API_URL}/api/storage/evidences/${encodeURIComponent(key)}`;
+
+    return Promise.all(
+      (evidences || []).map(async (evidence) => {
+        if (evidence.s3Key) {
+          try {
+            const { url } = await presignDownload({ key: evidence.s3Key });
+            return {
+              ...evidence,
+              previewUrl: url,
+            };
+          } catch (error) {
+            console.error("Error presigning evidence:", error);
+            return {
+              ...evidence,
+              previewUrl: buildFallbackUrl(evidence.s3Key),
+            };
+          }
+        }
+        if (evidence.previewUrl) {
+          if (
+            typeof evidence.previewUrl === "string" &&
+            !evidence.previewUrl.startsWith("data:") &&
+            !evidence.previewUrl.startsWith("http")
+          ) {
+            try {
+              const { url } = await presignDownload({
+                key: evidence.previewUrl,
+              });
+              return {
+                ...evidence,
+                previewUrl: url,
+              };
+            } catch (error) {
+              console.error("Error presigning evidence:", error);
+              return {
+                ...evidence,
+                previewUrl: buildFallbackUrl(evidence.previewUrl),
+              };
+            }
+          }
+          return evidence;
+        }
+        if (!evidence.blobId) return evidence;
+        const blobRecord = await getDraftBlob(evidence.blobId);
+        if (!blobRecord?.blob) return evidence;
+        const dataUrl = await blobToDataUrl(blobRecord.blob);
+        return {
+          ...evidence,
+          previewUrl: dataUrl,
+          base64: dataUrl,
+        };
+      }),
+    );
+  };
+
+  const hydrateEvidencePhases = async (
+    draftId: string,
+    phases: typeof evidencePhases,
+  ) => {
+    return {
+      antes: {
+        ...phases.antes,
+        evidences: await hydrateEvidenceList(draftId, phases.antes.evidences),
+      },
+      durante: {
+        ...phases.durante,
+        evidences: await hydrateEvidenceList(draftId, phases.durante.evidences),
+      },
+      despues: {
+        ...phases.despues,
+        evidences: await hydrateEvidenceList(draftId, phases.despues.evidences),
+      },
+    };
+  };
+
   // Load draft on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const savedDraft = localStorage.getItem(WORK_REPORT_DRAFT_KEY);
-    if (savedDraft) {
-      const shouldLoad = window.confirm(
-        "Se encontró un borrador guardado. ¿Deseas cargarlo?",
-      );
-      if (shouldLoad) {
-        try {
-          const parsed = JSON.parse(savedDraft);
-          if (parsed.formValues) {
-            draftRestorationGuardRef.current = true;
-            reset(parsed.formValues);
-            // Restore activities state logic would be complex here, keeping it simple for now
-            // Ideally we would match IDs and restore observations
-            setTimeout(() => {
-              draftRestorationGuardRef.current = false;
-            }, 500);
+    if (!user?.id) return;
+
+    const loadDraft = async () => {
+      try {
+        const localDraft = await getDraftRecord<any>(user.id, "work");
+        const serverDraft = localDraft ? null : await fetchDraft("work");
+        const draftData = localDraft?.data || serverDraft?.formData;
+
+        if (draftData?.formValues) {
+          const shouldLoad = window.confirm(
+            "Se encontró un borrador guardado. ¿Deseas cargarlo?",
+          );
+          if (!shouldLoad) return;
+
+          draftRestorationGuardRef.current = true;
+          reset(draftData.formValues);
+          if (draftData.formValues?.subsistema) {
+            setValue("subsistema", draftData.formValues.subsistema, {
+              shouldDirty: false,
+              shouldValidate: true,
+            });
           }
+          if (draftData.formValues?.frecuencia) {
+            setValue("frecuencia", draftData.formValues.frecuencia, {
+              shouldDirty: false,
+              shouldValidate: true,
+            });
+          }
+          if (draftData.formValues?.customSubsistema) {
+            setValue("customSubsistema", draftData.formValues.customSubsistema, {
+              shouldDirty: false,
+              shouldValidate: true,
+            });
+          }
+          if (draftData.formValues?.customFrecuencia) {
+            setValue("customFrecuencia", draftData.formValues.customFrecuencia, {
+              shouldDirty: false,
+              shouldValidate: true,
+            });
+          }
+          if (draftData.evidencePhases) {
+            const draftId = buildDraftId(user.id, "work");
+            const hydratedPhases = await hydrateEvidencePhases(
+              draftId,
+              draftData.evidencePhases,
+            );
+            setEvidencePhases(hydratedPhases);
+          }
+          setTimeout(() => {
+            draftRestorationGuardRef.current = false;
+          }, 500);
           setDraftStatus("loaded");
-        } catch (e) {
-          console.error("Error loading draft", e);
         }
-      } else {
-        localStorage.removeItem(WORK_REPORT_DRAFT_KEY);
+      } catch (e) {
+        console.error("Error loading draft", e);
       }
-    }
-  }, [reset]);
+    };
 
-  // Load evidence phases from localStorage on mount
-  useEffect(() => {
-    loadEvidencePhasesFromLocalStorage();
-  }, []);
-
-  // Save evidence phases to localStorage whenever they change
-  useEffect(() => {
-    saveEvidencePhasesToLocalStorage();
-  }, [evidencePhases]);
+    loadDraft();
+  }, [reset, user?.id]);
 
   const toggleActivity = (id: string) => {
     setActivitiesState((prev) =>
@@ -449,81 +573,360 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
     }));
   };
 
-  const handleSavePhase = (phase: "antes" | "durante" | "despues") => {
-    // Lock current phase
-    setEvidencePhases((prev) => ({
-      ...prev,
-      [phase]: { ...prev[phase], isLocked: true },
-    }));
-
-    // Unlock next phase
-    if (phase === "antes") {
-      setActivePhase("durante");
-    } else if (phase === "durante") {
-      setActivePhase("despues");
+  const resolvePreviewUrlForKey = async (key: string): Promise<string> => {
+    try {
+      const { url } = await presignDownload({ key });
+      return url;
+    } catch (error) {
+      console.error("Error presigning evidence:", error);
+      return `${API_URL}/api/storage/evidences/${encodeURIComponent(key)}`;
     }
-
-    // Save to localStorage
-    saveEvidencePhasesToLocalStorage();
   };
 
-  const saveEvidencePhasesToLocalStorage = () => {
+  const ensureEvidenceBlob = async (draftId: string, evidence: LocalEvidence) => {
+    const dataUrl = evidence.base64 || evidence.previewUrl;
+    if (!dataUrl || !dataUrl.startsWith("data:")) {
+      return evidence;
+    }
+    const blobId = evidence.blobId || buildBlobId(draftId, evidence.id);
+    if (!evidence.blobId) {
+      const blob = dataUrlToBlob(dataUrl);
+      await saveDraftBlob({
+        id: blobId,
+        draftId,
+        evidenceId: evidence.id,
+        blob,
+        name: evidence.name || evidence.originalName,
+        type: blob.type,
+        size: blob.size,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    return {
+      ...evidence,
+      blobId,
+      syncState: evidence.syncState || "pending",
+    };
+  };
+
+  const stripEvidence = (evidence: LocalEvidence) => {
+    if (
+      typeof evidence.previewUrl === "string" &&
+      evidence.previewUrl.startsWith("data:")
+    ) {
+      return {
+        ...evidence,
+        previewUrl: "",
+        base64: "",
+      } as LocalEvidence;
+    }
+    return {
+      ...evidence,
+      base64: "",
+    } as LocalEvidence;
+  };
+
+  const persistDraftSnapshot = async (
+    phases: typeof evidencePhases,
+  ): Promise<void> => {
     if (typeof window === "undefined") return;
-    try {
-      localStorage.setItem(
-        "work_report_evidence_phases",
-        JSON.stringify(evidencePhases),
+    if (!user?.id) return;
+
+    const draftId = buildDraftId(user.id, "work");
+    const currentValues = getValues();
+
+    const actividadesConEvidencias = await prepareActivityEvidence(
+      currentValues.actividadesRealizadas || [],
+    );
+    const firmaResponsable = await convertSignatureToBase64(
+      currentValues.firmaResponsable || null,
+    );
+
+    const processedPhases = {
+      antes: {
+        ...phases.antes,
+        evidences: await Promise.all(
+          phases.antes.evidences.map((evidence) =>
+            ensureEvidenceBlob(draftId, evidence),
+          ),
+        ),
+      },
+      durante: {
+        ...phases.durante,
+        evidences: await Promise.all(
+          phases.durante.evidences.map((evidence) =>
+            ensureEvidenceBlob(draftId, evidence),
+          ),
+        ),
+      },
+      despues: {
+        ...phases.despues,
+        evidences: await Promise.all(
+          phases.despues.evidences.map((evidence) =>
+            ensureEvidenceBlob(draftId, evidence),
+          ),
+        ),
+      },
+    };
+
+    const storedPhases = {
+      antes: {
+        ...processedPhases.antes,
+        evidences: processedPhases.antes.evidences.map(stripEvidence),
+      },
+      durante: {
+        ...processedPhases.durante,
+        evidences: processedPhases.durante.evidences.map(stripEvidence),
+      },
+      despues: {
+        ...processedPhases.despues,
+        evidences: processedPhases.despues.evidences.map(stripEvidence),
+      },
+    };
+
+    const draftPayload = {
+      formValues: {
+        ...currentValues,
+        actividadesRealizadas: actividadesConEvidencias,
+        firmaResponsable,
+      },
+      evidencePhases: storedPhases,
+      timestamp: new Date().toISOString(),
+    };
+
+    await saveDraftRecord({
+      id: draftId,
+      userId: user.id,
+      reportType: "work",
+      data: draftPayload,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    const serverPayload = {
+      reportType: "work" as const,
+      formData: draftPayload,
+      evidenceRefs: [
+        ...storedPhases.antes.evidences,
+        ...storedPhases.durante.evidences,
+        ...storedPhases.despues.evidences,
+      ].map((evidence) => ({ ...evidence })) as Record<string, unknown>[],
+      status: "active" as const,
+    };
+
+    const existingDraft = await fetchDraft("work");
+    if (existingDraft?.id) {
+      await updateDraft(existingDraft.id, serverPayload);
+    } else {
+      await createDraft(serverPayload);
+    }
+  };
+
+  const handleSavePhase = async (phase: "antes" | "durante" | "despues") => {
+    if (typeof window === "undefined") return;
+    if (!user?.id) {
+      alert("No se pudo guardar la fase. Sesión no encontrada.");
+      return;
+    }
+
+    const draftId = buildDraftId(user.id, "work");
+    const uploadId = draftId.replace(/[:]/g, "-");
+    const currentValues = getValues();
+    const subsistemaValue = effectiveSubsistema || currentValues.subsistema;
+    if (!subsistemaValue || !currentValues.fechaHoraInicio) {
+      alert(
+        "Completa el subsistema y la fecha de inicio antes de guardar las evidencias.",
       );
-    } catch (error) {
-      console.error("Error saving evidence phases to localStorage:", error);
+      return;
     }
-  };
 
-  const loadEvidencePhasesFromLocalStorage = () => {
-    if (typeof window === "undefined") return;
     try {
-      const saved = localStorage.getItem("work_report_evidence_phases");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setEvidencePhases(parsed);
-        
-        // Set active phase based on locked states
-        if (!parsed.antes.isLocked) {
-          setActivePhase("antes");
-        } else if (!parsed.durante.isLocked) {
-          setActivePhase("durante");
-        } else if (!parsed.despues.isLocked) {
-          setActivePhase("despues");
+      setSavingPhase(phase);
+      const phaseLabel =
+        phase === "antes" ? "Antes" : phase === "durante" ? "Durante" : "Después";
+
+      const phaseState = evidencePhases[phase];
+      const updatedEvidences: LocalEvidence[] = [];
+
+      for (let i = 0; i < phaseState.evidences.length; i++) {
+        const evidence = phaseState.evidences[i];
+        if (evidence.isLocked && evidence.s3Key) {
+          updatedEvidences.push(evidence);
+          continue;
         }
+
+        const dataUrl = evidence.base64 || evidence.previewUrl;
+        if (!dataUrl || !dataUrl.startsWith("data:")) {
+          updatedEvidences.push(evidence);
+          continue;
+        }
+
+        const watermarkedFile = await applyWatermarkToImage(dataUrl, {
+          timestamp: new Date(),
+          phaseLabel,
+        });
+
+        const evidenceInfo = await uploadEvidence({
+          reportId: uploadId,
+          reportType: "work",
+          file: watermarkedFile,
+          subsystem: subsistemaValue,
+          fechaHoraInicio: currentValues.fechaHoraInicio,
+          skipDbRecord: true,
+        });
+
+        const previewUrl = await resolvePreviewUrlForKey(evidenceInfo.key);
+
+        updatedEvidences.push({
+          ...evidence,
+          s3Key: evidenceInfo.key,
+          previewUrl,
+          syncState: "synced",
+          isLocked: true,
+        });
       }
+
+      const nextPhases = {
+        ...evidencePhases,
+        [phase]: {
+          ...phaseState,
+          evidences: await Promise.all(
+            updatedEvidences.map((evidence) =>
+              ensureEvidenceBlob(draftId, evidence),
+            ),
+          ),
+          isLocked: true,
+        },
+      } as typeof evidencePhases;
+
+      setEvidencePhases(nextPhases);
+
+      if (phase === "antes") {
+        setActivePhase("durante");
+      } else if (phase === "durante") {
+        setActivePhase("despues");
+      }
+
+      await persistDraftSnapshot(nextPhases);
     } catch (error) {
-      console.error("Error loading evidence phases from localStorage:", error);
+      console.error("Error saving phase:", error);
+      const message =
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar la fase. Intenta nuevamente.";
+      if (message.includes("Storage not configured")) {
+        alert(
+          "No se pudo subir la evidencia. Verifica que S3 esté configurado.",
+        );
+      } else {
+        alert("No se pudo guardar la fase. Intenta nuevamente.");
+      }
+    } finally {
+      setSavingPhase(null);
     }
   };
-
 
   const handleSaveDraft = async () => {
     if (typeof window === "undefined") return;
+    if (!user?.id) {
+      alert("No se pudo guardar el borrador. Sesión no encontrada.");
+      return;
+    }
+
+    const draftId = buildDraftId(user.id, "work");
+    const uploadId = draftId.replace(/[:]/g, "-");
 
     try {
       const currentValues = getValues();
-      const actividadesConEvidencias = await prepareActivityEvidence(
-        currentValues.actividadesRealizadas || [],
-      );
-      const firmaResponsable = await convertSignatureToBase64(
-        currentValues.firmaResponsable || null,
-      );
 
-      const draftPayload = {
-        formValues: {
-          ...currentValues,
-          actividadesRealizadas: actividadesConEvidencias,
-          firmaResponsable,
+      const processedPhases = {
+        antes: {
+          ...evidencePhases.antes,
+          evidences: await Promise.all(
+            evidencePhases.antes.evidences.map((evidence) =>
+              ensureEvidenceBlob(draftId, evidence),
+            ),
+          ),
         },
-        timestamp: new Date().toISOString(),
+        durante: {
+          ...evidencePhases.durante,
+          evidences: await Promise.all(
+            evidencePhases.durante.evidences.map((evidence) =>
+              ensureEvidenceBlob(draftId, evidence),
+            ),
+          ),
+        },
+        despues: {
+          ...evidencePhases.despues,
+          evidences: await Promise.all(
+            evidencePhases.despues.evidences.map((evidence) =>
+              ensureEvidenceBlob(draftId, evidence),
+            ),
+          ),
+        },
       };
 
-      localStorage.setItem(WORK_REPORT_DRAFT_KEY, JSON.stringify(draftPayload));
+      const uploadPhaseEvidences = async (
+        phaseKey: "antes" | "durante" | "despues",
+        phaseLabel: string,
+      ) => {
+        const phase = processedPhases[phaseKey];
+        const updated: LocalEvidence[] = [];
+
+        for (let i = 0; i < phase.evidences.length; i++) {
+          const evidence = phase.evidences[i];
+          if (evidence.isLocked && evidence.s3Key) {
+            updated.push(evidence);
+            continue;
+          }
+
+          const dataUrl = evidence.base64 || evidence.previewUrl;
+          if (!dataUrl || !dataUrl.startsWith("data:")) {
+            updated.push(evidence);
+            continue;
+          }
+
+          const watermarkedFile = await applyWatermarkToImage(dataUrl, {
+            timestamp: new Date(),
+            phaseLabel,
+          });
+
+          const evidenceInfo = await uploadEvidence({
+            reportId: uploadId,
+            reportType: "work",
+            file: watermarkedFile,
+            subsystem: effectiveSubsistema || currentValues.subsistema,
+            fechaHoraInicio: currentValues.fechaHoraInicio,
+            skipDbRecord: true,
+          });
+
+          updated.push({
+            ...evidence,
+            s3Key: evidenceInfo.key,
+            previewUrl: await resolvePreviewUrlForKey(evidenceInfo.key),
+            syncState: "synced",
+            isLocked: true,
+          });
+        }
+
+        return {
+          ...phase,
+          evidences: updated,
+        };
+      };
+
+      const uploadedAntes = await uploadPhaseEvidences("antes", "Antes");
+      const uploadedDurante = await uploadPhaseEvidences("durante", "Durante");
+      const uploadedDespues = await uploadPhaseEvidences("despues", "Después");
+      const nextPhases = {
+        antes: uploadedAntes,
+        durante: uploadedDurante,
+        despues: uploadedDespues,
+      };
+      setEvidencePhases(nextPhases);
+
+      await persistDraftSnapshot(nextPhases);
+
       alert("Borrador guardado correctamente");
     } catch (error) {
       console.error("Error saving draft:", error);
@@ -670,6 +1073,22 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   };
 
   const onSubmit = async (data: WorkReportFormValues) => {
+    const allPhaseEvidences = [
+      ...evidencePhases.antes.evidences,
+      ...evidencePhases.durante.evidences,
+      ...evidencePhases.despues.evidences,
+    ];
+    const hasPendingEvidence = allPhaseEvidences.some(
+      (evidence) =>
+        !(evidence.isLocked || evidence.s3Key || evidence.syncState === "synced"),
+    );
+    if (hasPendingEvidence) {
+      alert(
+        "Antes de generar el reporte, guarda el borrador para subir las evidencias.",
+      );
+      return;
+    }
+
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
     const localISOTime = new Date(now.getTime() - offset)
@@ -870,9 +1289,11 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           }
         }
 
-        if (typeof window !== "undefined") {
-          localStorage.removeItem(WORK_REPORT_DRAFT_KEY);
-          localStorage.removeItem("work_report_evidence_phases");
+        if (typeof window !== "undefined" && user?.id) {
+          const draftId = buildDraftId(user.id, "work");
+          await deleteDraftRecord(draftId);
+          const blobs = await listDraftBlobs(draftId);
+          await Promise.all(blobs.map((blob) => deleteDraftBlob(blob.id)));
         }
 
         alert("Reporte generado exitosamente");
@@ -1336,6 +1757,8 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                       evidences={evidencePhases.antes.evidences}
                       isLocked={evidencePhases.antes.isLocked}
                       isActive={activePhase === "antes"}
+                      isSaving={savingPhase === "antes"}
+                      allowLockedEdits={isAdmin}
                       onEvidencesChange={(files) =>
                         handleEvidencePhaseChange("antes", files)
                       }
@@ -1352,6 +1775,8 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                       evidences={evidencePhases.durante.evidences}
                       isLocked={evidencePhases.durante.isLocked}
                       isActive={activePhase === "durante"}
+                      isSaving={savingPhase === "durante"}
+                      allowLockedEdits={isAdmin}
                       onEvidencesChange={(files) =>
                         handleEvidencePhaseChange("durante", files)
                       }
@@ -1368,6 +1793,8 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                       evidences={evidencePhases.despues.evidences}
                       isLocked={evidencePhases.despues.isLocked}
                       isActive={activePhase === "despues"}
+                      isSaving={savingPhase === "despues"}
+                      allowLockedEdits={isAdmin}
                       onEvidencesChange={(files) =>
                         handleEvidencePhaseChange("despues", files)
                       }

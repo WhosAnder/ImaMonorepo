@@ -31,6 +31,7 @@ import { reportsRoute } from "./modules/reports/reports.route";
 import { getUploadDir } from "./config/multer";
 import { readFileSync, existsSync } from "fs";
 import { logger } from "hono/logger";
+import { draftsRoute } from "./modules/drafts/drafts.route";
 
 import { workersRoute } from "./modules/workers/workers.route";
 
@@ -147,6 +148,7 @@ api.route("/templates", templatesRoute);
 api.route("/storage", storageRoute);
 api.route("/reports-explorer", reportsRoute);
 api.route("/workers", workersRoute);
+api.route("/drafts", draftsRoute);
 
 // Mount API routes under /api prefix
 app.route("/api", api);
