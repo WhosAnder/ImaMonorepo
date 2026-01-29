@@ -1,13 +1,12 @@
 import { API_URL } from "@/config/env";
-
-interface Evidence {
-  s3Key?: string;
-  url?: string;
-  uploadedAt?: Date;
-}
+import {
+  collectWorkReportEvidences,
+  resolveWorkReportEvidenceUrl,
+  WorkReportEvidenceItem,
+} from "../utils/evidence";
 
 interface Activity {
-  evidencias?: Evidence[];
+  evidencias?: WorkReportEvidenceItem[];
   nombre?: string;
 }
 
@@ -20,23 +19,8 @@ export async function downloadReportImages(
   folio: string
 ): Promise<void> {
   try {
-    // Collect all evidence URLs
-    const allEvidences: { url: string; filename: string }[] = [];
-    
-    actividadesRealizadas.forEach((actividad, actIndex) => {
-      if (actividad.evidencias && actividad.evidencias.length > 0) {
-        actividad.evidencias.forEach((evidencia, evIndex) => {
-          if (evidencia.url) {
-            // Create descriptive filename
-            const activityName = actividad.nombre
-              ? actividad.nombre.substring(0, 30).replace(/[^a-zA-Z0-9]/g, "_")
-              : `actividad-${actIndex + 1}`;
-            const filename = `${folio}_${activityName}_${evIndex + 1}.jpg`;
-            allEvidences.push({ url: evidencia.url, filename });
-          }
-        });
-      }
-    });
+    // Collect all evidence using the same utility as the gallery
+    const allEvidences = collectWorkReportEvidences(actividadesRealizadas);
 
     if (allEvidences.length === 0) {
       alert("No hay imágenes para descargar");
@@ -49,16 +33,27 @@ export async function downloadReportImages(
     );
     if (!confirmed) return;
 
-    // Download each image with a small delay to avoid browser blocking
+    // Resolve URLs and download each image
     for (let i = 0; i < allEvidences.length; i++) {
-      const { url, filename } = allEvidences[i];
+      const evidence = allEvidences[i];
       
       try {
+        // Resolve the evidence URL (handles S3 keys, presigned URLs, etc.)
+        const url = await resolveWorkReportEvidenceUrl(evidence);
+        
+        if (!url) {
+          console.error(`No URL found for evidence ${i + 1}`);
+          continue;
+        }
+
         // Fetch image as blob
         const response = await fetch(url);
         if (!response.ok) throw new Error("Failed to fetch image");
         
         const blob = await response.blob();
+        
+        // Create descriptive filename
+        const filename = `${folio}_evidencia_${i + 1}.jpg`;
         
         // Create download link
         const downloadUrl = URL.createObjectURL(blob);
@@ -75,7 +70,7 @@ export async function downloadReportImages(
           await new Promise(resolve => setTimeout(resolve, 300));
         }
       } catch (error) {
-        console.error(`Error downloading image ${filename}:`, error);
+        console.error(`Error downloading image ${i + 1}:`, error);
       }
     }
 
