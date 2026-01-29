@@ -4,6 +4,7 @@ import { applyWatermarkToImage } from "@/shared/utils/image-watermark";
 export interface EvidenceUploadResult {
   id: string;
   previewUrl: string;
+  s3Key: string;
 }
 
 /**
@@ -39,11 +40,16 @@ export async function uploadEvidencesForItem(
   for (let i = 0; i < evidences.length; i++) {
     const evidence = evidences[i];
 
-    // Skip if already uploaded (has URL)
-    if (evidence.previewUrl && evidence.previewUrl.startsWith("http")) {
+    const existingKey = evidence.s3Key || evidence.uploadedKey || evidence.key;
+    // Skip if already uploaded (has URL or S3 key)
+    if (
+      (evidence.previewUrl && evidence.previewUrl.startsWith("http")) ||
+      existingKey
+    ) {
       uploadedEvidences.push({
         id: evidence.id,
-        previewUrl: evidence.previewUrl,
+        previewUrl: existingKey || evidence.previewUrl,
+        s3Key: existingKey || evidence.previewUrl,
       });
       continue;
     }
@@ -56,7 +62,8 @@ export async function uploadEvidencesForItem(
 
     try {
       // Check if image is already watermarked (filename contains '_wm')
-      const isAlreadyWatermarked = evidence.originalName?.includes('_wm');
+      const originalName = evidence.originalName || evidence.name;
+      const isAlreadyWatermarked = originalName?.includes("_wm");
       
       let fileToUpload: File;
       
@@ -64,7 +71,7 @@ export async function uploadEvidencesForItem(
         // Already watermarked (came from EvidenceUpload component), just convert to File
         fileToUpload = base64ToFile(
           dataUrl,
-          evidence.originalName || `evidence-${i}.jpg`,
+          originalName || `evidence-${i}.jpg`,
         );
       } else {
         // Not watermarked yet, apply watermark before upload
@@ -88,6 +95,7 @@ export async function uploadEvidencesForItem(
       uploadedEvidences.push({
         id: result.id,
         previewUrl: result.key, // Use key as preview URL reference
+        s3Key: result.key,
       });
     } catch (error) {
       console.error(`Failed to upload evidence ${i}:`, error);
