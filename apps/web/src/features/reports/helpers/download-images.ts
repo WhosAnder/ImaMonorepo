@@ -1,4 +1,4 @@
-import { API_URL } from "@/config/env";
+import JSZip from "jszip";
 import {
   collectWorkReportEvidences,
   resolveWorkReportEvidenceUrl,
@@ -11,8 +11,8 @@ interface Activity {
 }
 
 /**
- * Download all evidence images from a work report
- * Downloads each image sequentially to avoid browser blocking
+ * Download all evidence images from a work report as a ZIP file
+ * Bundles all images into a single ZIP to avoid browser blocking
  */
 export async function downloadReportImages(
   actividadesRealizadas: Activity[],
@@ -29,11 +29,15 @@ export async function downloadReportImages(
 
     // Show confirmation
     const confirmed = confirm(
-      `Se descargarán ${allEvidences.length} imagen(es). ¿Continuar?`
+      `Se descargarán ${allEvidences.length} imagen(es) en un archivo ZIP. ¿Continuar?`
     );
     if (!confirmed) return;
 
-    // Resolve URLs and download each image
+    // Create ZIP file
+    const zip = new JSZip();
+    let successCount = 0;
+
+    // Fetch and add each image to ZIP
     for (let i = 0; i < allEvidences.length; i++) {
       const evidence = allEvidences[i];
       
@@ -52,29 +56,34 @@ export async function downloadReportImages(
         
         const blob = await response.blob();
         
-        // Create descriptive filename
-        const filename = `${folio}_evidencia_${i + 1}.jpg`;
-        
-        // Create download link
-        const downloadUrl = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = downloadUrl;
-        link.download = filename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(downloadUrl);
-        
-        // Small delay between downloads
-        if (i < allEvidences.length - 1) {
-          await new Promise(resolve => setTimeout(resolve, 300));
-        }
+        // Add to ZIP with descriptive filename
+        const filename = `evidencia_${i + 1}.jpg`;
+        zip.file(filename, blob);
+        successCount++;
       } catch (error) {
-        console.error(`Error downloading image ${i + 1}:`, error);
+        console.error(`Error fetching image ${i + 1}:`, error);
       }
     }
 
-    alert(`Descarga completada: ${allEvidences.length} imagen(es)`);
+    if (successCount === 0) {
+      alert("No se pudo descargar ninguna imagen");
+      return;
+    }
+
+    // Generate ZIP file
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    
+    // Download ZIP file
+    const downloadUrl = URL.createObjectURL(zipBlob);
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+    link.download = `${folio}_evidencias.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(downloadUrl);
+
+    alert(`Descarga completada: ${successCount} imagen(es) en archivo ZIP`);
   } catch (error) {
     console.error("Error downloading images:", error);
     alert("Error al descargar las imágenes");
