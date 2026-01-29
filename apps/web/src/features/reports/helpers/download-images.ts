@@ -1,4 +1,4 @@
-import JSZip from "jszip";
+import { pdf, Document, Page, Image, Text, View, StyleSheet } from "@react-pdf/renderer";
 import {
   collectWorkReportEvidences,
   resolveWorkReportEvidenceUrl,
@@ -10,9 +10,39 @@ interface Activity {
   nombre?: string;
 }
 
+const styles = StyleSheet.create({
+  page: {
+    padding: 30,
+    backgroundColor: "#ffffff",
+  },
+  title: {
+    fontSize: 20,
+    marginBottom: 20,
+    textAlign: "center",
+    fontWeight: "bold",
+  },
+  imageContainer: {
+    marginBottom: 15,
+    border: "1px solid #cccccc",
+    padding: 10,
+  },
+  image: {
+    width: "100%",
+    height: "auto",
+    maxHeight: 400,
+    objectFit: "contain",
+  },
+  imageLabel: {
+    fontSize: 10,
+    marginTop: 5,
+    textAlign: "center",
+    color: "#666666",
+  },
+});
+
 /**
- * Download all evidence images from a work report as a ZIP file
- * Bundles all images into a single ZIP to avoid browser blocking
+ * Download all evidence images from a work report as a PDF
+ * Creates a PDF with all images displayed one per page
  */
 export async function downloadReportImages(
   actividadesRealizadas: Activity[],
@@ -29,61 +59,61 @@ export async function downloadReportImages(
 
     // Show confirmation
     const confirmed = confirm(
-      `Se descargarán ${allEvidences.length} imagen(es) en un archivo ZIP. ¿Continuar?`
+      `Se descargarán ${allEvidences.length} imagen(es) en un PDF. ¿Continuar?`
     );
     if (!confirmed) return;
 
-    // Create ZIP file
-    const zip = new JSZip();
-    let successCount = 0;
-
-    // Fetch and add each image to ZIP
+    // Resolve all image URLs
+    const imageUrls: string[] = [];
     for (let i = 0; i < allEvidences.length; i++) {
       const evidence = allEvidences[i];
       
       try {
-        // Resolve the evidence URL (handles S3 keys, presigned URLs, etc.)
         const url = await resolveWorkReportEvidenceUrl(evidence);
-        
-        if (!url) {
-          console.error(`No URL found for evidence ${i + 1}`);
-          continue;
+        if (url) {
+          imageUrls.push(url);
         }
-
-        // Fetch image as blob
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("Failed to fetch image");
-        
-        const blob = await response.blob();
-        
-        // Add to ZIP with descriptive filename
-        const filename = `evidencia_${i + 1}.jpg`;
-        zip.file(filename, blob);
-        successCount++;
       } catch (error) {
-        console.error(`Error fetching image ${i + 1}:`, error);
+        console.error(`Error resolving image ${i + 1}:`, error);
       }
     }
 
-    if (successCount === 0) {
-      alert("No se pudo descargar ninguna imagen");
+    if (imageUrls.length === 0) {
+      alert("No se pudo cargar ninguna imagen");
       return;
     }
 
-    // Generate ZIP file
-    const zipBlob = await zip.generateAsync({ type: "blob" });
-    
-    // Download ZIP file
-    const downloadUrl = URL.createObjectURL(zipBlob);
+    // Create PDF document
+    const EvidencePDF = () => (
+      <Document>
+        <Page size="A4" style={styles.page}>
+          <Text style={styles.title}>
+            Evidencias del Reporte {folio}
+          </Text>
+          {imageUrls.map((url, index) => (
+            <View key={index} style={styles.imageContainer}>
+              <Image src={url} style={styles.image} />
+              <Text style={styles.imageLabel}>
+                Evidencia {index + 1} de {imageUrls.length}
+              </Text>
+            </View>
+          ))}
+        </Page>
+      </Document>
+    );
+
+    // Generate and download PDF
+    const blob = await pdf(<EvidencePDF />).toBlob();
+    const downloadUrl = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = downloadUrl;
-    link.download = `${folio}_evidencias.zip`;
+    link.download = `${folio}_evidencias.pdf`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(downloadUrl);
 
-    alert(`Descarga completada: ${successCount} imagen(es) en archivo ZIP`);
+    alert(`Descarga completada: ${imageUrls.length} imagen(es) en PDF`);
   } catch (error) {
     console.error("Error downloading images:", error);
     alert("Error al descargar las imágenes");
