@@ -372,7 +372,11 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
                       </div>
                       <div className="col-span-2">
                         <label className="text-xs text-gray-500">
-                          Unidades
+                          Unidades (máx: {(() => {
+                            const selectedName = watch(`herramientas.${index}.name`);
+                            const selectedItem = herramientasOptions.find(i => i.name === selectedName);
+                            return selectedItem?.quantityOnHand || 0;
+                          })()})
                         </label>
                         <input
                           type="number"
@@ -381,6 +385,11 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
                           })}
                           className={inputClass}
                           min={1}
+                          max={(() => {
+                            const selectedName = watch(`herramientas.${index}.name`);
+                            const selectedItem = herramientasOptions.find(i => i.name === selectedName);
+                            return selectedItem?.quantityOnHand || 999;
+                          })()}
                         />
                       </div>
                       <div className="col-span-4">
@@ -476,7 +485,11 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
                       </div>
                       <div className="col-span-2">
                         <label className="text-xs text-gray-500">
-                          Unidades
+                          Unidades (máx: {(() => {
+                            const selectedName = watch(`refacciones.${index}.name`);
+                            const selectedItem = refaccionesOptions.find(i => i.name === selectedName);
+                            return selectedItem?.quantityOnHand || 0;
+                          })()})
                         </label>
                         <input
                           type="number"
@@ -485,6 +498,11 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
                           })}
                           className={inputClass}
                           min={1}
+                          max={(() => {
+                            const selectedName = watch(`refacciones.${index}.name`);
+                            const selectedItem = refaccionesOptions.find(i => i.name === selectedName);
+                            return selectedItem?.quantityOnHand || 999;
+                          })()}
                         />
                       </div>
                       <div className="col-span-4">
