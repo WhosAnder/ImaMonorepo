@@ -384,7 +384,7 @@ export default function InventarioPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
                     >
                       <option value="">Seleccionar...</option>
-                      <option value="Nebrasca64">Nebrasca64</option>
+                      <option value="Nebraska64">Nebraska64</option>
                       <option value="Permanencia/Observatorio">
                         Permanencia/Observatorio
                       </option>
