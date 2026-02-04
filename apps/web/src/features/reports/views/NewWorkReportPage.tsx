@@ -496,6 +496,8 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
               shouldValidate: true,
             });
           }
+          
+          // Restore evidence phases
           if (draftData.evidencePhases) {
             const draftId = buildDraftId(user.id, "work");
             const hydratedPhases = await hydrateEvidencePhases(
@@ -505,10 +507,11 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
             setEvidencePhases(hydratedPhases);
           }
           
-          draftLoadedRef.current = true; // Mark draft as loaded
+          console.log("✅ After setValue calls, current form values:", getValues());
+          draftRestorationGuardRef.current = false;
+          }, 150); // 150ms delay to ensure reset completes
+          
           setDraftStatus("loaded");
-        }
-      } catch (e) {
         console.error("Error loading draft", e);
       }
     };
