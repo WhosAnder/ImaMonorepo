@@ -453,14 +453,14 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
             return;
           }
           
-          const shouldLoad = window.confirm(
+          
           // Set flag BEFORE confirm to prevent duplicates
           draftLoadedRef.current = true;
-
+          
+          const shouldLoad = window.confirm(
             "Se encontró un borrador guardado. ¿Deseas cargarlo?",
           );
           if (!shouldLoad) {
-            
             return;
           }
 
