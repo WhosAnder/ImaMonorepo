@@ -743,7 +743,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
     try {
       setSavingPhase(phase);
       const phaseLabel =
-        phase === "antes" ? "Antes" : phase === "durante" ? "Durante" : "Después";
+        phase === "antes" ? "Previo a la actividad" : phase === "durante" ? "Durante la actividad" : "Finalizada la actividad";
 
       const phaseState = evidencePhases[phase];
       const updatedEvidences: LocalEvidence[] = [];
@@ -915,9 +915,9 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
         };
       };
 
-      const uploadedAntes = await uploadPhaseEvidences("antes", "Antes");
-      const uploadedDurante = await uploadPhaseEvidences("durante", "Durante");
-      const uploadedDespues = await uploadPhaseEvidences("despues", "Después");
+      const uploadedAntes = await uploadPhaseEvidences("antes", "Previo a la actividad");
+      const uploadedDurante = await uploadPhaseEvidences("durante", "Durante la actividad");
+      const uploadedDespues = await uploadPhaseEvidences("despues", "Finalizada la actividad");
       const nextPhases = {
         antes: uploadedAntes,
         durante: uploadedDurante,
@@ -1179,7 +1179,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                   dataUrl,
                   { 
                     timestamp: new Date(),
-                    phaseLabel: "Antes"
+                    phaseLabel: "Previo a la actividad"
                   }
                 );
                 
@@ -1210,7 +1210,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                   dataUrl,
                   { 
                     timestamp: new Date(),
-                    phaseLabel: "Durante"
+                    phaseLabel: "Durante la actividad"
                   }
                 );
                 
@@ -1241,7 +1241,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                   dataUrl,
                   { 
                     timestamp: new Date(),
-                    phaseLabel: "Después"
+                    phaseLabel: "Finalizada la actividad"
                   }
                 );
                 
@@ -1752,7 +1752,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                     {/* Fase: Antes */}
                     <EvidencePhaseSection
                       phase="antes"
-                      title="Antes del Mantenimiento"
+                      title="Previo a la actividad"
                       description="Fotos del estado inicial antes de comenzar el trabajo"
                       evidences={evidencePhases.antes.evidences}
                       isLocked={evidencePhases.antes.isLocked}
@@ -1770,7 +1770,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                     {/* Fase: Durante */}
                     <EvidencePhaseSection
                       phase="durante"
-                      title="Durante el Mantenimiento"
+                      title="Durante la actividad"
                       description="Fotos del proceso de trabajo en ejecución"
                       evidences={evidencePhases.durante.evidences}
                       isLocked={evidencePhases.durante.isLocked}
@@ -1788,7 +1788,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                     {/* Fase: Después */}
                     <EvidencePhaseSection
                       phase="despues"
-                      title="Después del Mantenimiento"
+                      title="Finalizada la actividad"
                       description="Fotos del resultado final del trabajo completado"
                       evidences={evidencePhases.despues.evidences}
                       isLocked={evidencePhases.despues.isLocked}
