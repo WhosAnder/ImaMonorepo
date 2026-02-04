@@ -461,8 +461,14 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
             return;
           }
 
+          console.log("🔄 LOADING DRAFT - Form Values:", draftData.formValues);
+          console.log("🔄 Fields loaded:", Object.keys(draftData.formValues || {}));
+
           draftRestorationGuardRef.current = true;
           reset(draftData.formValues);
+          
+          // Use setTimeout to ensure setValue calls execute after reset completes
+          setTimeout(() => {
           if (draftData.formValues?.subsistema) {
             setValue("subsistema", draftData.formValues.subsistema, {
               shouldDirty: false,
@@ -495,9 +501,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
             );
             setEvidencePhases(hydratedPhases);
           }
-          setTimeout(() => {
-            draftRestorationGuardRef.current = false;
-          }, 500);
+          
           draftLoadedRef.current = true; // Mark draft as loaded
           setDraftStatus("loaded");
         }
@@ -704,6 +708,9 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
       evidencePhases: storedPhases,
       timestamp: new Date().toISOString(),
     };
+
+    console.log("💾 SAVING DRAFT - Form Values:", draftPayload.formValues);
+    console.log("💾 Fields saved:", Object.keys(draftPayload.formValues));
 
     await saveDraftRecord({
       id: draftId,
