@@ -454,10 +454,13 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           }
           
           const shouldLoad = window.confirm(
+          // Set flag BEFORE confirm to prevent duplicates
+          draftLoadedRef.current = true;
+
             "Se encontró un borrador guardado. ¿Deseas cargarlo?",
           );
           if (!shouldLoad) {
-            draftLoadedRef.current = true; // Mark as handled even if user cancels
+            
             return;
           }
 
@@ -468,7 +471,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           reset(draftData.formValues);
           
           // Use setTimeout to ensure setValue calls execute after reset completes
-          setTimeout(() => {
+          setTimeout(async () => {
           if (draftData.formValues?.subsistema) {
             setValue("subsistema", draftData.formValues.subsistema, {
               shouldDirty: false,
