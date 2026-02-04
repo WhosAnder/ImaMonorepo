@@ -73,7 +73,7 @@ import {
   saveDraftBlob,
   saveDraftRecord,
 } from "@/features/reports/drafts/draftStorage";
-import { createDraft, fetchDraft, updateDraft, deleteDraft } from "@/api/draftsClient";
+// Server-side drafts removed - using local IndexedDB only
 import { presignDownload } from "@/api/evidencesClient";
 import { API_URL } from "@/config/env";
 import { uploadWorkReportSignature } from "../helpers/upload-signature";
@@ -715,23 +715,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
       updatedAt: new Date().toISOString(),
     });
 
-    const serverPayload = {
-      reportType: "work" as const,
-      formData: draftPayload,
-      evidenceRefs: [
-        ...storedPhases.antes.evidences,
-        ...storedPhases.durante.evidences,
-        ...storedPhases.despues.evidences,
-      ].map((evidence) => ({ ...evidence })) as Record<string, unknown>[],
-      status: "active" as const,
-    };
-
-    const existingDraft = await fetchDraft("work");
-    if (existingDraft?.id) {
-      await updateDraft(existingDraft.id, serverPayload);
-    } else {
-      await createDraft(serverPayload);
-    }
+    // Server-side draft sync removed - local IndexedDB only
   };
 
   const handleSavePhase = async (phase: "antes" | "durante" | "despues") => {
