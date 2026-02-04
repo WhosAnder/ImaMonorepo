@@ -6,7 +6,7 @@ async function migrateLocations() {
         const collection = await getWarehouseStockCollection();
         const result = await collection.updateMany(
             {}, // filter: match all documents
-            { $set: { location: "Nebrasca64" } } // update: set location
+            { $set: { location: "Nebraska64" } } // update: set location
         );
 
         console.log(`Migration complete.`);
