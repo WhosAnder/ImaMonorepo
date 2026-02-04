@@ -20,6 +20,8 @@ import {
   X,
   Filter,
   Trash,
+  ArrowUp,
+  ArrowDown,
 } from "lucide-react";
 
 export default function InventarioPage() {
@@ -29,6 +31,8 @@ export default function InventarioPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [sortField, setSortField] = useState<string | null>(null);
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   const {
     data: items,
@@ -113,6 +117,45 @@ export default function InventarioPage() {
     setIsAdjustModalOpen(true);
   };
 
+
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  const sortedItems = React.useMemo(() => {
+    if (!items || !sortField) return items;
+    
+    return [...items].sort((a, b) => {
+      let aVal: any;
+      let bVal: any;
+
+      if (sortField === 'status') {
+        aVal = a.isBelowMinimum || a.quantityOnHand === 0 ? 0 : 1;
+        bVal = b.isBelowMinimum || b.quantityOnHand === 0 ? 0 : 1;
+      } else {
+        aVal = a[sortField as keyof typeof a];
+        bVal = b[sortField as keyof typeof b];
+      }
+      
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        return sortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+      }
+      
+      const aStr = String(aVal || '').toLowerCase();
+      const bStr = String(bVal || '').toLowerCase();
+      
+      if (sortDirection === 'asc') {
+        return aStr.localeCompare(bStr);
+      } else {
+        return bStr.localeCompare(aStr);
+      }
+    });
+  }, [items, sortField, sortDirection]);
   return (
     <RequireRole allowedRoles={["admin", "warehouse"]}>
       <AppLayout title="Inventario">
@@ -182,20 +225,70 @@ export default function InventarioPage() {
                 <table className="min-w-[900px] w-full text-sm">
                   <thead className="bg-gray-50 border-b border-gray-200">
                     <tr>
-                      <th className="px-6 py-3 text-left font-medium text-gray-700">
-                        SKU
+                      <th 
+                        onClick={() => handleSort('sku')}
+                        className="px-6 py-3 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-1">
+                          SKU
+                          {sortField === 'sku' && (
+                            sortDirection === 'asc' ? 
+                              <ArrowUp size={16} className="text-blue-600" /> : 
+                              <ArrowDown size={16} className="text-blue-600" />
+                          )}
+                        </div>
                       </th>
-                      <th className="px-6 py-3 text-left font-medium text-gray-700">
-                        Nombre
+                      <th 
+                        onClick={() => handleSort('name')}
+                        className="px-6 py-3 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-1">
+                          Nombre
+                          {sortField === 'name' && (
+                            sortDirection === 'asc' ? 
+                              <ArrowUp size={16} className="text-blue-600" /> : 
+                              <ArrowDown size={16} className="text-blue-600" />
+                          )}
+                        </div>
                       </th>
-                      <th className="px-6 py-3 text-left font-medium text-gray-700">
-                        Categoría
+                      <th 
+                        onClick={() => handleSort('category')}
+                        className="px-6 py-3 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-1">
+                          Categoría
+                          {sortField === 'category' && (
+                            sortDirection === 'asc' ? 
+                              <ArrowUp size={16} className="text-blue-600" /> : 
+                              <ArrowDown size={16} className="text-blue-600" />
+                          )}
+                        </div>
                       </th>
-                      <th className="px-6 py-3 text-left font-medium text-gray-700">
-                        Ubicación
+                      <th 
+                        onClick={() => handleSort('location')}
+                        className="px-6 py-3 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-1">
+                          Ubicación
+                          {sortField === 'location' && (
+                            sortDirection === 'asc' ? 
+                              <ArrowUp size={16} className="text-blue-600" /> : 
+                              <ArrowDown size={16} className="text-blue-600" />
+                          )}
+                        </div>
                       </th>
-                      <th className="px-6 py-3 text-center font-medium text-gray-700">
-                        Cantidad
+                      <th 
+                        onClick={() => handleSort('quantityOnHand')}
+                        className="px-6 py-3 text-center font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-center justify-center gap-1">
+                          Cantidad
+                          {sortField === 'quantityOnHand' && (
+                            sortDirection === 'asc' ? 
+                              <ArrowUp size={16} className="text-blue-600" /> : 
+                              <ArrowDown size={16} className="text-blue-600" />
+                          )}
+                        </div>
                       </th>
                       <th className="px-6 py-3 text-left font-medium text-gray-700">
                         Estado
@@ -206,7 +299,7 @@ export default function InventarioPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200">
-                    {items?.length === 0 ? (
+                    {sortedItems?.length === 0 ? (
                       <tr>
                         <td
                           colSpan={7}
@@ -216,7 +309,7 @@ export default function InventarioPage() {
                         </td>
                       </tr>
                     ) : (
-                      items?.map((item) => (
+                      sortedItems?.map((item) => (
                         <tr key={item._id}>
                           <td className="px-6 py-4 font-mono text-sm text-gray-900">
                             {item.sku}
