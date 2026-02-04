@@ -444,8 +444,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
     const loadDraft = async () => {
       try {
         const localDraft = await getDraftRecord<any>(user.id, "work");
-        const serverDraft = localDraft ? null : await fetchDraft("work");
-        const draftData = localDraft?.data || serverDraft?.formData;
+        const draftData = localDraft?.data;
 
         if (draftData?.formValues) {
           // Prevent duplicate prompts (React Strict Mode runs effects twice)
@@ -1288,22 +1287,11 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
         if (typeof window !== "undefined" && user?.id) {
           const draftId = buildDraftId(user.id, "work");
           
-          // Delete local IndexedDB draft
+          // Delete local IndexedDB draft only
           await deleteDraftRecord(draftId);
           const blobs = await listDraftBlobs(draftId);
           await Promise.all(blobs.map((blob) => deleteDraftBlob(blob.id)));
-          
-          // Delete server-side draft
-          try {
-            const serverDraft = await fetchDraft("work");
-            if (serverDraft?.id) {
-              await deleteDraft(serverDraft.id);
-              console.log("✅ Server draft deleted successfully");
-            }
-          } catch (error) {
-            console.error("Failed to delete server draft:", error);
-            // Don't block user - local draft is already deleted
-          }
+          console.log("✅ Local draft deleted successfully");
         }
 
         alert("Reporte generado exitosamente");
