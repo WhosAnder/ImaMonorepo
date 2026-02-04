@@ -290,18 +290,8 @@ export default function InventarioPage() {
                           )}
                         </div>
                       </th>
-                      <th 
-                        onClick={() => handleSort('status')}
-                        className="px-6 py-3 text-left font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
-                      >
-                        <div className="flex items-center gap-1">
-                          Estado
-                          {sortField === 'status' && (
-                            sortDirection === 'asc' ? 
-                              <ArrowUp size={16} className="text-blue-600" /> : 
-                              <ArrowDown size={16} className="text-blue-600" />
-                          )}
-                        </div>
+                      <th className="px-6 py-3 text-left font-medium text-gray-700">
+                        Estado
                       </th>
                       <th className="px-6 py-3 text-right font-medium text-gray-700">
                         Acciones
