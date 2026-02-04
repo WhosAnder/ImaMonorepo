@@ -512,6 +512,8 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           }, 150); // 150ms delay to ensure reset completes
           
           setDraftStatus("loaded");
+        }
+      } catch (e) {
         console.error("Error loading draft", e);
       }
     };
