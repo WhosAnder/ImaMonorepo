@@ -7,7 +7,6 @@ import { Button } from "@/shared/ui/Button";
 import {
   useWarehouseItems,
   useCreateWarehouseItem,
-  useAdjustWarehouseStock,
   useDeleteWarehouseItem,
 } from "@/hooks/useWarehouse";
 import {
@@ -15,8 +14,6 @@ import {
   Search,
   Package,
   AlertTriangle,
-  TrendingDown,
-  TrendingUp,
   X,
   Filter,
   Trash,
@@ -29,8 +26,6 @@ export default function InventarioPage() {
   const [showLowStock, setShowLowStock] = useState(false);
   const [hideEmpty, setHideEmpty] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
-  const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
   const [sortField, setSortField] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
@@ -40,12 +35,9 @@ export default function InventarioPage() {
     error,
   } = useWarehouseItems({
     search: search || undefined,
-    lowStock: showLowStock || undefined,
-    hideEmpty: hideEmpty || undefined,
   });
 
   const createMutation = useCreateWarehouseItem();
-  const adjustMutation = useAdjustWarehouseStock();
   const deleteMutation = useDeleteWarehouseItem();
 
   // Form state for create modal
@@ -56,15 +48,9 @@ export default function InventarioPage() {
     category: "",
     location: "",
     unit: "pza",
-    quantityOnHand: 0,
-    minQuantity: 0,
-  });
-
-  // Form state for adjust modal
-  const [adjustment, setAdjustment] = useState({
-    delta: 0,
-    reason: "increase" as "increase" | "decrease" | "correction" | "damage",
-    note: "",
+    stock: 0,
+    min_quantity: 0,
+    active: true,
   });
 
   const handleCreateItem = async (e: React.FormEvent) => {
@@ -79,27 +65,12 @@ export default function InventarioPage() {
         category: "",
         location: "",
         unit: "pza",
-        quantityOnHand: 0,
-        minQuantity: 0,
+        stock: 0,
+        min_quantity: 0,
+        active: true,
       });
     } catch (err) {
       alert(err instanceof Error ? err.message : "Error al crear item");
-    }
-  };
-
-  const handleAdjustStock = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedItemId) return;
-    try {
-      await adjustMutation.mutateAsync({
-        id: selectedItemId,
-        adjustment,
-      });
-      setIsAdjustModalOpen(false);
-      setSelectedItemId(null);
-      setAdjustment({ delta: 0, reason: "increase", note: "" });
-    } catch (err) {
-      alert("Error al ajustar stock");
     }
   };
 
@@ -112,12 +83,6 @@ export default function InventarioPage() {
     }
   };
 
-  const openAdjustModal = (itemId: string) => {
-    setSelectedItemId(itemId);
-    setIsAdjustModalOpen(true);
-  };
-
-
   const handleSort = (field: string) => {
     if (sortField === field) {
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
@@ -127,16 +92,35 @@ export default function InventarioPage() {
     }
   };
 
+  // Client-side filtering for low stock and empty
+  const filteredItems = React.useMemo(() => {
+    if (!items) return items;
+    let result = items;
+    if (showLowStock) {
+      result = result.filter(
+        (item) =>
+          item.min_quantity != null &&
+          item.stock <= item.min_quantity
+      );
+    }
+    if (hideEmpty) {
+      result = result.filter((item) => item.stock > 0);
+    }
+    return result;
+  }, [items, showLowStock, hideEmpty]);
+
   const sortedItems = React.useMemo(() => {
-    if (!items || !sortField) return items;
+    if (!filteredItems || !sortField) return filteredItems;
     
-    return [...items].sort((a, b) => {
+    return [...filteredItems].sort((a, b) => {
       let aVal: any;
       let bVal: any;
 
       if (sortField === 'status') {
-        aVal = a.isBelowMinimum || a.quantityOnHand === 0 ? 0 : 1;
-        bVal = b.isBelowMinimum || b.quantityOnHand === 0 ? 0 : 1;
+        const isBelowMin = (item: typeof a) =>
+          item.min_quantity != null && item.stock <= item.min_quantity;
+        aVal = isBelowMin(a) || a.stock === 0 ? 0 : 1;
+        bVal = isBelowMin(b) || b.stock === 0 ? 0 : 1;
       } else {
         aVal = a[sortField as keyof typeof a];
         bVal = b[sortField as keyof typeof b];
@@ -155,7 +139,11 @@ export default function InventarioPage() {
         return bStr.localeCompare(aStr);
       }
     });
-  }, [items, sortField, sortDirection]);
+  }, [filteredItems, sortField, sortDirection]);
+
+  const isBelowMinimum = (item: { stock: number; min_quantity?: number | null }) =>
+    item.min_quantity != null && item.stock <= item.min_quantity;
+
   return (
     <RequireRole allowedRoles={["admin", "warehouse"]}>
       <AppLayout title="Inventario">
@@ -278,12 +266,12 @@ export default function InventarioPage() {
                         </div>
                       </th>
                       <th 
-                        onClick={() => handleSort('quantityOnHand')}
+                        onClick={() => handleSort('stock')}
                         className="px-6 py-3 text-center font-medium text-gray-700 cursor-pointer hover:bg-gray-100 transition-colors"
                       >
                         <div className="flex items-center justify-center gap-1">
                           Cantidad
-                          {sortField === 'quantityOnHand' && (
+                          {sortField === 'stock' && (
                             sortDirection === 'asc' ? 
                               <ArrowUp size={16} className="text-blue-600" /> : 
                               <ArrowDown size={16} className="text-blue-600" />
@@ -310,7 +298,7 @@ export default function InventarioPage() {
                       </tr>
                     ) : (
                       sortedItems?.map((item) => (
-                        <tr key={item._id}>
+                        <tr key={item.id}>
                           <td className="px-6 py-4 font-mono text-sm text-gray-900">
                             {item.sku}
                           </td>
@@ -336,41 +324,34 @@ export default function InventarioPage() {
                           <td className="px-6 py-4 text-center">
                             <span
                               className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-sm font-medium ${
-                                item.isBelowMinimum || item.quantityOnHand === 0
+                                isBelowMinimum(item) || item.stock === 0
                                   ? "bg-red-100 text-red-800"
                                   : "bg-green-100 text-green-800"
                               }`}
                             >
-                              {item.quantityOnHand} {item.unit || "pza"}
+                              {item.stock} {item.unit || "pza"}
                             </span>
-                            {item.isBelowMinimum && (
+                            {isBelowMinimum(item) && (
                               <div className="text-xs text-red-500 mt-1">
-                                Mín: {item.minQuantity}
+                                Mín: {item.min_quantity}
                               </div>
                             )}
                           </td>
                           <td className="px-6 py-4">
                             <span
                               className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-                                item.status === "active"
+                                item.active
                                   ? "bg-green-100 text-green-700"
                                   : "bg-gray-100 text-gray-600"
                               }`}
                             >
-                              {item.status === "active" ? "Activo" : "Inactivo"}
+                              {item.active ? "Activo" : "Inactivo"}
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right">
                             <div className="flex justify-end gap-2">
                               <button
-                                onClick={() => openAdjustModal(item._id)}
-                                className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                title="Ajustar stock"
-                              >
-                                <TrendingUp className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteItem(item._id)}
+                                onClick={() => handleDeleteItem(item.id)}
                                 className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                                 title="Eliminar"
                               >
@@ -495,11 +476,11 @@ export default function InventarioPage() {
                       type="number"
                       min="0"
                       required
-                      value={newItem.quantityOnHand}
+                      value={newItem.stock}
                       onChange={(e) =>
                         setNewItem({
                           ...newItem,
-                          quantityOnHand: parseInt(e.target.value) || 0,
+                          stock: parseInt(e.target.value) || 0,
                         })
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
@@ -512,11 +493,11 @@ export default function InventarioPage() {
                     <input
                       type="number"
                       min="0"
-                      value={newItem.minQuantity}
+                      value={newItem.min_quantity}
                       onChange={(e) =>
                         setNewItem({
                           ...newItem,
-                          minQuantity: parseInt(e.target.value) || 0,
+                          min_quantity: parseInt(e.target.value) || 0,
                         })
                       }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
@@ -546,94 +527,6 @@ export default function InventarioPage() {
                   </Button>
                   <Button type="submit" isLoading={createMutation.isPending}>
                     Crear
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </div>
-        )}
-
-        {/* Adjust Stock Modal */}
-        {isAdjustModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4">
-              <div className="flex justify-between items-center p-6 border-b">
-                <h3 className="text-lg font-medium text-gray-900">
-                  Ajustar Stock
-                </h3>
-                <button
-                  onClick={() => setIsAdjustModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-500"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <form onSubmit={handleAdjustStock} className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tipo de ajuste
-                  </label>
-                  <select
-                    value={adjustment.reason}
-                    onChange={(e) =>
-                      setAdjustment({
-                        ...adjustment,
-                        reason: e.target.value as typeof adjustment.reason,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
-                  >
-                    <option value="increase">Entrada (+)</option>
-                    <option value="decrease">Salida (-)</option>
-                    <option value="correction">Corrección</option>
-                    <option value="damage">Daño</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Cantidad
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    value={adjustment.delta}
-                    onChange={(e) =>
-                      setAdjustment({
-                        ...adjustment,
-                        delta: parseInt(e.target.value) || 0,
-                      })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
-                    placeholder="Cantidad a ajustar"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    Positivo para entrada, negativo para salida
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Nota (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={adjustment.note}
-                    onChange={(e) =>
-                      setAdjustment({ ...adjustment, note: e.target.value })
-                    }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-green-500"
-                    placeholder="Motivo del ajuste"
-                  />
-                </div>
-                <div className="flex justify-end pt-4 gap-3">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() => setIsAdjustModalOpen(false)}
-                  >
-                    Cancelar
-                  </Button>
-                  <Button type="submit" isLoading={adjustMutation.isPending}>
-                    Aplicar
                   </Button>
                 </div>
               </form>

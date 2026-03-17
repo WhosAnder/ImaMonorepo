@@ -57,7 +57,7 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
 
   // Fetch inventory
   const { data: inventoryItems, isLoading: loadingInventory } =
-    useWarehouseItems({ status: "active" });
+    useWarehouseItems();
   const herramientasOptions =
     inventoryItems?.filter(
       (i) => i.category?.toLowerCase() === "herramientas",
@@ -364,8 +364,8 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
                         >
                           <option value="">Seleccionar...</option>
                           {herramientasOptions.map((item) => (
-                            <option key={item._id} value={item.name}>
-                              {item.name} - Stock: {item.quantityOnHand}
+                            <option key={item.id} value={item.name}>
+                              {item.name} - Stock: {item.stock}
                             </option>
                           ))}
                         </select>
@@ -375,7 +375,7 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
                           Unidades (máx: {(() => {
                             const selectedName = watch(`herramientas.${index}.name`);
                             const selectedItem = herramientasOptions.find(i => i.name === selectedName);
-                            return selectedItem?.quantityOnHand || 0;
+                            return selectedItem?.stock || 0;
                           })()})
                         </label>
                         <input
@@ -388,7 +388,7 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
                           max={(() => {
                             const selectedName = watch(`herramientas.${index}.name`);
                             const selectedItem = herramientasOptions.find(i => i.name === selectedName);
-                            return selectedItem?.quantityOnHand || 999;
+                            return selectedItem?.stock || 999;
                           })()}
                         />
                       </div>
@@ -477,8 +477,8 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
                         >
                           <option value="">Seleccionar...</option>
                           {refaccionesOptions.map((item) => (
-                            <option key={item._id} value={item.name}>
-                              {item.name} - Stock: {item.quantityOnHand}
+                            <option key={item.id} value={item.name}>
+                              {item.name} - Stock: {item.stock}
                             </option>
                           ))}
                         </select>
@@ -488,7 +488,7 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
                           Unidades (máx: {(() => {
                             const selectedName = watch(`refacciones.${index}.name`);
                             const selectedItem = refaccionesOptions.find(i => i.name === selectedName);
-                            return selectedItem?.quantityOnHand || 0;
+                            return selectedItem?.stock || 0;
                           })()})
                         </label>
                         <input
@@ -501,7 +501,7 @@ export const NewWarehouseReportPage: React.FC<NewWarehouseReportPageProps> = ({
                           max={(() => {
                             const selectedName = watch(`refacciones.${index}.name`);
                             const selectedItem = refaccionesOptions.find(i => i.name === selectedName);
-                            return selectedItem?.quantityOnHand || 999;
+                            return selectedItem?.stock || 999;
                           })()}
                         />
                       </div>

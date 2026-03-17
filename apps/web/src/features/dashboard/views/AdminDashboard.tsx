@@ -6,7 +6,7 @@ import { apiGet } from "@/shared/lib/api";
 import { themes } from "@/shared/theme/colors";
 import { Plus, FileText, Package, TrendingUp } from "lucide-react";
 import type { WorkReportListItem } from "@/features/reports/types/workReportList";
-import { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
+import { WarehouseReportListItem } from "@/features/warehouse/types/warehouseReportList";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const RECENT_LIMIT = 5;
@@ -224,7 +224,7 @@ export function AdminDashboard() {
             <span className="font-medium">Nuevo reporte de trabajo</span>
           </Link>
           <Link
-            href="/almacen/new"
+            href="/warehouse/new"
             className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 hover:bg-gray-50 transition-colors"
             style={{
               borderColor: themes.warehouse.primary,

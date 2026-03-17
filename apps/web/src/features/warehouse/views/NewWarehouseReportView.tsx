@@ -184,7 +184,7 @@ export const NewWarehouseReportPage: React.FC = () => {
 
   // Fetch inventory - all active items are available for both sections
   const { data: inventoryItems, isLoading: isLoadingInventory } =
-    useWarehouseItems({ status: "active" });
+    useWarehouseItems();
   // Note: If categories are added to warehouse items in the future,
   // you can filter here: inventoryItems?.filter(i => i.category?.toLowerCase() === 'herramientas')
   const inventoryOptions = inventoryItems || [];
@@ -669,17 +669,24 @@ export const NewWarehouseReportPage: React.FC = () => {
         .toISOString()
         .slice(0, 16);
 
+      // Microservice expects { title, subsystem, data: { ...allFormFields } }
       const payload = {
-        ...data,
-        herramientas,
-        refacciones,
-        firmaQuienRecibe: signatureUploadResult.firmaQuienRecibe,
-        firmaAlmacenista: signatureUploadResult.firmaAlmacenista,
-        firmaQuienEntrega: signatureUploadResult.firmaQuienEntrega,
-        nombreAlmacenista: almacenistaName,
-        nombreQuienEntrega: quienEntregaName,
-        fechaHoraRecepcion: localISOTime,
-        tipoMantenimiento: "Preventivo",
+        title: `Reporte Almacén - ${data.subsistema}`,
+        subsystem: data.subsistema,
+        status: "active",
+        schemaVersion: 1,
+        data: {
+          ...data,
+          herramientas,
+          refacciones,
+          firmaQuienRecibe: signatureUploadResult.firmaQuienRecibe,
+          firmaAlmacenista: signatureUploadResult.firmaAlmacenista,
+          firmaQuienEntrega: signatureUploadResult.firmaQuienEntrega,
+          nombreAlmacenista: almacenistaName,
+          nombreQuienEntrega: quienEntregaName,
+          fechaHoraRecepcion: localISOTime,
+          tipoMantenimiento: "Preventivo",
+        },
       };
 
       console.log("Creating warehouse report with clean data...");
@@ -691,11 +698,11 @@ export const NewWarehouseReportPage: React.FC = () => {
         const draftId = buildDraftId(user.id, "warehouse");
         await deleteDraftRecord(draftId);
         const blobs = await listDraftBlobs(draftId);
-        await Promise.all(blobs.map((blob) => deleteDraftBlob(blob.id)));
+        await Promise.all(blobs.map((blob: any) => deleteDraftBlob(blob.id)));
       }
 
       // Redirect to reports list on success
-      router.push("/almacen");
+      router.push("/warehouse");
     } catch (error) {
       console.error("Error creating warehouse report:", error);
       alert(
@@ -829,7 +836,7 @@ export const NewWarehouseReportPage: React.FC = () => {
                                   const selectedId = event.target.value;
                                   field.onChange(selectedId);
                                   const selectedItem = inventoryOptions.find(
-                                    (item) => item._id === selectedId,
+                                    (item) => item.id === selectedId,
                                   );
                                   setValue(
                                     `herramientas.${index}.name`,
@@ -846,8 +853,8 @@ export const NewWarehouseReportPage: React.FC = () => {
                               >
                                 <option value="">Seleccionar...</option>
                                 {inventoryOptions.map((item) => (
-                                  <option key={item._id} value={item._id}>
-                                    {item.name} (Stock: {item.quantityOnHand})
+                                  <option key={item.id} value={item.id}>
+                                    {item.name} (Stock: {item.stock})
                                   </option>
                                 ))}
                               </Select>
@@ -980,7 +987,7 @@ export const NewWarehouseReportPage: React.FC = () => {
                                   const selectedId = event.target.value;
                                   field.onChange(selectedId);
                                   const selectedItem = inventoryOptions.find(
-                                    (item) => item._id === selectedId,
+                                    (item) => item.id === selectedId,
                                   );
                                   setValue(
                                     `refacciones.${index}.name`,
@@ -997,8 +1004,8 @@ export const NewWarehouseReportPage: React.FC = () => {
                               >
                                 <option value="">Seleccionar...</option>
                                 {inventoryOptions.map((item) => (
-                                  <option key={item._id} value={item._id}>
-                                    {item.name} (Stock: {item.quantityOnHand})
+                                  <option key={item.id} value={item.id}>
+                                    {item.name} (Stock: {item.stock})
                                   </option>
                                 ))}
                               </Select>

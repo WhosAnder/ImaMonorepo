@@ -6,36 +6,30 @@ import {
   createWarehouseReport,
   updateWarehouseReport,
   deleteWarehouseReport,
-  PaginatedResponse,
-  PaginationParams,
+  ReportResponse,
+  PaginatedReportsResponse,
+  ReportListParams,
 } from "../api/reportsClient";
-import { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
-import { WarehouseReport } from "@/features/almacen/types/warehouseReport";
-
-interface UseWarehouseReportsQueryOptions {
-  enabled?: boolean;
-  pagination?: PaginationParams;
-}
 
 export function useWarehouseReportsQuery(
-  options?: UseWarehouseReportsQueryOptions,
+  options?: { enabled?: boolean; pagination?: ReportListParams },
 ) {
   return useQuery({
     queryKey: ["warehouseReports", options?.pagination],
     queryFn: () => fetchWarehouseReports(options?.pagination),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
     enabled: options?.enabled ?? true,
   });
 }
 
 export function useWarehouseReportsPaginatedQuery(
-  pagination?: PaginationParams,
+  pagination?: ReportListParams,
   options?: { enabled?: boolean },
 ) {
-  return useQuery<PaginatedResponse<WarehouseReportListItem>>({
+  return useQuery<PaginatedReportsResponse>({
     queryKey: ["warehouseReports", "paginated", pagination],
     queryFn: () => fetchWarehouseReportsPaginated(pagination),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
     enabled: options?.enabled ?? true,
   });
 }
@@ -45,7 +39,7 @@ export function useWarehouseReportQuery(id: string) {
     queryKey: ["warehouseReports", id],
     queryFn: () => fetchWarehouseReportById(id),
     enabled: Boolean(id),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 }
 
@@ -62,8 +56,8 @@ export function useCreateWarehouseReportMutation() {
 export function useUpdateWarehouseReportMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<WarehouseReport> }) =>
-      updateWarehouseReport(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Record<string, any> }) =>
+      updateWarehouseReport(id, { data }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["warehouseReports"] });
       queryClient.invalidateQueries({ queryKey: ["warehouseReports", variables.id] });
@@ -76,7 +70,6 @@ export function useDeleteWarehouseReportMutation() {
   return useMutation({
     mutationFn: (id: string) => deleteWarehouseReport(id),
     onSuccess: () => {
-      // Invalidate all warehouseReports queries with immediate refetch
       queryClient.invalidateQueries({ 
         queryKey: ["warehouseReports"],
         refetchType: 'all'

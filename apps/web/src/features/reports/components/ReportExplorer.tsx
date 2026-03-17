@@ -338,7 +338,7 @@ export const ReportExplorer: React.FC<ReportExplorerProps> = ({ type }) => {
     if (type === "work") {
       router.push(`/reports/${report.reportId}`);
     } else {
-      router.push(`/almacen/${report.reportId}`);
+      router.push(`/warehouse/${report.reportId}`);
     }
   };
 

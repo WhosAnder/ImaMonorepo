@@ -6,34 +6,30 @@ import {
   createWorkReport,
   updateWorkReport,
   deleteWorkReport,
-  PaginatedResponse,
-  PaginationParams,
+  ReportResponse,
+  PaginatedReportsResponse,
+  ReportListParams,
 } from "../api/reportsClient";
-import { WorkReportListItem } from "@/features/reports/types/workReportList";
-import { WorkReport } from "@/features/reports/types/workReport";
 
-interface UseWorkReportsQueryOptions {
-  enabled?: boolean;
-  pagination?: PaginationParams;
-}
-
-export function useWorkReportsQuery(options?: UseWorkReportsQueryOptions) {
+export function useWorkReportsQuery(
+  options?: { enabled?: boolean; pagination?: ReportListParams },
+) {
   return useQuery({
     queryKey: ["workReports", options?.pagination],
     queryFn: () => fetchWorkReports(options?.pagination),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
     enabled: options?.enabled ?? true,
   });
 }
 
 export function useWorkReportsPaginatedQuery(
-  pagination?: PaginationParams,
+  pagination?: ReportListParams,
   options?: { enabled?: boolean },
 ) {
-  return useQuery<PaginatedResponse<WorkReportListItem>>({
+  return useQuery<PaginatedReportsResponse>({
     queryKey: ["workReports", "paginated", pagination],
     queryFn: () => fetchWorkReportsPaginated(pagination),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
     enabled: options?.enabled ?? true,
   });
 }
@@ -43,7 +39,7 @@ export function useWorkReportQuery(id: string) {
     queryKey: ["workReports", id],
     queryFn: () => fetchWorkReportById(id),
     enabled: Boolean(id),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 1000 * 60 * 5,
   });
 }
 
@@ -60,8 +56,8 @@ export function useCreateWorkReportMutation() {
 export function useUpdateWorkReportMutation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<WorkReport> }) =>
-      updateWorkReport(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Record<string, any> }) =>
+      updateWorkReport(id, { data }),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["workReports"] });
       queryClient.invalidateQueries({ queryKey: ["workReports", variables.id] });
@@ -74,7 +70,6 @@ export function useDeleteWorkReportMutation() {
   return useMutation({
     mutationFn: (id: string) => deleteWorkReport(id),
     onSuccess: () => {
-      // Invalidate all workReports queries with immediate refetch
       queryClient.invalidateQueries({ 
         queryKey: ["workReports"],
         refetchType: 'all'

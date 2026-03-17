@@ -49,20 +49,20 @@ export const ReportsListPage: React.FC = () => {
     { enabled: isSearching },
   );
 
-  const workReports = paginatedResult?.data ?? [];
-  const totalReports = paginatedResult?.total ?? 0;
+  const workReports = paginatedResult?.items ?? [];
+  const totalReports = paginatedResult?.pagination?.total ?? 0;
   const totalPages = Math.ceil(totalReports / PAGE_SIZE);
 
-  const filteredReports = workReports.filter((report) => {
+  const filteredReports = workReports.filter((report: any) => {
     const matchesSearch =
       report.folio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.subsistema.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.responsable.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.fecha.toLowerCase().includes(searchTerm.toLowerCase());
+      report.subsystem.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (report.data.responsable || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (report.data.fecha || "").toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesShift =
       filterStatus === "all" ||
-      report.turno.toLowerCase() === filterStatus.toLowerCase();
+      (report.data.turno || "").toLowerCase() === filterStatus.toLowerCase();
 
     return matchesSearch && matchesShift;
   });
@@ -178,7 +178,7 @@ export const ReportsListPage: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredReports.map((report) => (
+                    filteredReports.map((report: any) => (
                       <tr
                         key={report.id}
                         className="bg-white hover:bg-gray-50 transition-colors"
@@ -191,36 +191,36 @@ export const ReportsListPage: React.FC = () => {
                             <FileText className="h-4 w-4 mr-2 text-gray-400 shrink-0" />
                             <span
                               className="block truncate max-w-[200px]"
-                              title={report.subsistema}
+                              title={report.subsystem}
                             >
-                              {report.subsistema}
+                              {report.subsystem}
                             </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
                           <div className="flex items-center">
                             <Calendar className="h-4 w-4 mr-2 text-gray-400 shrink-0" />
-                            {report.fecha}
+                            {report.data.fecha}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-gray-900 whitespace-nowrap">
                           <div className="flex items-center">
                             <User className="h-4 w-4 mr-2 text-gray-400 shrink-0" />
-                            {report.responsable}
+                            {report.data.responsable}
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span
                             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                                 ${
-                                  report.turno === "Matutino"
+                                  report.data.turno === "Matutino"
                                     ? "bg-yellow-100 text-yellow-800"
-                                    : report.turno === "Vespertino"
+                                    : report.data.turno === "Vespertino"
                                       ? "bg-orange-100 text-orange-800"
                                       : "bg-indigo-100 text-indigo-800"
                                 }`}
                           >
-                            {report.turno}
+                            {report.data.turno}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right whitespace-nowrap">

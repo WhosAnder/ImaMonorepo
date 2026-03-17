@@ -49,25 +49,25 @@ export const WarehouseReportsListPage: React.FC = () => {
     { enabled: isSearching },
   );
 
-  const warehouseReports = paginatedResult?.data ?? [];
-  const totalReports = paginatedResult?.total ?? 0;
+  const warehouseReports = paginatedResult?.items ?? [];
+  const totalReports = paginatedResult?.pagination?.total ?? 0;
   const totalPages = Math.ceil(totalReports / PAGE_SIZE);
 
-  const filteredReports = warehouseReports.filter((report) => {
+  const filteredReports = warehouseReports.filter((report: any) => {
     const matchesSearch =
       report.folio.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.subsistema.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      report.responsableAlmacen
+      report.subsystem.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (report.data.responsableAlmacen || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      report.responsableRecepcion
+      (report.data.responsableRecepcion || "")
         .toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      report.fechaEntrega.toLowerCase().includes(searchTerm.toLowerCase());
+      (report.data.fechaEntrega || "").toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesShift =
       filterStatus === "all" ||
-      report.turno.toLowerCase() === filterStatus.toLowerCase();
+      (report.data.turno || "").toLowerCase() === filterStatus.toLowerCase();
 
     return matchesSearch && matchesShift;
   });
@@ -98,7 +98,7 @@ export const WarehouseReportsListPage: React.FC = () => {
               Gestiona y consulta las entregas de material
             </p>
           </div>
-          <Button onClick={() => router.push("/almacen/new")}>
+          <Button onClick={() => router.push("/warehouse/new")}>
             <Plus className="h-4 w-4 mr-2" />
             Nueva Entrega
           </Button>
@@ -183,7 +183,7 @@ export const WarehouseReportsListPage: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredReports.map((report) => (
+                    filteredReports.map((report: any) => (
                       <tr
                         key={report.id}
                         className="bg-white hover:bg-gray-50 transition-colors"
@@ -195,33 +195,33 @@ export const WarehouseReportsListPage: React.FC = () => {
                           <div className="flex items-center">
                             <Package className="h-4 w-4 mr-2 text-gray-400 shrink-0" />
                             <span
-                              className="block truncate max-w-[200px]"
-                              title={report.subsistema}
+                               className="block truncate max-w-[200px]"
+                              title={report.subsystem}
                             >
-                              {report.subsistema}
+                              {report.subsystem}
                             </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
                           <div className="flex items-center">
                             <Calendar className="h-4 w-4 mr-2 text-gray-400 shrink-0" />
-                            {report.fechaEntrega}
+                            {report.data.fechaEntrega}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-gray-900 whitespace-nowrap">
                           <div className="flex items-center">
                             <User className="h-4 w-4 mr-2 text-gray-400 shrink-0" />
-                            {report.responsableAlmacen}
+                            {report.data.responsableAlmacen}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
-                          {report.responsableRecepcion}
+                          {report.data.responsableRecepcion}
                         </td>
                         <td className="px-6 py-4 text-right whitespace-nowrap">
                           <Button
                             variant="ghost"
                             className="text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                            onClick={() => router.push(`/almacen/${report.id}`)}
+                            onClick={() => router.push(`/warehouse/${report.id}`)}
                           >
                             Ver detalle
                             <ArrowRight className="ml-1 h-3 w-3" />
