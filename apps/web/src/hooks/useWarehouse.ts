@@ -4,13 +4,11 @@ import {
   fetchWarehouseItemById,
   createWarehouseItem,
   updateWarehouseItem,
-  adjustWarehouseStock,
-  fetchWarehouseAdjustments,
+  deleteWarehouseItem,
+  searchWarehouseItems,
   WarehouseFilters,
   CreateWarehouseItemInput,
   UpdateWarehouseItemInput,
-  AdjustmentInput,
-  deleteWarehouseItem,
 } from "@/api/warehouseClient";
 
 const WAREHOUSE_KEY = ["warehouse"];
@@ -58,47 +56,6 @@ export function useUpdateWarehouseItem() {
   });
 }
 
-export function useAdjustWarehouseStock() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: ({
-      id,
-      adjustment,
-    }: {
-      id: string;
-      adjustment: AdjustmentInput;
-    }) => adjustWarehouseStock(id, adjustment),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEY });
-    },
-  });
-}
-
-export function useWarehouseAdjustments(
-  id: string | undefined,
-  limit?: number,
-) {
-  return useQuery({
-    queryKey: [...WAREHOUSE_KEY, "adjustments", id, limit],
-    queryFn: () => fetchWarehouseAdjustments(id!, limit),
-    enabled: !!id,
-  });
-}
-
-// Helper hooks for specific filters
-export function useLowStockItems() {
-  return useWarehouseItems({ lowStock: true });
-}
-
-export function useWarehouseItemsByCategory(category: string) {
-  return useWarehouseItems({ category });
-}
-
-export function useActiveWarehouseItems() {
-  return useWarehouseItems({ status: "active" });
-}
-
 export function useDeleteWarehouseItem() {
   const queryClient = useQueryClient();
 
@@ -107,5 +64,13 @@ export function useDeleteWarehouseItem() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: WAREHOUSE_KEY });
     },
+  });
+}
+
+export function useWarehouseSearch(q: string, limit: number = 10) {
+  return useQuery({
+    queryKey: [...WAREHOUSE_KEY, "search", q, limit],
+    queryFn: () => searchWarehouseItems(q, limit),
+    enabled: q.length >= 2,
   });
 }

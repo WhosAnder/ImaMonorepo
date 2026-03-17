@@ -1,24 +1,24 @@
+import { ObjectId } from "mongodb";
+
 export type DraftReportType = "work" | "warehouse";
 
-export interface DraftEvidenceRef {
-  id?: string;
-  s3Key?: string;
-  syncState?: "pending" | "synced" | "failed";
-  isLocked?: boolean;
-  phase?: string;
-  name?: string;
-  size?: number;
-  mimeType?: string;
-}
-
 export interface DraftRecord {
-  _id?: unknown;
+  _id?: ObjectId;
   userId: string;
   reportType: DraftReportType;
   formData: Record<string, unknown>;
   evidenceRefs?: DraftEvidenceRef[];
-  signatureRefs?: Record<string, unknown>;
-  status?: "active" | "completed";
+  version: number;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface DraftEvidenceRef {
+  id: string;
+  s3Key?: string;
+  phase?: string;
+  name?: string;
+  size?: number;
+  mimeType?: string;
+  syncState: "pending" | "synced" | "failed";
 }

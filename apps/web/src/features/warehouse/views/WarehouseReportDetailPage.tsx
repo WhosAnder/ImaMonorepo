@@ -30,7 +30,7 @@ export const WarehouseReportDetailPage: React.FC = () => {
   const handleDelete = async () => {
     try {
       await deleteMutation.mutateAsync(id);
-      router.push("/almacen");
+      router.push("/warehouse");
     } catch (error) {
       console.error("Error deleting report:", error);
     }
@@ -56,7 +56,7 @@ export const WarehouseReportDetailPage: React.FC = () => {
           <p className="text-gray-500">
             El reporte que buscas no existe o no está disponible.
           </p>
-          <Button variant="secondary" onClick={() => router.push("/almacen")}>
+          <Button variant="secondary" onClick={() => router.push("/warehouse")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Volver a la lista
           </Button>
@@ -66,7 +66,7 @@ export const WarehouseReportDetailPage: React.FC = () => {
   }
 
   return (
-    <AppLayout title={`Reporte ${report.subsistema}`}>
+    <AppLayout title={`Reporte ${report.subsystem}`}>
       <div className="space-y-6 max-w-[1200px] mx-auto pb-12">
         <div className="w-full">
           <div className="">
@@ -102,7 +102,7 @@ export const WarehouseReportDetailPage: React.FC = () => {
           </div>
         </div>
 
-        <WarehouseReportPreview values={report} />
+        <WarehouseReportPreview values={report.data as any} />
         <Button
           variant="secondary"
           onClick={() => generatePDFReport(report as any)}
@@ -111,12 +111,12 @@ export const WarehouseReportDetailPage: React.FC = () => {
         </Button>
 
         {/* Evidence Gallery Section */}
-        {((report.herramientas && report.herramientas.length > 0) ||
-          (report.refacciones && report.refacciones.length > 0)) && (
+        {(((report.data as any)?.herramientas?.length > 0) ||
+          ((report.data as any)?.refacciones?.length > 0)) && (
             <div className="mt-8">
               <WarehouseEvidenceGallery
-                herramientas={report.herramientas || []}
-                refacciones={report.refacciones || []}
+                herramientas={(report.data as any)?.herramientas || []}
+                refacciones={(report.data as any)?.refacciones || []}
               />
             </div>
           )}
@@ -127,7 +127,7 @@ export const WarehouseReportDetailPage: React.FC = () => {
         onCancel={() => setShowDeleteModal(false)}
         onConfirm={handleDelete}
         isLoading={deleteMutation.isPending}
-        itemName={`Reporte ${report.subsistema}`}
+        itemName={`Reporte ${report.subsystem}`}
       />
     </AppLayout>
   );

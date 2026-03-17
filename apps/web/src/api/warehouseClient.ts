@@ -1,61 +1,33 @@
-import { API_URL } from "@/config/env";
+import { WAREHOUSE_URL } from "@/config/env";
 
-// Types
+// Types matching the Go warehouse microservice model
 export interface WarehouseItem {
-  _id: string;
+  id: string; // UUID (not MongoDB ObjectId)
   sku: string;
   name: string;
   description?: string;
   category?: string;
-  location?: string;
-  unit?: string;
-  quantityOnHand: number;
-  minQuantity?: number;
-  maxQuantity?: number;
-  reorderPoint?: number;
-  allowNegative?: boolean;
-  tags?: string[];
-  status: "active" | "inactive";
-  availableQuantity: number;
-  isBelowMinimum: boolean;
-  isAboveMaximum: boolean;
-  needsReorder: boolean;
-  lastAdjustmentAt?: string;
-  lastAdjustmentBy?: {
-    id?: string;
-    name?: string;
-    role?: string;
-  };
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface WarehouseAdjustment {
-  _id: string;
-  itemId: string;
-  delta: number;
-  reason:
-  | "initial"
-  | "increase"
-  | "decrease"
-  | "correction"
-  | "damage"
-  | "audit";
-  note?: string;
-  actorId?: string;
-  actorName?: string;
-  actorRole?: string;
-  resultingQuantity: number;
-  createdAt: string;
+  unit: string;
+  stock: number;
+  available_qty: number;
+  reserved_qty: number;
+  version: number;
+  active: boolean;
+  location: string;
+  tags: string[];
+  min_quantity: number;
+  max_quantity?: number;
+  reorder_point: number;
+  allow_negative: boolean;
+  created_at?: string;
+  updated_at?: string;
+  deleted_at?: string;
 }
 
 export interface WarehouseFilters {
-  category?: string;
-  location?: string;
-  status?: "active" | "inactive";
+  page?: number;
+  limit?: number;
   search?: string;
-  lowStock?: boolean;
-  hideEmpty?: boolean;
 }
 
 export interface CreateWarehouseItemInput {
@@ -63,14 +35,15 @@ export interface CreateWarehouseItemInput {
   name: string;
   description?: string;
   category?: string;
-  location?: string;
   unit?: string;
-  quantityOnHand: number;
-  minQuantity?: number;
-  maxQuantity?: number;
-  reorderPoint?: number;
-  allowNegative?: boolean;
+  stock: number;
+  active: boolean;
+  location: string;
   tags?: string[];
+  min_quantity?: number;
+  max_quantity?: number;
+  reorder_point?: number;
+  allow_negative?: boolean;
 }
 
 export interface UpdateWarehouseItemInput {
@@ -78,26 +51,15 @@ export interface UpdateWarehouseItemInput {
   name?: string;
   description?: string;
   category?: string;
-  location?: string;
   unit?: string;
-  minQuantity?: number;
-  maxQuantity?: number;
-  reorderPoint?: number;
-  allowNegative?: boolean;
+  stock?: number;
+  active?: boolean;
+  location?: string;
   tags?: string[];
-  status?: "active" | "inactive";
-}
-
-export interface AdjustmentInput {
-  delta: number;
-  reason:
-  | "initial"
-  | "increase"
-  | "decrease"
-  | "correction"
-  | "damage"
-  | "audit";
-  note?: string;
+  min_quantity?: number;
+  max_quantity?: number;
+  reorder_point?: number;
+  allow_negative?: boolean;
 }
 
 // Helper to get auth headers
@@ -117,61 +79,70 @@ function getAuthHeaders(): Record<string, string> {
   }
 }
 
-// API Functions
+// ============================================================================
+// API Functions — consuming ima-warehouse-service via gateway
+// ============================================================================
 
 export async function fetchWarehouseItems(
   filters: WarehouseFilters = {},
 ): Promise<WarehouseItem[]> {
   const params = new URLSearchParams();
-  if (filters.category) params.append("category", filters.category);
-  if (filters.location) params.append("location", filters.location);
-  if (filters.status) params.append("status", filters.status);
-  if (filters.search) params.append("search", filters.search);
-  if (filters.lowStock !== undefined)
-    params.append("lowStock", String(filters.lowStock));
-  if (filters.hideEmpty !== undefined)
-    params.append("hideEmpty", String(filters.hideEmpty));
+  if (filters.page !== undefined) params.append("page", String(filters.page));
+  if (filters.limit !== undefined)
+    params.append("limit", String(filters.limit));
 
-  const response = await fetch(`${API_URL}/api/warehouse?${params.toString()}`, {
+  const qs = params.toString();
+  const url = qs ? `${WAREHOUSE_URL}/?${qs}` : `${WAREHOUSE_URL}/`;
+
+  const response = await fetch(url, {
     credentials: "include",
   });
   if (!response.ok) {
     throw new Error("Failed to fetch warehouse items");
   }
-  return response.json();
+  const result = await response.json();
+  return result.data ?? [];
+}
+
+export async function searchWarehouseItems(
+  q: string,
+  limit: number = 10,
+): Promise<{ id: string; sku: string; name: string }[]> {
+  const params = new URLSearchParams();
+  params.append("q", q);
+  params.append("limit", String(limit));
+
+  const response = await fetch(
+    `${WAREHOUSE_URL}/search?${params.toString()}`,
+    {
+      credentials: "include",
+    },
+  );
+  if (!response.ok) {
+    throw new Error("Failed to search warehouse items");
+  }
+  const result = await response.json();
+  return result.data ?? [];
 }
 
 export async function fetchWarehouseItemById(
   id: string,
 ): Promise<WarehouseItem> {
-  const response = await fetch(`${API_URL}/api/warehouse/${id}`, {
+  const response = await fetch(`${WAREHOUSE_URL}/${id}`, {
     credentials: "include",
   });
   if (!response.ok) {
+    if (response.status === 404) throw new Error("NOT_FOUND");
     throw new Error("Failed to fetch warehouse item");
   }
-  return response.json();
-}
-
-export async function deleteWarehouseItem(id: string): Promise<WarehouseItem> {
-  const response = await fetch(`${API_URL}/api/warehouse/${id}`, {
-    method: "DELETE",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-    },
-    credentials: "include",
-  });
-  if (!response.ok) {
-    throw new Error("Failed to delete warehouse item");
-  }
-  return response.json();
+  const result = await response.json();
+  return result.data;
 }
 
 export async function createWarehouseItem(
   data: CreateWarehouseItemInput,
 ): Promise<WarehouseItem> {
-  const response = await fetch(`${API_URL}/api/warehouse`, {
+  const response = await fetch(`${WAREHOUSE_URL}/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -187,14 +158,15 @@ export async function createWarehouseItem(
     }
     throw new Error(error.error || "Failed to create warehouse item");
   }
-  return response.json();
+  const result = await response.json();
+  return result.data;
 }
 
 export async function updateWarehouseItem(
   id: string,
   data: UpdateWarehouseItemInput,
 ): Promise<WarehouseItem> {
-  const response = await fetch(`${API_URL}/api/warehouse/${id}`, {
+  const response = await fetch(`${WAREHOUSE_URL}/${id}`, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -206,44 +178,25 @@ export async function updateWarehouseItem(
   if (!response.ok) {
     throw new Error("Failed to update warehouse item");
   }
-  return response.json();
+  const result = await response.json();
+  return result.data;
 }
 
-export async function adjustWarehouseStock(
+export async function deleteWarehouseItem(
   id: string,
-  adjustment: AdjustmentInput,
-): Promise<{ item: WarehouseItem; adjustment: WarehouseAdjustment }> {
-  const response = await fetch(`${API_URL}/api/warehouse/${id}/adjustments`, {
-    method: "POST",
+): Promise<WarehouseItem> {
+  const response = await fetch(`${WAREHOUSE_URL}/${id}`, {
+    method: "DELETE",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
     credentials: "include",
-    body: JSON.stringify(adjustment),
   });
   if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.error || "Failed to adjust stock");
+    if (response.status === 404) throw new Error("NOT_FOUND");
+    throw new Error("Failed to delete warehouse item");
   }
-  return response.json();
-}
-
-export async function fetchWarehouseAdjustments(
-  id: string,
-  limit?: number,
-): Promise<WarehouseAdjustment[]> {
-  const params = new URLSearchParams();
-  if (limit) params.append("limit", String(limit));
-
-  const response = await fetch(
-    `${API_URL}/api/warehouse/${id}/adjustments?${params.toString()}`,
-    {
-      credentials: "include",
-    },
-  );
-  if (!response.ok) {
-    throw new Error("Failed to fetch adjustments");
-  }
-  return response.json();
+  const result = await response.json();
+  return result.data;
 }

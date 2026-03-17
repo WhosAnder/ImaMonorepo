@@ -14,7 +14,7 @@ export const navConfig: Record<UserRole, RoleNavConfig> = {
     main: [
       { label: "Dashboard", href: "/dashboard" },
       { label: "Reportes de trabajo", href: "/reports" },
-      { label: "Reportes de almacén", href: "/almacen" },
+      { label: "Reportes de almacén", href: "/warehouse" },
       { label: "Inventario", href: "/inventario" },
       { label: "Trabajadores", href: "/admin/workers" },
     ],
@@ -28,7 +28,7 @@ export const navConfig: Record<UserRole, RoleNavConfig> = {
   warehouse: {
     main: [
       { label: "Dashboard", href: "/dashboard" },
-      { label: "Reportes de almacén", href: "/almacen" },
+      { label: "Reportes de almacén", href: "/warehouse" },
       { label: "Inventario", href: "/inventario" },
     ],
   },

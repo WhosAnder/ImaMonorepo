@@ -92,12 +92,12 @@ export const WorkReportDetailPage: React.FC = () => {
           </div>
         </div>
 
-        <WorkReportPreview values={report} />
+        <WorkReportPreview values={report.data as any} />
         
         <div className="flex gap-3">
           <Button
             variant="secondary"
-            onClick={() => generateWorkReportPDF(report as any)}
+            onClick={() => generateWorkReportPDF(report.data as any)}
           >
             Descargar PDF <DownloadIcon className="h-4 w-4 ml-2" />
           </Button>
@@ -108,14 +108,14 @@ export const WorkReportDetailPage: React.FC = () => {
               setIsDownloadingImages(true);
               try {
                 await downloadReportImages(
-                  report.actividadesRealizadas || [],
+                  (report.data as any).actividadesRealizadas || [],
                   report.folio
                 );
               } finally {
                 setIsDownloadingImages(false);
               }
             }}
-            disabled={isDownloadingImages || !report.actividadesRealizadas?.some(a => a.evidencias && a.evidencias.length > 0)}
+            disabled={isDownloadingImages || !(report.data as any).actividadesRealizadas?.some((a: any) => a.evidencias && a.evidencias.length > 0)}
           >
             {isDownloadingImages ? "Descargando..." : "Descargar Imágenes"}
             <DownloadIcon className="h-4 w-4 ml-2" />
@@ -123,11 +123,11 @@ export const WorkReportDetailPage: React.FC = () => {
         </div>
 
         {/* Evidence Gallery Section */}
-        {report.actividadesRealizadas &&
-          report.actividadesRealizadas.length > 0 && (
+        {(report.data as any).actividadesRealizadas &&
+          (report.data as any).actividadesRealizadas.length > 0 && (
             <div className="mt-8">
               <WorkReportEvidenceGallery
-                actividadesRealizadas={report.actividadesRealizadas}
+                actividadesRealizadas={(report.data as any).actividadesRealizadas}
               />
             </div>
           )}

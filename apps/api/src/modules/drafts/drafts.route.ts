@@ -1,31 +1,15 @@
 import { Hono } from "hono";
 import {
-  createDraftController,
-  deleteDraftController,
   getDraftController,
-  updateDraftController,
+  upsertDraftController,
+  deleteDraftController,
 } from "./drafts.controller";
 import { requireRole } from "../../middleware/roleGuard";
 
 export const draftsRoute = new Hono();
 
-draftsRoute.get(
-  "/",
-  requireRole(["admin", "supervisor", "warehouse"]),
-  getDraftController,
-);
-draftsRoute.post(
-  "/",
-  requireRole(["admin", "supervisor", "warehouse"]),
-  createDraftController,
-);
-draftsRoute.put(
-  "/:id",
-  requireRole(["admin", "supervisor", "warehouse"]),
-  updateDraftController,
-);
-draftsRoute.delete(
-  "/:id",
-  requireRole(["admin", "supervisor", "warehouse"]),
-  deleteDraftController,
-);
+const roles = ["admin", "supervisor", "warehouse"] as const;
+
+draftsRoute.get("/", requireRole([...roles]), getDraftController);
+draftsRoute.put("/", requireRole([...roles]), upsertDraftController);
+draftsRoute.delete("/", requireRole([...roles]), deleteDraftController);

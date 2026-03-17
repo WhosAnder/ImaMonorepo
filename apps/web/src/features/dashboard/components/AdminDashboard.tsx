@@ -6,7 +6,7 @@ import { apiGet } from "@/shared/lib/api";
 import { themes } from "@/shared/theme/colors";
 import { Plus, FileText, Package, TrendingUp } from "lucide-react";
 import type { WorkReportListItem } from "@/features/reports/types/workReportList";
-import type { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
+import type { WarehouseReportListItem } from "@/features/warehouse/types/warehouseReportList";
 
 export function AdminDashboard() {
   const themeColor = themes.admin.primary;
@@ -35,7 +35,7 @@ export function AdminDashboard() {
     ...warehouseReports.slice(0, 3).map((r) => ({
       ...r,
       type: "Almacén" as const,
-      href: `/almacen/${r.id}`,
+      href: `/warehouse/${r.id}`,
       fecha: r.fechaEntrega,
     })),
   ].slice(0, 6);
@@ -139,7 +139,7 @@ export function AdminDashboard() {
             <span className="font-medium">Nuevo reporte de trabajo</span>
           </Link>
           <Link
-            href="/almacen/new"
+            href="/warehouse/new"
             className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 hover:bg-gray-50 transition-colors"
             style={{
               borderColor: themes.warehouse.primary,

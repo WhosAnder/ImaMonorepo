@@ -1,20 +1,20 @@
 import { z } from "zod";
 
 const DraftEvidenceRefSchema = z.object({
-  id: z.string().optional(),
+  id: z.string(),
   s3Key: z.string().optional(),
-  syncState: z.enum(["pending", "synced", "failed"]).optional(),
-  isLocked: z.boolean().optional(),
   phase: z.string().optional(),
   name: z.string().optional(),
   size: z.number().optional(),
   mimeType: z.string().optional(),
+  syncState: z.enum(["pending", "synced", "failed"]).default("pending"),
 });
 
-export const DraftSchema = z.object({
+export const UpsertDraftSchema = z.object({
   reportType: z.enum(["work", "warehouse"]),
   formData: z.record(z.string(), z.unknown()),
   evidenceRefs: z.array(DraftEvidenceRefSchema).optional(),
-  signatureRefs: z.record(z.string(), z.unknown()).optional(),
-  status: z.enum(["active", "completed"]).optional(),
+  version: z.number().optional(),
 });
+
+export type UpsertDraftInput = z.infer<typeof UpsertDraftSchema>;

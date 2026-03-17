@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "@/shared/lib/api";
 import { themes } from "@/shared/theme/colors";
 import { Plus, Package, Clock, TrendingUp } from "lucide-react";
-import type { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
+import type { WarehouseReportListItem } from "@/features/warehouse/types/warehouseReportList";
 
 export function WarehouseDashboard() {
   const themeColor = themes.warehouse.primary;
@@ -101,7 +101,7 @@ export function WarehouseDashboard() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <Link
-                      href={`/almacen/${report.id}`}
+                      href={`/warehouse/${report.id}`}
                       className="hover:underline"
                       style={{ color: themeColor }}
                     >
@@ -122,7 +122,7 @@ export function WarehouseDashboard() {
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Link
-            href="/almacen/new"
+            href="/warehouse/new"
             className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 hover:bg-gray-50 transition-colors"
             style={{ borderColor: themeColor, color: themeColor }}
           >
@@ -130,7 +130,7 @@ export function WarehouseDashboard() {
             <span className="font-medium">Nuevo reporte de almacén</span>
           </Link>
           <Link
-            href="/almacen"
+            href="/warehouse"
             className="flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 hover:bg-gray-50 transition-colors"
             style={{ borderColor: themeColor, color: themeColor }}
           >

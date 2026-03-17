@@ -1,6 +1,6 @@
 "use client";
 
-import { NewWarehouseReportPage } from "@/features/almacen/views/NewWarehouseReportPage";
+import { NewWarehouseReportPage } from "@/features/warehouse/views/NewWarehouseReportPage";
 import { useParams } from "next/navigation";
 
 export default function EditWarehouseReportPage() {

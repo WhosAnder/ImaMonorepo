@@ -143,7 +143,7 @@ export const EvidenceCarousel: React.FC<EvidenceCarouselProps> = ({
                   }`}
                 >
                   <img
-                    src={evidence.url}
+                    src={evidence.url || undefined}
                     alt={`Miniatura ${index + 1}`}
                     className="w-full h-full object-cover"
                   />

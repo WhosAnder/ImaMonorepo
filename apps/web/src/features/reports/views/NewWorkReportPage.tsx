@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-// Simple Card component to match almacen/new UX
+// Simple Card component to match warehouse/new UX
 const Card = ({
   children,
   className = "",
@@ -264,13 +264,13 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
 
   // Fetch inventory
   const { data: warehouseItems = [], isLoading: loadingInventory } =
-    useWarehouseItems({ status: "active" });
+    useWarehouseItems();
 
   const { herramientasOptions, refaccionesOptions } = useMemo(() => {
     const toOption = (item: WarehouseItem) => {
       const stockInfo =
-        typeof item.quantityOnHand === "number"
-          ? ` · Stock: ${item.quantityOnHand}${item.unit ? ` ${item.unit}` : ""}`
+        typeof item.stock === "number"
+          ? ` · Stock: ${item.stock}${item.unit ? ` ${item.unit}` : ""}`
           : "";
       return {
         value: item.name,
@@ -1305,7 +1305,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           // Delete local IndexedDB draft only
           await deleteDraftRecord(draftId);
           const blobs = await listDraftBlobs(draftId);
-          await Promise.all(blobs.map((blob) => deleteDraftBlob(blob.id)));
+          await Promise.all(blobs.map((blob: any) => deleteDraftBlob(blob.id)));
           console.log("✅ Local draft deleted successfully");
         }
 

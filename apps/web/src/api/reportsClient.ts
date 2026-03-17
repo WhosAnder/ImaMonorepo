@@ -1,18 +1,85 @@
-import { WorkReport } from "@/features/reports/types/workReport";
-import { WorkReportListItem } from "@/features/reports/types/workReportList";
-import { WarehouseReport } from "@/features/almacen/types/warehouseReport";
-import { WarehouseReportListItem } from "@/features/almacen/types/warehouseReportList";
-import { API_URL } from "../config/env";
+import { REPORTS_URL } from "@/config/env";
 
-const AUTH_STORAGE_KEY = "ima_auth_user";
+// ============================================================================
+// Types matching the Go reports microservice model
+// ============================================================================
 
-// Helper to get auth headers for protected requests
+export interface ReportResponse {
+  id: string;
+  reportType: "work" | "warehouse";
+  folio: string;
+  subsystem: string;
+  title: string;
+  status: string;
+  schemaVersion: number;
+  data: Record<string, any>;
+  stock?: StockSync;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StockSync {
+  reservationId?: string;
+  status: string;
+  idempotencyKey?: string;
+  expiresAt?: string;
+  lastError?: {
+    code: string;
+    message: string;
+    timestamp: string;
+  };
+  updatedAt: string;
+}
+
+export interface PaginatedReportsResponse {
+  items: ReportResponse[];
+  pagination: {
+    page?: number;
+    limit: number;
+    total: number;
+    nextCursor?: string | null;
+  };
+}
+
+export interface ReportListParams {
+  page?: number;
+  limit?: number;
+  cursor?: string;
+  folio?: string;
+  status?: string;
+  // Data filters use dot notation: data.subsistema=value
+  [key: string]: string | number | undefined;
+}
+
+export interface CreateReportInput {
+  title: string;
+  subsystem: string;
+  status?: string;
+  schemaVersion?: number;
+  data: Record<string, any>;
+  stock?: {
+    idempotencyKey?: string;
+    ttlMinutes?: number;
+    items: { sku: string; qty: number }[];
+  };
+}
+
+export interface UpdateReportInput {
+  title?: string;
+  status?: string;
+  schemaVersion?: number;
+  data?: Record<string, any>;
+}
+
+// Backward-compatible aliases for hooks that import old names
+export type PaginatedResponse<T> = { items: T[]; pagination: PaginatedReportsResponse["pagination"] };
+export type PaginationParams = ReportListParams;
+
+// Helper to get auth headers
 function getAuthHeaders(): Record<string, string> {
   if (typeof window === "undefined") return {};
-
-  const stored = localStorage.getItem(AUTH_STORAGE_KEY);
+  const stored = localStorage.getItem("ima_auth_user");
   if (!stored) return {};
-
   try {
     const user = JSON.parse(stored);
     return {
@@ -25,46 +92,51 @@ function getAuthHeaders(): Record<string, string> {
   }
 }
 
-// Pagination types
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  limit: number;
-  offset: number;
-}
+// ============================================================================
+// Work Reports — consuming ima-reports-service via gateway at /reports/work
+// ============================================================================
 
-export interface PaginationParams {
-  limit?: number;
-  offset?: number;
-}
-
-// Work reports
 export async function fetchWorkReports(
-  pagination?: PaginationParams,
-): Promise<WorkReportListItem[]> {
-  const url = new URL(`${API_URL}/api/reports`);
-  if (pagination?.limit)
-    url.searchParams.set("limit", String(pagination.limit));
-  if (pagination?.offset)
-    url.searchParams.set("offset", String(pagination.offset));
+  params: ReportListParams = {},
+): Promise<ReportResponse[]> {
+  const url = new URL(`${REPORTS_URL}/work`);
+  if (params.page) url.searchParams.set("page", String(params.page));
+  if (params.limit) url.searchParams.set("limit", String(params.limit));
+  if (params.cursor) url.searchParams.set("cursor", params.cursor);
+  if (params.folio) url.searchParams.set("folio", params.folio);
+  if (params.status) url.searchParams.set("status", params.status);
+
+  // Forward data filters
+  for (const [key, value] of Object.entries(params)) {
+    if (key.startsWith("data.") && value !== undefined) {
+      url.searchParams.set(key, String(value));
+    }
+  }
 
   const res = await fetch(url.toString(), {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Error fetching work reports");
 
-  const result: PaginatedResponse<WorkReportListItem> = await res.json();
-  return result.data;
+  const result: PaginatedReportsResponse = await res.json();
+  return result.items;
 }
 
 export async function fetchWorkReportsPaginated(
-  pagination?: PaginationParams,
-): Promise<PaginatedResponse<WorkReportListItem>> {
-  const url = new URL(`${API_URL}/api/reports`);
-  if (pagination?.limit)
-    url.searchParams.set("limit", String(pagination.limit));
-  if (pagination?.offset)
-    url.searchParams.set("offset", String(pagination.offset));
+  params: ReportListParams = {},
+): Promise<PaginatedReportsResponse> {
+  const url = new URL(`${REPORTS_URL}/work`);
+  if (params.page) url.searchParams.set("page", String(params.page));
+  if (params.limit) url.searchParams.set("limit", String(params.limit));
+  if (params.cursor) url.searchParams.set("cursor", params.cursor);
+  if (params.folio) url.searchParams.set("folio", params.folio);
+  if (params.status) url.searchParams.set("status", params.status);
+
+  for (const [key, value] of Object.entries(params)) {
+    if (key.startsWith("data.") && value !== undefined) {
+      url.searchParams.set(key, String(value));
+    }
+  }
 
   const res = await fetch(url.toString(), {
     credentials: "include",
@@ -74,8 +146,10 @@ export async function fetchWorkReportsPaginated(
   return res.json();
 }
 
-export async function fetchWorkReportById(id: string): Promise<WorkReport> {
-  const res = await fetch(`${API_URL}/api/reports/${id}`, {
+export async function fetchWorkReportById(
+  id: string,
+): Promise<ReportResponse> {
+  const res = await fetch(`${REPORTS_URL}/work/${id}`, {
     credentials: "include",
   });
   if (!res.ok) {
@@ -85,11 +159,14 @@ export async function fetchWorkReportById(id: string): Promise<WorkReport> {
   return res.json();
 }
 
-export async function createWorkReport(data: any): Promise<WorkReport> {
-  const res = await fetch(`${API_URL}/api/reports`, {
+export async function createWorkReport(
+  data: CreateReportInput,
+): Promise<ReportResponse> {
+  const res = await fetch(`${REPORTS_URL}/work`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeaders(),
     },
     credentials: "include",
     body: JSON.stringify(data),
@@ -105,7 +182,6 @@ export async function createWorkReport(data: any): Promise<WorkReport> {
       errorData = { error: errorText || "Unknown error" };
     }
 
-    // Create enhanced error with code and status
     const error: any = new Error(
       errorData.error || "Error creating work report",
     );
@@ -120,10 +196,10 @@ export async function createWorkReport(data: any): Promise<WorkReport> {
 
 export async function updateWorkReport(
   id: string,
-  data: Partial<WorkReport>,
-): Promise<WorkReport> {
-  const res = await fetch(`${API_URL}/api/reports/${id}`, {
-    method: "PUT",
+  data: UpdateReportInput,
+): Promise<ReportResponse> {
+  const res = await fetch(`${REPORTS_URL}/work/${id}`, {
+    method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
@@ -147,7 +223,7 @@ export async function updateWorkReport(
 }
 
 export async function deleteWorkReport(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/reports/${id}`, {
+  const res = await fetch(`${REPORTS_URL}/work/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
     credentials: "include",
@@ -159,33 +235,50 @@ export async function deleteWorkReport(id: string): Promise<void> {
   }
 }
 
-// Warehouse reports
+// ============================================================================
+// Warehouse Reports — consuming ima-reports-service via gateway at /reports/warehouse
+// ============================================================================
+
 export async function fetchWarehouseReports(
-  pagination?: PaginationParams,
-): Promise<WarehouseReportListItem[]> {
-  const url = new URL(`${API_URL}/api/warehouse-reports`);
-  if (pagination?.limit)
-    url.searchParams.set("limit", String(pagination.limit));
-  if (pagination?.offset)
-    url.searchParams.set("offset", String(pagination.offset));
+  params: ReportListParams = {},
+): Promise<ReportResponse[]> {
+  const url = new URL(`${REPORTS_URL}/warehouse`);
+  if (params.page) url.searchParams.set("page", String(params.page));
+  if (params.limit) url.searchParams.set("limit", String(params.limit));
+  if (params.cursor) url.searchParams.set("cursor", params.cursor);
+  if (params.folio) url.searchParams.set("folio", params.folio);
+  if (params.status) url.searchParams.set("status", params.status);
+
+  for (const [key, value] of Object.entries(params)) {
+    if (key.startsWith("data.") && value !== undefined) {
+      url.searchParams.set(key, String(value));
+    }
+  }
 
   const res = await fetch(url.toString(), {
     credentials: "include",
   });
   if (!res.ok) throw new Error("Error fetching warehouse reports");
 
-  const result: PaginatedResponse<WarehouseReportListItem> = await res.json();
-  return result.data;
+  const result: PaginatedReportsResponse = await res.json();
+  return result.items;
 }
 
 export async function fetchWarehouseReportsPaginated(
-  pagination?: PaginationParams,
-): Promise<PaginatedResponse<WarehouseReportListItem>> {
-  const url = new URL(`${API_URL}/api/warehouse-reports`);
-  if (pagination?.limit)
-    url.searchParams.set("limit", String(pagination.limit));
-  if (pagination?.offset)
-    url.searchParams.set("offset", String(pagination.offset));
+  params: ReportListParams = {},
+): Promise<PaginatedReportsResponse> {
+  const url = new URL(`${REPORTS_URL}/warehouse`);
+  if (params.page) url.searchParams.set("page", String(params.page));
+  if (params.limit) url.searchParams.set("limit", String(params.limit));
+  if (params.cursor) url.searchParams.set("cursor", params.cursor);
+  if (params.folio) url.searchParams.set("folio", params.folio);
+  if (params.status) url.searchParams.set("status", params.status);
+
+  for (const [key, value] of Object.entries(params)) {
+    if (key.startsWith("data.") && value !== undefined) {
+      url.searchParams.set(key, String(value));
+    }
+  }
 
   const res = await fetch(url.toString(), {
     credentials: "include",
@@ -197,8 +290,8 @@ export async function fetchWarehouseReportsPaginated(
 
 export async function fetchWarehouseReportById(
   id: string,
-): Promise<WarehouseReport> {
-  const res = await fetch(`${API_URL}/api/warehouse-reports/${id}`, {
+): Promise<ReportResponse> {
+  const res = await fetch(`${REPORTS_URL}/warehouse/${id}`, {
     credentials: "include",
   });
   if (!res.ok) {
@@ -209,12 +302,13 @@ export async function fetchWarehouseReportById(
 }
 
 export async function createWarehouseReport(
-  data: any,
-): Promise<WarehouseReport> {
-  const res = await fetch(`${API_URL}/api/warehouse-reports`, {
+  data: CreateReportInput,
+): Promise<ReportResponse> {
+  const res = await fetch(`${REPORTS_URL}/warehouse`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeaders(),
     },
     credentials: "include",
     body: JSON.stringify(data),
@@ -229,10 +323,10 @@ export async function createWarehouseReport(
 
 export async function updateWarehouseReport(
   id: string,
-  data: Partial<WarehouseReport>,
-): Promise<WarehouseReport> {
-  const res = await fetch(`${API_URL}/api/warehouse-reports/${id}`, {
-    method: "PUT",
+  data: UpdateReportInput,
+): Promise<ReportResponse> {
+  const res = await fetch(`${REPORTS_URL}/warehouse/${id}`, {
+    method: "PATCH",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
@@ -249,7 +343,7 @@ export async function updateWarehouseReport(
 }
 
 export async function deleteWarehouseReport(id: string): Promise<void> {
-  const res = await fetch(`${API_URL}/api/warehouse-reports/${id}`, {
+  const res = await fetch(`${REPORTS_URL}/warehouse/${id}`, {
     method: "DELETE",
     headers: getAuthHeaders(),
     credentials: "include",
