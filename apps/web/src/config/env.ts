@@ -11,7 +11,7 @@ export const WAREHOUSE_URL = `${GATEWAY_URL}/warehouse`;
 export const REPORTS_URL = `${GATEWAY_URL}/reports`;
 
 // Legacy monolith via gateway (templates, storage, workers, explorer, drafts)
-export const API_URL = `${GATEWAY_URL}/api`;
+export const API_URL = GATEWAY_URL;
 
 export const S3_PRESIGNER_BASE =
   process.env.NEXT_PUBLIC_S3_PRESIGNER_BASE ?? API_URL;

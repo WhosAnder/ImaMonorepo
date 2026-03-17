@@ -3,8 +3,7 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  useTemplateFilters,
-  useActivitiesBySubsystemAndFrequency,
+  useMaintenanceProgram,
 } from "@/hooks/useTemplates";
 import {
   useCreateWorkReportMutation,
@@ -210,9 +209,14 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   const customSubsistema = watch("customSubsistema");
   const customFrecuencia = watch("customFrecuencia");
 
-  const { data: filtersData, isLoading: isLoadingFilters } =
-    useTemplateFilters("work");
-  const subsystems = filtersData?.subsistemas || [];
+  // Maintenance Program Data fetch
+  const { data: programData, isLoading: isLoadingFilters } = useMaintenanceProgram();
+  const isLoadingFreq = isLoadingFilters;
+  const isLoadingActivities = false;
+
+  const subsystems = useMemo(() => {
+    return programData?.map((p) => p.subsystem) || [];
+  }, [programData]);
 
   // Add "Otros" option to subsystems list
   const subsystemsWithOtros = useMemo(() => {
@@ -228,18 +232,34 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   // Effective frequency for API calls
   const effectiveFrecuencia = isOtrosSelected ? customFrecuencia : frecuencia;
 
-  const { data: freqData, isLoading: isLoadingFreq } = useTemplateFilters(
-    "work",
-    effectiveSubsistema || undefined,
-  );
-  const frequencies = freqData?.frecuencias || [];
+  const frequencies = useMemo(() => {
+    if (!subsistema || isOtrosSelected || !programData) return [];
+    const subData = programData.find((p) => p.subsystem === subsistema);
+    if (!subData) return [];
+    return subData.frequencies.map((f) => ({
+      code: f.frequencyCode,
+      label: f.frequencyLabel,
+    }));
+  }, [subsistema, isOtrosSelected, programData]);
 
-  const { data: activities, isLoading: isLoadingActivities } =
-    useActivitiesBySubsystemAndFrequency({
-      tipoReporte: "work",
-      subsistema: effectiveSubsistema || undefined,
-      frecuenciaCodigo: effectiveFrecuencia || undefined,
-    });
+  const activities = useMemo(() => {
+    if (!subsistema || !frecuencia || isOtrosSelected || !programData) return [];
+    const subData = programData.find((p) => p.subsystem === subsistema);
+    if (!subData) return [];
+    const freqData = subData.frequencies.find((f) => f.frequencyCode === frecuencia);
+    if (!freqData) return [];
+    
+    return freqData.activities.map((act) => ({
+      id: act.id,
+      code: act.maintenanceCode || act.maintenanceType,
+      name: act.shortName || act.description || "Actividad sin nombre",
+      template: {
+        _id: act.id,
+        frecuenciaCodigo: freqData.frequencyCode,
+        tipoMantenimiento: act.maintenanceType,
+      } as any,
+    }));
+  }, [subsistema, frecuencia, isOtrosSelected, programData]);
 
   // Fetch workers - include inactive to show all workers
   const {

@@ -5,6 +5,15 @@ import {
   fetchTemplateFilters,
 } from "../api/templatesClient";
 import { Template, TemplateFilters } from "@/types/template";
+import { fetchMaintenanceProgram } from "@/api/reportsClient";
+
+export function useMaintenanceProgram() {
+  return useQuery({
+    queryKey: ["maintenance-program"],
+    queryFn: fetchMaintenanceProgram,
+    staleTime: 1000 * 60 * 60, // 1 hour, rarely changes
+  });
+}
 
 export function useTemplates(filters: TemplateFilters = {}) {
   return useQuery({

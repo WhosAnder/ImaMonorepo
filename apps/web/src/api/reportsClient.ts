@@ -93,6 +93,38 @@ function getAuthHeaders(): Record<string, string> {
 }
 
 // ============================================================================
+// Maintenance Program (Templates)
+// ============================================================================
+
+export interface MaintenanceActivity {
+  id: string;
+  maintenanceType: string;
+  maintenanceCode?: string;
+  activityNumber?: number;
+  shortName: string;
+  description: string;
+}
+
+export interface MaintenanceFrequency {
+  frequencyCode: string;
+  frequencyLabel: string;
+  activities: MaintenanceActivity[];
+}
+
+export interface MaintenanceSubsystem {
+  subsystem: string;
+  frequencies: MaintenanceFrequency[];
+}
+
+export async function fetchMaintenanceProgram(): Promise<MaintenanceSubsystem[]> {
+  const res = await fetch(`${REPORTS_URL}/maintenance-program`, {
+    credentials: "include",
+  });
+  if (!res.ok) throw new Error("Error fetching maintenance program");
+  return res.json();
+}
+
+// ============================================================================
 // Work Reports — consuming ima-reports-service via gateway at /reports/work
 // ============================================================================
 
