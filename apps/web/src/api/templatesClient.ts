@@ -1,4 +1,4 @@
-import { API_URL } from "@/config/env";
+import { REPORTS_URL } from "@/config/env";
 import { Template, TemplateFilters } from "@/types/template";
 
 export type TemplateFiltersResponse = {
@@ -19,7 +19,7 @@ export async function fetchTemplateFilters(params: {
     query.append("tipoMantenimiento", params.tipoMantenimiento);
 
   const response = await fetch(
-    `${API_URL}/api/templates/filters?${query.toString()}`,
+    `${REPORTS_URL}/templates/filters?${query.toString()}`,
   );
   if (!response.ok) {
     throw new Error("Failed to fetch template filters");
@@ -39,7 +39,7 @@ export async function fetchTemplates(
   if (filters.frecuenciaCodigo)
     params.append("frecuenciaCodigo", filters.frecuenciaCodigo);
 
-  const response = await fetch(`${API_URL}/api/templates?${params.toString()}`);
+  const response = await fetch(`${REPORTS_URL}/templates?${params.toString()}`);
   if (!response.ok) {
     throw new Error("Failed to fetch templates");
   }
@@ -47,7 +47,7 @@ export async function fetchTemplates(
 }
 
 export async function fetchTemplateById(id: string): Promise<Template> {
-  const response = await fetch(`${API_URL}/api/templates/${id}`);
+  const response = await fetch(`${REPORTS_URL}/templates/${id}`);
   if (!response.ok) {
     throw new Error("Failed to fetch template");
   }
