@@ -950,6 +950,16 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
       return;
     }
 
+    // Validate that effectiveSubsistema is not empty (covers "Otros" with blank custom)
+    const resolvedSubsistema = effectiveSubsistema || data.subsistema;
+    if (!resolvedSubsistema?.trim()) {
+      alert("Debes seleccionar o especificar un subsistema antes de guardar el reporte.");
+      const el = document.querySelector("[name='customSubsistema'], [name='subsistema']") as HTMLElement | null;
+      el?.scrollIntoView({ behavior: "smooth", block: "center" });
+      return;
+    }
+
+
     const now = new Date();
     const offset = now.getTimezoneOffset() * 60000;
     const localISOTime = new Date(now.getTime() - offset)
