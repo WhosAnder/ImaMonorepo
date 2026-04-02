@@ -997,7 +997,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
 
       // Step 2: Prepare payload with S3 signature key
       const { customSubsistema: _, customFrecuencia: __, ...restData } = data;
-      const payload = {
+      const formFieldsData = {
         ...restData,
         firmaResponsable: firmaResponsableKey, // Use S3 key instead of base64
         subsistema: effectiveSubsistema, // Use custom subsystem if "Otros" is selected
@@ -1006,10 +1006,18 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
         templateIds: selectedActivitiesData.map((a) => a.template.id || a.id),
         maintenanceType:
           selectedActivitiesData[0]?.template.maintenanceType || "Preventivo",
-        // Legacy fields required by backend
+        // Legacy fields
         inspeccionRealizada: actividadesConEvidencias[0]?.realizado ?? false,
         observacionesActividad:
           actividadesConEvidencias[0]?.observaciones ?? "",
+      };
+
+      const payload = {
+        title: `Reporte de ${effectiveSubsistema || "Trabajo"}`,
+        subsystem: effectiveSubsistema || "Otros",
+        status: "open",
+        schemaVersion: 1,
+        data: formFieldsData
       };
 
       // Step 3: Create or update report
@@ -1022,7 +1030,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
         router.push(`/reports/${reportId}`);
       } else {
         const result = await createReportMutation.mutateAsync(payload as any);
-        const reportIdFromResponse = (result as any)._id;
+        const reportIdFromResponse = (result as any).id || (result as any)._id;
 
         if (reportIdFromResponse) {
           // Upload three-phase evidences to S3

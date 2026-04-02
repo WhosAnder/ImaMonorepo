@@ -87,7 +87,7 @@ function buildSubsystemSlugField() {
       $trim: {
         input: {
           $replaceAll: {
-            input: { $ifNull: ["$subsistema", "sin-subsistema"] },
+            input: { $ifNull: ["$subsistema", "$subsystem", "sin-subsistema"] },
             find: " ",
             replacement: "-",
           },
@@ -119,7 +119,7 @@ async function getSubsystemFolders(
   const pipeline = [
     {
       $group: {
-        _id: { $ifNull: ["$subsistema", "General"] },
+        _id: { $ifNull: ["$subsistema", "$subsystem", "General"] },
         count: { $sum: 1 },
       },
     },
@@ -176,7 +176,10 @@ async function getYearFolders(
     },
     {
       $match: {
-        subsistema: subsystemName,
+        $or: [
+          { subsistema: subsystemName },
+          { subsystem: subsystemName }
+        ]
       },
     },
     {
@@ -227,7 +230,10 @@ async function getMonthFolders(
     },
     {
       $match: {
-        subsistema: subsystemName,
+        $or: [
+          { subsistema: subsystemName },
+          { subsystem: subsystemName }
+        ],
         $expr: { $eq: [{ $year: "$_dateField" }, year] },
       },
     },
@@ -281,7 +287,10 @@ async function getDayFolders(
     },
     {
       $match: {
-        subsistema: subsystemName,
+        $or: [
+          { subsistema: subsystemName },
+          { subsystem: subsystemName }
+        ],
         $expr: {
           $and: [
             { $eq: [{ $year: "$_dateField" }, year] },
@@ -344,7 +353,10 @@ async function getReportsForDay(
     },
     {
       $match: {
-        subsistema: subsystemName,
+        $or: [
+          { subsistema: subsystemName },
+          { subsystem: subsystemName }
+        ],
         $expr: {
           $and: [
             { $eq: [{ $year: "$_dateField" }, year] },
@@ -358,14 +370,14 @@ async function getReportsForDay(
       $project: {
         _id: 1,
         folio: 1,
-        subsistema: 1,
+        subsistema: { $ifNull: ["$subsistema", "$subsystem"] },
         createdAt: 1,
         fecha: 1,
         status: 1,
-        realizadoPor: 1,
-        solicitante: 1,
-        actividadRealizada: 1,
-        responsableRecepcion: 1,
+        realizadoPor: { $ifNull: ["$realizadoPor", "$data.responsable"] },
+        solicitante: { $ifNull: ["$solicitante", "$data.solicitante"] },
+        actividadRealizada: { $ifNull: ["$actividadRealizada", "$data.observacionesActividad", "$data.observacionesGenerales"] },
+        responsableRecepcion: { $ifNull: ["$responsableRecepcion", "$data.nombreQuienRecibe"] },
       },
     },
     {
