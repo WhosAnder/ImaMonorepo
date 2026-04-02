@@ -60,19 +60,7 @@ import { EvidencePhaseSection } from "../components/EvidencePhaseSection";
 import { useAuth } from "@/auth/AuthContext";
 import type { WarehouseItem } from "@/api/warehouseClient";
 import { uploadEvidence } from "@/api/evidencesClient";
-import {
-  blobToDataUrl,
-  buildBlobId,
-  buildDraftId,
-  dataUrlToBlob,
-  deleteDraftBlob,
-  deleteDraftRecord,
-  getDraftBlob,
-  getDraftRecord,
-  listDraftBlobs,
-  saveDraftBlob,
-  saveDraftRecord,
-} from "@/features/reports/drafts/draftStorage";
+import { draftsDB } from "@/utils/helpers/draftsdb";
 // Server-side drafts removed - using local IndexedDB only
 import { presignDownload } from "@/api/evidencesClient";
 import { API_URL } from "@/config/env";
@@ -139,9 +127,10 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   const [activitiesState, setActivitiesState] = useState<ActivityWithDetails[]>(
     [],
   );
-  const [draftStatus, setDraftStatus] = useState<"empty" | "loaded">("empty");
+  const [draftStatus, setDraftStatus] = useState<"empty" | "loaded" | "saved" | "error">("empty");
   const draftRestorationGuardRef = useRef(false);
   const draftLoadedRef = useRef(false); // Prevent duplicate draft load prompts
+  const draftActivitiesRef = useRef<any[] | null>(null); // Stores draft activities to merge after fetch
 
   const [customActivities, setCustomActivities] = useState<
     ActivityWithDetails[]
@@ -212,7 +201,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
 
   const { data: filtersData, isLoading: isLoadingFilters } =
     useTemplateFilters("work");
-  const subsystems = filtersData?.subsistemas || [];
+  const subsystems = filtersData?.subsystems || [];
 
   // Add "Otros" option to subsystems list
   const subsystemsWithOtros = useMemo(() => {
@@ -232,13 +221,13 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
     "work",
     effectiveSubsistema || undefined,
   );
-  const frequencies = freqData?.frecuencias || [];
+  const frequencies = freqData?.frequencies || [];
 
   const { data: activities, isLoading: isLoadingActivities } =
     useActivitiesBySubsystemAndFrequency({
-      tipoReporte: "work",
-      subsistema: effectiveSubsistema || undefined,
-      frecuenciaCodigo: effectiveFrecuencia || undefined,
+      reportType: "work",
+      subsystem: effectiveSubsistema || undefined,
+      frequencyCode: effectiveFrecuencia || undefined,
     });
 
   // Fetch workers - include inactive to show all workers
@@ -322,27 +311,62 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
   }, [effectiveSubsistema, effectiveFrecuencia]);
 
   useEffect(() => {
-    if (draftRestorationGuardRef.current) return;
     if (activities && activities.length > 0) {
-      setActivitiesState(
-        activities.map((act) => ({
-          id: act.id,
-          name: act.name,
-          code: act.code,
-          template: act.template,
-          isSelected: false,
-          observaciones: "",
-          evidencias: [],
-          expanded: false,
-        })),
-      );
+      const draftActs = draftActivitiesRef.current;
+      if (draftActs && draftActs.length > 0) {
+        // Merge: mark activities that were selected in the draft
+        const draftMap = new Map(
+          draftActs.map((da: any) => [da.templateId || da.nombre, da])
+        );
+        setActivitiesState(
+          activities.map((act) => {
+            const match = draftMap.get(act.template.id || act.id) || draftMap.get(act.name);
+            if (match) {
+              return {
+                id: act.id,
+                name: act.name,
+                code: act.code,
+                template: act.template,
+                isSelected: true,
+                observaciones: match.observaciones || "",
+                evidencias: match.evidencias || [],
+                expanded: true,
+              };
+            }
+            return {
+              id: act.id,
+              name: act.name,
+              code: act.code,
+              template: act.template,
+              isSelected: false,
+              observaciones: "",
+              evidencias: [],
+              expanded: false,
+            };
+          }),
+        );
+        draftActivitiesRef.current = null; // Clear after use
+      } else {
+        setActivitiesState(
+          activities.map((act) => ({
+            id: act.id,
+            name: act.name,
+            code: act.code,
+            template: act.template,
+            isSelected: false,
+            observaciones: "",
+            evidencias: [],
+            expanded: false,
+          })),
+        );
+      }
     }
   }, [activities]);
 
   useEffect(() => {
     const selected = activitiesState.filter((a) => a.isSelected);
     const formActivities = selected.map((a) => ({
-      templateId: a.template._id || a.id,
+      templateId: a.template.id || a.id,
       nombre: a.name,
       realizado: true,
       observaciones: a.observaciones,
@@ -351,12 +375,12 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
     setValue("actividadesRealizadas", formActivities);
     setValue(
       "templateIds",
-      selected.map((a) => a.template._id || a.id),
+      selected.map((a) => a.template.id || a.id),
     );
   }, [activitiesState, setValue]);
 
   const hydrateEvidenceList = async (
-    draftId: string,
+    blobsMap: Map<string, string>,
     evidences: LocalEvidence[],
   ): Promise<LocalEvidence[]> => {
     const buildFallbackUrl = (key: string) =>
@@ -403,35 +427,34 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           }
           return evidence;
         }
-        if (!evidence.blobId) return evidence;
-        const blobRecord = await getDraftBlob(evidence.blobId);
-        if (!blobRecord?.blob) return evidence;
-        const dataUrl = await blobToDataUrl(blobRecord.blob);
+        if (!evidence.id) return evidence;
+        const b64 = blobsMap.get(evidence.id);
+        if (!b64) return evidence;
         return {
           ...evidence,
-          previewUrl: dataUrl,
-          base64: dataUrl,
+          previewUrl: b64,
+          base64: b64,
         };
       }),
     );
   };
 
   const hydrateEvidencePhases = async (
-    draftId: string,
+    blobsMap: Map<string, string>,
     phases: typeof evidencePhases,
   ) => {
     return {
       antes: {
         ...phases.antes,
-        evidences: await hydrateEvidenceList(draftId, phases.antes.evidences),
+        evidences: await hydrateEvidenceList(blobsMap, phases.antes.evidences),
       },
       durante: {
         ...phases.durante,
-        evidences: await hydrateEvidenceList(draftId, phases.durante.evidences),
+        evidences: await hydrateEvidenceList(blobsMap, phases.durante.evidences),
       },
       despues: {
         ...phases.despues,
-        evidences: await hydrateEvidenceList(draftId, phases.despues.evidences),
+        evidences: await hydrateEvidenceList(blobsMap, phases.despues.evidences),
       },
     };
   };
@@ -443,8 +466,8 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
 
     const loadDraft = async () => {
       try {
-        const localDraft = await getDraftRecord<any>(user.id, "work");
-        const draftData = localDraft?.data;
+        const { metadata, blobs } = await draftsDB.getDraft(user.id, "work");
+        const draftData = metadata?.data;
 
         if (draftData?.formValues) {
           // Prevent duplicate prompts (React Strict Mode runs effects twice)
@@ -468,6 +491,10 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           console.log("🔄 Fields loaded:", Object.keys(draftData.formValues || {}));
 
           draftRestorationGuardRef.current = true;
+          // Store draft activities for later merge when server activities arrive
+          if (draftData.formValues?.actividadesRealizadas) {
+            draftActivitiesRef.current = draftData.formValues.actividadesRealizadas;
+          }
           reset(draftData.formValues);
           
           // Use setTimeout to ensure setValue calls execute after reset completes
@@ -499,9 +526,12 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           
           // Restore evidence phases
           if (draftData.evidencePhases) {
-            const draftId = buildDraftId(user.id, "work");
+            const blobsMap = new Map<string, string>();
+            for (const b of blobs) {
+              blobsMap.set(b.evidenceId, b.data);
+            }
             const hydratedPhases = await hydrateEvidencePhases(
-              draftId,
+              blobsMap,
               draftData.evidencePhases,
             );
             setEvidencePhases(hydratedPhases);
@@ -509,7 +539,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           
           console.log("✅ After setValue calls, current form values:", getValues());
           draftRestorationGuardRef.current = false;
-          }, 150); // 150ms delay to ensure reset completes
+          }, 3000); // 3s delay to allow activities to load from server
           
           setDraftStatus("loaded");
         }
@@ -606,131 +636,11 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
     }
   };
 
-  const ensureEvidenceBlob = async (draftId: string, evidence: LocalEvidence) => {
-    const dataUrl = evidence.base64 || evidence.previewUrl;
-    if (!dataUrl || !dataUrl.startsWith("data:")) {
-      return evidence;
-    }
-    const blobId = evidence.blobId || buildBlobId(draftId, evidence.id);
-    if (!evidence.blobId) {
-      const blob = dataUrlToBlob(dataUrl);
-      await saveDraftBlob({
-        id: blobId,
-        draftId,
-        evidenceId: evidence.id,
-        blob,
-        name: evidence.name || evidence.originalName,
-        type: blob.type,
-        size: blob.size,
-        createdAt: new Date().toISOString(),
-      });
-    }
-    return {
-      ...evidence,
-      blobId,
-      syncState: evidence.syncState || "pending",
-    };
-  };
+  
 
-  const stripEvidence = (evidence: LocalEvidence) => {
-    if (
-      typeof evidence.previewUrl === "string" &&
-      evidence.previewUrl.startsWith("data:")
-    ) {
-      return {
-        ...evidence,
-        previewUrl: "",
-        base64: "",
-      } as LocalEvidence;
-    }
-    return {
-      ...evidence,
-      base64: "",
-    } as LocalEvidence;
-  };
+  
 
-  const persistDraftSnapshot = async (
-    phases: typeof evidencePhases,
-  ): Promise<void> => {
-    if (typeof window === "undefined") return;
-    if (!user?.id) return;
-
-    const draftId = buildDraftId(user.id, "work");
-    const currentValues = getValues();
-
-    const actividadesConEvidencias = await prepareActivityEvidence(
-      currentValues.actividadesRealizadas || [],
-    );
-    const firmaResponsable = await convertSignatureToBase64(
-      currentValues.firmaResponsable || null,
-    );
-
-    const processedPhases = {
-      antes: {
-        ...phases.antes,
-        evidences: await Promise.all(
-          phases.antes.evidences.map((evidence) =>
-            ensureEvidenceBlob(draftId, evidence),
-          ),
-        ),
-      },
-      durante: {
-        ...phases.durante,
-        evidences: await Promise.all(
-          phases.durante.evidences.map((evidence) =>
-            ensureEvidenceBlob(draftId, evidence),
-          ),
-        ),
-      },
-      despues: {
-        ...phases.despues,
-        evidences: await Promise.all(
-          phases.despues.evidences.map((evidence) =>
-            ensureEvidenceBlob(draftId, evidence),
-          ),
-        ),
-      },
-    };
-
-    const storedPhases = {
-      antes: {
-        ...processedPhases.antes,
-        evidences: processedPhases.antes.evidences.map(stripEvidence),
-      },
-      durante: {
-        ...processedPhases.durante,
-        evidences: processedPhases.durante.evidences.map(stripEvidence),
-      },
-      despues: {
-        ...processedPhases.despues,
-        evidences: processedPhases.despues.evidences.map(stripEvidence),
-      },
-    };
-
-    const draftPayload = {
-      formValues: {
-        ...currentValues,
-        actividadesRealizadas: actividadesConEvidencias,
-        firmaResponsable,
-      },
-      evidencePhases: storedPhases,
-      timestamp: new Date().toISOString(),
-    };
-
-    console.log("💾 SAVING DRAFT - Form Values:", draftPayload.formValues);
-    console.log("💾 Fields saved:", Object.keys(draftPayload.formValues));
-
-    await saveDraftRecord({
-      id: draftId,
-      userId: user.id,
-      reportType: "work",
-      data: draftPayload,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-
-    // Server-side draft sync removed - local IndexedDB only
-  };
+  
 
   const handleSavePhase = async (phase: "antes" | "durante" | "despues") => {
     if (typeof window === "undefined") return;
@@ -739,8 +649,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
       return;
     }
 
-    const draftId = buildDraftId(user.id, "work");
-    const uploadId = draftId.replace(/[:]/g, "-");
+    const uploadId = `${user.id}-work`.replace(/[:]/g, "-");
     const currentValues = getValues();
     const subsistemaValue = effectiveSubsistema || currentValues.subsistema;
     if (!subsistemaValue || !currentValues.fechaHoraInicio) {
@@ -800,11 +709,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
         ...evidencePhases,
         [phase]: {
           ...phaseState,
-          evidences: await Promise.all(
-            updatedEvidences.map((evidence) =>
-              ensureEvidenceBlob(draftId, evidence),
-            ),
-          ),
+          evidences: updatedEvidences,
           isLocked: true,
         },
       } as typeof evidencePhases;
@@ -817,7 +722,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
         setActivePhase("despues");
       }
 
-      await persistDraftSnapshot(nextPhases);
+      // await persistDraftSnapshot(nextPhases);
     } catch (error) {
       console.error("Error saving phase:", error);
       const message =
@@ -843,104 +748,50 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
       return;
     }
 
-    const draftId = buildDraftId(user.id, "work");
-    const uploadId = draftId.replace(/[:]/g, "-");
-
     try {
       const currentValues = getValues();
+      const actividadesConEvidencias = await prepareActivityEvidence(
+        currentValues.actividadesRealizadas || [],
+      );
+      const firmaResponsable = await convertSignatureToBase64(
+        currentValues.firmaResponsable || null,
+      );
 
-      const processedPhases = {
-        antes: {
-          ...evidencePhases.antes,
-          evidences: await Promise.all(
-            evidencePhases.antes.evidences.map((evidence) =>
-              ensureEvidenceBlob(draftId, evidence),
-            ),
-          ),
+      const draftPayload = {
+        formValues: {
+          ...currentValues,
+          actividadesRealizadas: actividadesConEvidencias,
+          firmaResponsable,
         },
-        durante: {
-          ...evidencePhases.durante,
-          evidences: await Promise.all(
-            evidencePhases.durante.evidences.map((evidence) =>
-              ensureEvidenceBlob(draftId, evidence),
-            ),
-          ),
-        },
-        despues: {
-          ...evidencePhases.despues,
-          evidences: await Promise.all(
-            evidencePhases.despues.evidences.map((evidence) =>
-              ensureEvidenceBlob(draftId, evidence),
-            ),
-          ),
-        },
+        evidencePhases: evidencePhases,
+        timestamp: new Date().toISOString(),
       };
 
-      const uploadPhaseEvidences = async (
-        phaseKey: "antes" | "durante" | "despues",
-        phaseLabel: string,
-      ) => {
-        const phase = processedPhases[phaseKey];
-        const updated: LocalEvidence[] = [];
+      const allEvidences = [
+        ...evidencePhases.antes.evidences,
+        ...evidencePhases.durante.evidences,
+        ...evidencePhases.despues.evidences,
+      ]
+        .map((ev) => ({
+          id: ev.id,
+          base64:
+            ev.base64 ||
+            (typeof ev.previewUrl === "string" &&
+            ev.previewUrl.startsWith("data:")
+              ? ev.previewUrl
+              : ""),
+        }))
+        .filter((ev) => !!ev.base64);
 
-        for (let i = 0; i < phase.evidences.length; i++) {
-          const evidence = phase.evidences[i];
-          if (evidence.isLocked && evidence.s3Key) {
-            updated.push(evidence);
-            continue;
-          }
+      console.log("💾 SAVING METADATA INSTANTLY...");
+      await draftsDB.saveDraft(user.id, "work", draftPayload, allEvidences);
 
-          const dataUrl = evidence.base64 || evidence.previewUrl;
-          if (!dataUrl || !dataUrl.startsWith("data:")) {
-            updated.push(evidence);
-            continue;
-          }
-
-          const watermarkedFile = await applyWatermarkToImage(dataUrl, {
-            timestamp: new Date(),
-            phaseLabel,
-          });
-
-          const evidenceInfo = await uploadEvidence({
-            reportId: uploadId,
-            reportType: "work",
-            file: watermarkedFile,
-            subsystem: effectiveSubsistema || currentValues.subsistema,
-            fechaHoraInicio: currentValues.fechaHoraInicio,
-            skipDbRecord: true,
-          });
-
-          updated.push({
-            ...evidence,
-            s3Key: evidenceInfo.key,
-            previewUrl: await resolvePreviewUrlForKey(evidenceInfo.key),
-            syncState: "synced",
-            isLocked: true,
-          });
-        }
-
-        return {
-          ...phase,
-          evidences: updated,
-        };
-      };
-
-      const uploadedAntes = await uploadPhaseEvidences("antes", "Previo a la actividad");
-      const uploadedDurante = await uploadPhaseEvidences("durante", "Durante la actividad");
-      const uploadedDespues = await uploadPhaseEvidences("despues", "Finalizada la actividad");
-      const nextPhases = {
-        antes: uploadedAntes,
-        durante: uploadedDurante,
-        despues: uploadedDespues,
-      };
-      setEvidencePhases(nextPhases);
-
-      await persistDraftSnapshot(nextPhases);
-
-      alert("Borrador guardado correctamente");
-    } catch (error) {
-      console.error("Error saving draft:", error);
-      alert("No se pudo guardar el borrador");
+      setDraftStatus("saved");
+      alert("Borrador guardado localmente de forma exitosa.");
+    } catch (e) {
+      console.error("Error saving draft", e);
+      setDraftStatus("error");
+      alert("Error al guardar el borrador.");
     }
   };
 
@@ -977,7 +828,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
     // Upload evidences for each activity
     for (const activity of selectedActivities) {
       if (!activity.evidencias || activity.evidencias.length === 0) {
-        evidenceMap.set(activity.template._id || activity.id, []);
+        evidenceMap.set(activity.template.id || activity.id, []);
         continue;
       }
 
@@ -1048,7 +899,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
           // Continue with other uploads even if one fails
         }
       }
-      evidenceMap.set(activity.template._id || activity.id, activityEvidences);
+      evidenceMap.set(activity.template.id || activity.id, activityEvidences);
     }
 
     return evidenceMap;
@@ -1114,7 +965,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
     // For now, send empty evidencias array - they will be uploaded separately after report creation
     // The backend will link them via the storage system
     const actividadesConEvidencias = selectedActivitiesData.map((act) => ({
-      templateId: act.template._id || act.id,
+      templateId: act.template.id || act.id,
       nombre: act.name,
       realizado: true,
       observaciones: act.observaciones,
@@ -1150,11 +1001,11 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
         ...restData,
         firmaResponsable: firmaResponsableKey, // Use S3 key instead of base64
         subsistema: effectiveSubsistema, // Use custom subsystem if "Otros" is selected
-        frecuencia: effectiveFrecuencia, // Use custom frequency if "Otros" is selected
+        frecuencia: effectiveFrecuencia === "N/A" ? "" : effectiveFrecuencia, // Map N/A back to empty for backend
         actividadesRealizadas: actividadesConEvidencias,
-        templateIds: selectedActivitiesData.map((a) => a.template._id || a.id),
-        tipoMantenimiento:
-          selectedActivitiesData[0]?.template.tipoMantenimiento || "Preventivo",
+        templateIds: selectedActivitiesData.map((a) => a.template.id || a.id),
+        maintenanceType:
+          selectedActivitiesData[0]?.template.maintenanceType || "Preventivo",
         // Legacy fields required by backend
         inspeccionRealizada: actividadesConEvidencias[0]?.realizado ?? false,
         observacionesActividad:
@@ -1275,7 +1126,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
             // Store all evidences in the first activity for now (backend compatibility)
             const updatedActividades = selectedActivitiesData.map((act, index) => {
               return {
-                templateId: act.template._id || act.id,
+                templateId: act.template.id || act.id,
                 nombre: act.name,
                 realizado: true,
                 observaciones: act.observaciones,
@@ -1300,12 +1151,7 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
         }
 
         if (typeof window !== "undefined" && user?.id) {
-          const draftId = buildDraftId(user.id, "work");
-          
-          // Delete local IndexedDB draft only
-          await deleteDraftRecord(draftId);
-          const blobs = await listDraftBlobs(draftId);
-          await Promise.all(blobs.map((blob: any) => deleteDraftBlob(blob.id)));
+          await draftsDB.deleteDraft(user.id, "work");
           console.log("✅ Local draft deleted successfully");
         }
 
@@ -1507,11 +1353,31 @@ export const NewWorkReportPage: React.FC<NewWorkReportPageProps> = ({
                               />
                             </SelectTrigger>
                             <SelectContent>
-                              {frequencies.map((freq) => (
-                                <SelectItem key={freq.code} value={freq.code}>
-                                  {freq.label}
-                                </SelectItem>
-                              ))}
+                              {frequencies.map((freq: any) => {
+                                const safeCode = freq.code || "N/A";
+                                // Map frequency labels to readable Spanish
+                                const friendlyLabel = (() => {
+                                  const code = (freq.code || "").toUpperCase();
+                                  const labelMap: Record<string, string> = {
+                                    "1A": "Anual (1 año)",
+                                    "6M": "Semestral (6 meses)",
+                                    "3M": "Trimestral (3 meses)",
+                                    "2M": "Bimestral (2 meses)",
+                                    "1M": "Mensual (1 mes)",
+                                    "2S": "Quincenal (2 semanas)",
+                                    "1S": "Semanal (1 semana)",
+                                    "1D": "Diario",
+                                    "2A": "Bianual (2 años)",
+                                    "5A": "Quinquenal (5 años)",
+                                  };
+                                  return labelMap[code] || freq.label || "N/A";
+                                })();
+                                return (
+                                  <SelectItem key={safeCode} value={safeCode}>
+                                    {friendlyLabel}
+                                  </SelectItem>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
                         )}

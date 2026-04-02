@@ -22,10 +22,10 @@ export function useTemplate(id: string | undefined) {
 }
 
 export function useTemplateForReport(params: {
-  tipoReporte: "work" | "warehouse";
-  subsistema?: string;
-  tipoMantenimiento?: string;
-  frecuencia?: string;
+  reportType: "work" | "warehouse";
+  subsystem?: string;
+  maintenanceType?: string;
+  frequency?: string;
 }) {
   return useQuery({
     queryKey: ["templateForReport", params],
@@ -33,58 +33,56 @@ export function useTemplateForReport(params: {
       const list = await fetchTemplates(params);
       return list[0] ?? null;
     },
-    enabled: !!params.tipoReporte && !!params.subsistema,
+    enabled: !!params.reportType && !!params.subsystem,
   });
 }
 
 export function useTemplateFilters(
-  tipoReporte: "work" | "warehouse",
-  subsistema?: string,
-  tipoMantenimiento?: string,
+  reportType: "work" | "warehouse",
+  subsystem?: string,
+  maintenanceType?: string,
 ) {
   return useQuery({
     queryKey: [
       "templateFilters",
-      tipoReporte,
-      subsistema ?? "ALL",
-      tipoMantenimiento ?? "ALL",
+      reportType,
+      subsystem ?? "ALL",
+      maintenanceType ?? "ALL",
     ],
     queryFn: () =>
-      fetchTemplateFilters({ tipoReporte, subsistema, tipoMantenimiento }),
-    enabled: !!tipoReporte,
+      fetchTemplateFilters({ reportType, subsystem, maintenanceType }),
+    enabled: !!reportType,
   });
 }
 
 export function useActivitiesBySubsystemAndFrequency(params: {
-  tipoReporte: "work" | "warehouse";
-  subsistema?: string;
-  frecuenciaCodigo?: string;
+  reportType: "work" | "warehouse";
+  subsystem?: string;
+  frequencyCode?: string;
 }) {
-  const { tipoReporte, subsistema, frecuenciaCodigo } = params;
+  const { reportType, subsystem, frequencyCode } = params;
 
   return useQuery({
     queryKey: [
       "activities",
-      tipoReporte,
-      subsistema ?? "NONE",
-      frecuenciaCodigo ?? "NONE",
+      reportType,
+      subsystem ?? "NONE",
+      frequencyCode ?? "NONE",
     ],
     queryFn: async () => {
-      if (!subsistema || !frecuenciaCodigo) return [];
-      // Reuse existing templates endpoint, filtering by tipoReporte, subsistema and frecuenciaCodigo
+      if (!subsystem || !frequencyCode) return [];
       const templates = await fetchTemplates({
-        tipoReporte,
-        subsistema,
-        frecuenciaCodigo,
+        reportType,
+        subsystem,
+        frequencyCode,
       });
-      // Map templates to activities
       return templates.map((t) => ({
-        id: t._id, // Assuming _id is available on the template object from API
-        code: t.frecuenciaCodigo,
-        name: t.nombreCorto ?? t.descripcion ?? "Sin nombre",
-        template: t, // Return full template to access other fields if needed
+        id: t.id,
+        code: t.frequencyCode,
+        name: t.shortName ?? t.description ?? "Sin nombre",
+        template: t,
       }));
     },
-    enabled: !!subsistema && !!frecuenciaCodigo,
+    enabled: !!subsystem && !!frequencyCode,
   });
 }

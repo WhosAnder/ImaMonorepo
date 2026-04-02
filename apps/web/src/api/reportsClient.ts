@@ -1,4 +1,4 @@
-import { REPORTS_URL } from "@/config/env";
+import { REPORTS_URL } from "../config/env";
 
 // ============================================================================
 // Types matching the Go reports microservice model

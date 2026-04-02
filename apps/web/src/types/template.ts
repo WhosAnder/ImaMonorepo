@@ -5,31 +5,26 @@ export interface TemplateSectionConfig {
 }
 
 export interface Template {
-  _id: string;
-  tipoReporte: "work" | "warehouse";
-  subsistema: string;
-  tipoMantenimiento: string;
-  frecuencia: string;
-  frecuenciaCodigo: string;
-  nombreCorto: string;
-  descripcion?: string;
-  codigoMantenimiento?: string;
-  secciones: {
-    actividad: TemplateSectionConfig;
-    herramientas: TemplateSectionConfig;
-    refacciones: TemplateSectionConfig;
-    observacionesGenerales: TemplateSectionConfig;
-    fechas: TemplateSectionConfig;
-    firmas: TemplateSectionConfig;
-  };
-  activo: boolean;
+  id: string;
+  reportType: "work" | "warehouse";
+  subsystem: string;
+  maintenanceType: string;
+  frequency: string;
+  frequencyCode: string;
+  activityNumber?: number;
+  maintenanceCode?: string;
+  shortName: string;
+  description?: string;
+  sections: Record<string, TemplateSectionConfig>;
+  active: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
 
 export interface TemplateFilters {
-  tipoReporte?: "work" | "warehouse";
-  subsistema?: string;
-  tipoMantenimiento?: string;
-  frecuencia?: string;
+  reportType?: "work" | "warehouse";
+  subsystem?: string;
+  maintenanceType?: string;
+  frequency?: string;
+  frequencyCode?: string;
 }

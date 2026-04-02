@@ -1,25 +1,25 @@
-import { API_URL } from "@/config/env";
+import { REPORTS_URL } from "@/config/env";
 import { Template, TemplateFilters } from "@/types/template";
 
 export type TemplateFiltersResponse = {
-  subsistemas: string[];
-  tiposMantenimiento: string[];
-  frecuencias: { code: string; label: string }[];
+  subsystems: string[];
+  maintenanceTypes: string[];
+  frequencies: { code: string; label: string }[];
 };
 
 export async function fetchTemplateFilters(params: {
-  tipoReporte: "work" | "warehouse";
-  subsistema?: string;
-  tipoMantenimiento?: string;
+  reportType: "work" | "warehouse";
+  subsystem?: string;
+  maintenanceType?: string;
 }): Promise<TemplateFiltersResponse> {
   const query = new URLSearchParams();
-  query.append("tipoReporte", params.tipoReporte);
-  if (params.subsistema) query.append("subsistema", params.subsistema);
-  if (params.tipoMantenimiento)
-    query.append("tipoMantenimiento", params.tipoMantenimiento);
+  query.append("reportType", params.reportType);
+  if (params.subsystem) query.append("subsystem", params.subsystem);
+  if (params.maintenanceType)
+    query.append("maintenanceType", params.maintenanceType);
 
   const response = await fetch(
-    `${API_URL}/api/templates/filters?${query.toString()}`,
+    `${REPORTS_URL}/templates/filters?${query.toString()}`,
   );
   if (!response.ok) {
     throw new Error("Failed to fetch template filters");
@@ -28,18 +28,20 @@ export async function fetchTemplateFilters(params: {
 }
 
 export async function fetchTemplates(
-  filters: TemplateFilters & { frecuenciaCodigo?: string } = {},
+  filters: TemplateFilters & { frequencyCode?: string } = {},
 ): Promise<Template[]> {
   const params = new URLSearchParams();
-  if (filters.tipoReporte) params.append("tipoReporte", filters.tipoReporte);
-  if (filters.subsistema) params.append("subsistema", filters.subsistema);
-  if (filters.tipoMantenimiento)
-    params.append("tipoMantenimiento", filters.tipoMantenimiento);
-  if (filters.frecuencia) params.append("frecuencia", filters.frecuencia);
-  if (filters.frecuenciaCodigo)
-    params.append("frecuenciaCodigo", filters.frecuenciaCodigo);
+  if (filters.reportType) params.append("reportType", filters.reportType);
+  if (filters.subsystem) params.append("subsystem", filters.subsystem);
+  if (filters.maintenanceType)
+    params.append("maintenanceType", filters.maintenanceType);
+  if (filters.frequency) params.append("frequency", filters.frequency);
+  if (filters.frequencyCode)
+    params.append("frequencyCode", filters.frequencyCode);
 
-  const response = await fetch(`${API_URL}/api/templates?${params.toString()}`);
+  const response = await fetch(
+    `${REPORTS_URL}/templates?${params.toString()}`,
+  );
   if (!response.ok) {
     throw new Error("Failed to fetch templates");
   }
@@ -47,7 +49,7 @@ export async function fetchTemplates(
 }
 
 export async function fetchTemplateById(id: string): Promise<Template> {
-  const response = await fetch(`${API_URL}/api/templates/${id}`);
+  const response = await fetch(`${REPORTS_URL}/templates/${id}`);
   if (!response.ok) {
     throw new Error("Failed to fetch template");
   }
