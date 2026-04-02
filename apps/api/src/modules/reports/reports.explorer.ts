@@ -1,6 +1,7 @@
 import {
   getWorkReportCollection,
   getWarehouseReportCollection,
+  getUnifiedReportCollection,
 } from "../../db/mongo";
 import { Collection, Document } from "mongodb";
 
@@ -97,7 +98,7 @@ function buildSubsystemSlugField() {
   };
 }
 
-async function getCollection(
+async function getLegacyCollection(
   type: "work" | "warehouse",
 ): Promise<Collection<Document>> {
   if (type === "work") {
@@ -115,18 +116,35 @@ async function getCollection(
  */
 async function getSubsystemFolders(
   collection: Collection<Document>,
+  addMatch?: object
 ): Promise<ReportExplorerNode[]> {
-  const pipeline = [
+  const pipeline: any[] = [];
+  if (addMatch) pipeline.push({ $match: addMatch });
+  pipeline.push(
+    {
+      $addFields: {
+        _subsystemResolved: {
+          $let: {
+            vars: {
+              raw: { $ifNull: ["$subsistema", "$subsystem", ""] },
+            },
+            in: {
+              $cond: [{ $eq: ["$$raw", ""] }, "General", "$$raw"],
+            },
+          },
+        },
+      },
+    },
     {
       $group: {
-        _id: { $ifNull: ["$subsistema", "$subsystem", "General"] },
+        _id: "$_subsystemResolved",
         count: { $sum: 1 },
       },
     },
     {
       $sort: { _id: 1 as const },
-    },
-  ];
+    }
+  );
 
   const results = await collection.aggregate(pipeline).toArray();
 
@@ -161,6 +179,7 @@ async function resolveSubsystemFromSlug(
 async function getYearFolders(
   collection: Collection<Document>,
   subsystemSlug: string,
+  addMatch?: object
 ): Promise<ReportExplorerNode[]> {
   // Resolve slug to original subsystem name
   const subsystemName = await resolveSubsystemFromSlug(collection, subsystemSlug);
@@ -168,7 +187,10 @@ async function getYearFolders(
     return [];
   }
 
-  const pipeline = [
+  const pipeline: any[] = [];
+  if (addMatch) pipeline.push({ $match: addMatch });
+  pipeline.push(
+    ...[
     {
       $addFields: {
         _dateField: { $ifNull: ["$createdAt", "$fecha"] },
@@ -190,8 +212,8 @@ async function getYearFolders(
     },
     {
       $sort: { _id: -1 as const }, // Newest years first
-    },
-  ];
+    }
+  ]);
 
   const results = await collection.aggregate(pipeline).toArray();
 
@@ -215,6 +237,7 @@ async function getMonthFolders(
   collection: Collection<Document>,
   subsystemSlug: string,
   year: number,
+  addMatch?: object
 ): Promise<ReportExplorerNode[]> {
   // Resolve slug to original subsystem name
   const subsystemName = await resolveSubsystemFromSlug(collection, subsystemSlug);
@@ -222,7 +245,10 @@ async function getMonthFolders(
     return [];
   }
 
-  const pipeline = [
+  const pipeline: any[] = [];
+  if (addMatch) pipeline.push({ $match: addMatch });
+  pipeline.push(
+    ...[
     {
       $addFields: {
         _dateField: { $ifNull: ["$createdAt", "$fecha"] },
@@ -245,8 +271,8 @@ async function getMonthFolders(
     },
     {
       $sort: { _id: 1 as const }, // Months in order
-    },
-  ];
+    }
+  ]);
 
   const results = await collection.aggregate(pipeline).toArray();
 
@@ -272,6 +298,7 @@ async function getDayFolders(
   subsystemSlug: string,
   year: number,
   month: number,
+  addMatch?: object
 ): Promise<ReportExplorerNode[]> {
   // Resolve slug to original subsystem name
   const subsystemName = await resolveSubsystemFromSlug(collection, subsystemSlug);
@@ -279,7 +306,10 @@ async function getDayFolders(
     return [];
   }
 
-  const pipeline = [
+  const pipeline: any[] = [];
+  if (addMatch) pipeline.push({ $match: addMatch });
+  pipeline.push(
+    ...[
     {
       $addFields: {
         _dateField: { $ifNull: ["$createdAt", "$fecha"] },
@@ -307,8 +337,8 @@ async function getDayFolders(
     },
     {
       $sort: { _id: -1 as const }, // Newest days first
-    },
-  ];
+    }
+  ]);
 
   const results = await collection.aggregate(pipeline).toArray();
 
@@ -338,6 +368,7 @@ async function getReportsForDay(
   month: number,
   day: number,
   reportType: "work" | "warehouse",
+  addMatch?: object
 ): Promise<ReportItem[]> {
   // Resolve slug to original subsystem name
   const subsystemName = await resolveSubsystemFromSlug(collection, subsystemSlug);
@@ -345,7 +376,10 @@ async function getReportsForDay(
     return [];
   }
 
-  const pipeline = [
+  const pipeline: any[] = [];
+  if (addMatch) pipeline.push({ $match: addMatch });
+  pipeline.push(
+    ...[
     {
       $addFields: {
         _dateField: { $ifNull: ["$createdAt", "$fecha"] },
@@ -382,8 +416,8 @@ async function getReportsForDay(
     },
     {
       $sort: { _dateField: -1 as const },
-    },
-  ];
+    }
+  ]);
 
   const results = await collection.aggregate(pipeline).toArray();
 
@@ -409,70 +443,81 @@ async function getReportsForDay(
 export async function explorerListReports(
   params: ReportExplorerParams,
 ): Promise<ReportExplorerResponse> {
-  const collection = await getCollection(params.type);
+  const legacyCollection = await getLegacyCollection(params.type);
+  const unifiedCollection = await getUnifiedReportCollection();
 
-  // Level 1: Subsystems (root level)
+  // Helper to run pipeline on both collections and merge
+  async function runOnBoth<T>(
+    fn: (col: Collection<Document>, addMatch?: object) => Promise<T[]>
+  ): Promise<T[]> {
+    const [legacy, unified] = await Promise.all([
+      fn(legacyCollection),
+      fn(unifiedCollection, { reportType: params.type })
+    ]);
+    return [...legacy, ...unified];
+  }
+
+  // Level 1: Subsystems
   if (!params.subsystemSlug) {
-    const folders = await getSubsystemFolders(collection);
-    return {
-      path: params,
-      folders,
-      reports: [],
-    };
+    const raw = await runOnBoth(c => getSubsystemFolders(c));
+    const merged = Array.from(raw.reduce((acc, curr) => {
+      const ex = acc.get(curr.id) || { ...curr, count: 0 };
+      ex.count += curr.count;
+      acc.set(curr.id, ex);
+      return acc;
+    }, new Map<string, ReportExplorerNode>()).values());
+    
+    return { path: params, folders: merged.sort((a,b) => a.id.localeCompare(b.id)), reports: [] };
   }
 
   // Level 2: Years
   if (params.year === undefined) {
-    const folders = await getYearFolders(collection, params.subsystemSlug);
-    return {
-      path: params,
-      folders,
-      reports: [],
-    };
+    const raw = await runOnBoth(c => getYearFolders(c, params.subsystemSlug!));
+    const merged = Array.from(raw.reduce((acc, curr) => {
+      const ex = acc.get(curr.id) || { ...curr, count: 0 };
+      ex.count += curr.count;
+      acc.set(curr.id, ex);
+      return acc;
+    }, new Map<string, ReportExplorerNode>()).values());
+    
+    return { path: params, folders: merged.sort((a,b) => (b.year||0) - (a.year||0)), reports: [] };
   }
 
   // Level 3: Months
   if (params.month === undefined) {
-    const folders = await getMonthFolders(
-      collection,
-      params.subsystemSlug,
-      params.year,
-    );
-    return {
-      path: params,
-      folders,
-      reports: [],
-    };
+    const raw = await runOnBoth(c => getMonthFolders(c, params.subsystemSlug!, params.year!));
+    const merged = Array.from(raw.reduce((acc, curr) => {
+      const ex = acc.get(curr.id) || { ...curr, count: 0 };
+      ex.count += curr.count;
+      acc.set(curr.id, ex);
+      return acc;
+    }, new Map<string, ReportExplorerNode>()).values());
+    
+    return { path: params, folders: merged.sort((a,b) => (a.month||0) - (b.month||0)), reports: [] };
   }
 
   // Level 4: Days
   if (params.day === undefined) {
-    const folders = await getDayFolders(
-      collection,
-      params.subsystemSlug,
-      params.year,
-      params.month,
-    );
-    return {
-      path: params,
-      folders,
-      reports: [],
-    };
+    const raw = await runOnBoth(c => getDayFolders(c, params.subsystemSlug!, params.year!, params.month!));
+    const merged = Array.from(raw.reduce((acc, curr) => {
+      const ex = acc.get(curr.id) || { ...curr, count: 0 };
+      ex.count += curr.count;
+      acc.set(curr.id, ex);
+      return acc;
+    }, new Map<string, ReportExplorerNode>()).values());
+    
+    return { path: params, folders: merged.sort((a,b) => (b.day||0) - (a.day||0)), reports: [] };
   }
 
-  // Level 5: Reports (leaf level)
-  const reports = await getReportsForDay(
-    collection,
-    params.subsystemSlug,
-    params.year,
-    params.month,
-    params.day,
-    params.type,
-  );
+  // Level 5: Reports
+  const rawReports = await runOnBoth(c => getReportsForDay(c, params.subsystemSlug!, params.year!, params.month!, params.day!, params.type));
+  // Deduplicate and sort by date descending
+  const uniqueReports = Array.from(new Map(rawReports.map(r => [r.id, r])).values());
+  uniqueReports.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
   return {
     path: params,
     folders: [],
-    reports,
+    reports: uniqueReports,
   };
 }

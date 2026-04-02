@@ -1,4 +1,4 @@
-import { MongoClient, Collection } from "mongodb";
+import { MongoClient, Collection, Document } from "mongodb";
 import dotenv from "dotenv";
 import { Template } from "../modules/templates/templates.types";
 
@@ -45,6 +45,14 @@ export async function getWarehouseReportCollection(): Promise<
   const client = await getClient();
   const db = client.db(dbName);
   return db.collection<WarehouseReport>("warehouse_reports");
+}
+
+export async function getUnifiedReportCollection(): Promise<
+  Collection<Document>
+> {
+  const client = await getClient();
+  const db = client.db("reports_service");
+  return db.collection("reports");
 }
 
 export async function getWarehouseStockCollection(): Promise<
